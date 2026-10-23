@@ -11,7 +11,7 @@ Modified by xACTDx · English and Bahasa Indonesia
 
 [GitHub](https://github.com/faizaldjoo/weatherglass-tv) · [Free My TV](https://github.com/simbasjungles/free-my-tv) · [What's different](#whats-different) · [Install](#install) · [Settings](#settings)
 
-<img src=".github/preview.webp" width="880" alt="The home screen: a glass shelf of apps, trending picks, and a drawer with the weather and prices">
+<img src=".github/preview.webp" width="880" alt="Weatherglass TV at night: the ink mountains under the moon, the greeting and date, a big clock, the weather, the next prayer, exchange rates and a glass shelf of apps with the CCTV tile">
 
 </div>
 
