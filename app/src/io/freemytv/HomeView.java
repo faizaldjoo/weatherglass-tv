@@ -1926,7 +1926,20 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         fill.setColor(tone(0x1A000000, 0x24FFFFFF));
         c.drawRoundRect(split - k, r.top + 34 * k, split + k, r.bottom - 34 * k, k, k, fill);
         boolean narrow = r.width() < 900 * k;
-        int hours = narrow ? 5 : 6;
+        if (narrow) {
+            // Next to the prayer times: six hours as a 3 × 2 grid, each the hour above its symbol and temperature,
+            // so nothing runs together
+            float gx = split + 26 * k, gw = (r.right - 26 * k - gx) / 3;
+            for (int i = 0; i < wx.hours.size() && i < 6; i++) {
+                float hc = gx + gw * (i % 3 + 0.5f), row = r.top + (i < 3 ? 0 : 118) * k;
+                c.drawText(hourText[i], hc, row + 92 * k, hourPaint);
+                Symbols.draw(getContext(), c, Symbols.weather(wx.hourCode.get(i), wx.hourDay.get(i)), hc - 24 * k,
+                        row + 134 * k, 26 * k, drawerInk(0.9f));
+                c.drawText(hourTempText[i], hc + 18 * k, row + 134 * k + Ui.halfCap(hourTemp), hourTemp);
+            }
+            return;   // no room for sunrise and sunset here (Maghrib is the sunset)
+        }
+        int hours = 6;
         float hx = split + 30 * k, hw = (r.right - 30 * k - hx) / hours;
         for (int i = 0; i < wx.hours.size() && i < hours; i++) {
             float hc = hx + hw * (i + 0.5f);
@@ -1935,7 +1948,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             c.drawText(hourTempText[i], hc, r.top + 196 * k, hourTemp);
         }
         float sx = hx, base = r.top + 258 * k;
-        if (narrow) return;   // next to the prayer times: no room for sunrise and sunset (Maghrib is the sunset)
         if (wx.sunrise != 0) sx = sunItem(c, "sunrise", sunriseText, sx, base) + 36 * k;
         if (wx.sunset != 0) sunItem(c, "sunset", sunsetText, sx, base);
     }
@@ -3176,7 +3188,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             pNum = Ui.numbers(Ui.light, 80, 0xFFFFFFFF);
             pCond = Ui.text(Ui.medium, 24, 0xFFFFFFFF);
             pDay = Ui.text(Ui.medium, 24, 0xFFFFFFFF);
-            pSoft = Ui.text(Ui.medium, 20, 0xFFFFFFFF);
+            pSoft = Ui.text(Ui.medium, 23, 0xFFFFFFFF);
         }
         // Everything scales with Settings → Appearance → Text size, from the top left corner
         float u = cU = k * Prefs.textScale();
@@ -3184,9 +3196,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         pTime.setTextSize(216 * u);
         pTemp.setTextSize(80 * u);
         pNum.setTextSize(80 * u);
-        pCond.setTextSize(24 * u);
-        pDay.setTextSize(24 * u);
-        pSoft.setTextSize(20 * u);
+        pCond.setTextSize(26 * u);
+        pDay.setTextSize(26 * u);
+        pSoft.setTextSize(23 * u);
         float ox = MARGIN * k, oy = (L_BUTTON_CY - 36) * k;   // the pill's middle is level with the corner buttons'
         float gap = 20 * u, waveW = 32 * u;
 
@@ -3202,12 +3214,12 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             String city = Prefs.city().isEmpty() ? Config.CITY : Prefs.city();
             cTempText = HomeData.degrees(wx.temp);
             cCondText = HomeData.condition(wx.code, wx.isDay);
-            cHlText = (city.isEmpty() ? "" : city + "   ")
+            cHlText = (city.isEmpty() ? "" : city + "     ")
                     + (Ui.indo ? "T " : Ui.de ? "H " : Ui.en ? "H " : "Máx. ") + HomeData.degrees(wx.max) + "  "
                     + (Ui.indo ? "R " : Ui.de ? "T " : Ui.en ? "L " : "Mín. ") + HomeData.degrees(wx.min);
             cSymbol = Symbols.weather(wx.code, wx.isDay);
             cSymSize = iconH;
-            float pin = city.isEmpty() ? 0 : 20 * u + 8 * u;
+            float pin = city.isEmpty() ? 0 : 23 * u + 10 * u;
             float text = Math.max(pTemp.measureText(cTempText), Math.max(pCond.measureText(cCondText), pin + pSoft.measureText(cHlText)));
             wxW = 34 * u + text + 18 * u + iconH * WeatherIcons.ASPECT + 30 * u;
             cWxPin = pin;
@@ -3216,7 +3228,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         cNumText = String.valueOf(java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_MONTH));
         cDayText = Ui.dayMonth(now);
         cNoteText = prayers ? prayerLine : "";
-        cNoteSym = prayers ? Symbols.width(getContext(), "bedtime", 20 * u) + 8 * u : 0;
+        cNoteSym = prayers ? Symbols.width(getContext(), "bedtime", 23 * u) + 10 * u : 0;
         float dateW = 34 * u + Math.max(pNum.measureText(cNumText), Math.max(pDay.measureText(cDayText), cNoteSym + pSoft.measureText(cNoteText))) + 34 * u;
 
         // One width for the whole block: the widest of the pill, the clock, and the weather and date side by side
@@ -3241,13 +3253,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         cTimeX = cTime.centerX() - timeInk / 2 - lb;
         cTimeBase = cTime.centerY() + Ui.halfCap(pTime);
 
-        float rowTop = cTime.bottom + gap, rowBottom = rowTop + 176 * u, x = ox;
+        float rowTop = cTime.bottom + gap, rowBottom = rowTop + 200 * u, x = ox;
         if (weather) {
             cWx.set(x, rowTop, x + wxW, rowBottom);
             cWxX = x + 34 * u;
-            cTempBase = rowTop + 24 * u + Ui.cap(pTemp);
-            cCondBase = cTempBase + 40 * u;
-            cHlBase = rowBottom - 26 * u;
+            cTempBase = rowTop + 28 * u + Ui.cap(pTemp);
+            cCondBase = cTempBase + 46 * u;
+            cHlBase = rowBottom - 30 * u;
             cSymX = cWx.right - 30 * u - iconH * WeatherIcons.ASPECT / 2;
             cSymY = cWx.centerY();
             x = cWx.right + gap;
@@ -3256,9 +3268,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         }
         cDate.set(x, rowTop, x + dateW, rowBottom);
         cDateX = x + 34 * u;
-        cNumBase = rowTop + 24 * u + Ui.cap(pNum);
-        cDayBase = cNumBase + 40 * u;
-        cNoteBase = rowBottom - 26 * u;
+        cNumBase = rowTop + 28 * u + Ui.cap(pNum);
+        cDayBase = cNumBase + 46 * u;
+        cNoteBase = rowBottom - 30 * u;
     }
 
     /** The clock layout: the greeting pill, the clock card, and the weather and date cards, on the shelf's glass. */
@@ -3289,7 +3301,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             pSoft.setColor(soft);
             c.drawText(cTempText, cWxX, cTempBase, pTemp);
             c.drawText(cCondText, cWxX, cCondBase, pCond);
-            if (cWxPin > 0) WeatherIcons.pin(getContext(), c, cWxX + 10 * u, cHlBase - Ui.halfCap(pSoft), 20 * u, soft);
+            if (cWxPin > 0) WeatherIcons.pin(getContext(), c, cWxX + 11 * u, cHlBase - Ui.halfCap(pSoft), 23 * u, soft);
             c.drawText(cHlText, cWxX + cWxPin, cHlBase, pSoft);
             if (!WeatherIcons.draw(getContext(), c, cSymbol, cSymX, cSymY, cSymSize)) {
                 Symbols.draw(getContext(), c, cSymbol, cSymX, cSymY, cSymSize * 0.8f, fg);
@@ -3302,7 +3314,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         c.drawText(cNumText, cDateX, cNumBase, pNum);
         c.drawText(cDayText, cDateX, cDayBase, pDay);
         if (!cNoteText.isEmpty()) {
-            Symbols.draw(getContext(), c, "bedtime", cDateX + (cNoteSym - 8 * u) / 2, cNoteBase - Ui.halfCap(pSoft), 20 * u, soft);
+            Symbols.draw(getContext(), c, "bedtime", cDateX + (cNoteSym - 10 * u) / 2, cNoteBase - Ui.halfCap(pSoft), 23 * u, soft);
             c.drawText(cNoteText, cDateX + cNoteSym, cNoteBase, pSoft);
         }
     }
