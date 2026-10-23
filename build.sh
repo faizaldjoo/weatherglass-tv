@@ -20,20 +20,23 @@ JAVAC="${JAVA_HOME:+$JAVA_HOME/bin/}javac"
 KEYTOOL="${JAVA_HOME:+$JAVA_HOME/bin/}keytool"
 command -v "$JAVAC" >/dev/null 2>&1 || { echo "JDK not found. Install JDK 17 and set JAVA_HOME."; exit 1; }
 
-# --- Settings: config.properties -> Config.java
-if [ ! -f config.properties ]; then
+# --- Settings: config.properties (or CONFIG=release.properties for the download build) -> Config.java
+CONFIG="${CONFIG:-config.properties}"
+APK="${APK:-FreeMyTV.apk}"
+if [ ! -f "$CONFIG" ]; then
+  [ "$CONFIG" = config.properties ] || { echo "$CONFIG not found."; exit 1; }
   cp config.example.properties config.properties
   echo "Created config.properties: add your TMDB key and your city there (optional), then build again."
 fi
 prop() {
   local v
-  v="$(grep -E "^[[:space:]]*$1[[:space:]]*=" config.properties | tail -1 | cut -d= -f2- || true)"
+  v="$(grep -E "^[[:space:]]*$1[[:space:]]*=" "$CONFIG" | tail -1 | cut -d= -f2- || true)"
   v="$(printf '%s' "$v" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | tr -d '"\\')"
   printf '%s' "${v:-$2}"
 }
 number() {
   local v; v="$(prop "$1" "$2")"
-  [[ "$v" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || { echo "config.properties: $1 must be a number (got \"$v\")" >&2; exit 1; }
+  [[ "$v" =~ ^-?[0-9]+(\.[0-9]+)?$ ]] || { echo "$CONFIG: $1 must be a number (got \"$v\")" >&2; exit 1; }
   printf '%s' "$v"
 }
 LAT="$(number latitude 40.7128)"
@@ -139,5 +142,5 @@ if [ ! -f freemytv.keystore ]; then
   "$KEYTOOL" -genkeypair -keystore freemytv.keystore -alias freemytv -keyalg RSA -keysize 2048 -validity 20000 \
     -storepass freemytv -keypass freemytv -dname "CN=Free My TV" >/dev/null 2>&1
 fi
-"$BT/apksigner$BAT" sign --ks freemytv.keystore --ks-pass pass:freemytv --key-pass pass:freemytv --out FreeMyTV.apk out/aligned.apk
-echo "Built FreeMyTV.apk ($(du -h FreeMyTV.apk | cut -f1)). Install: adb install -r FreeMyTV.apk"
+"$BT/apksigner$BAT" sign --ks freemytv.keystore --ks-pass pass:freemytv --key-pass pass:freemytv --out "$APK" out/aligned.apk
+echo "Built $APK ($(du -h "$APK" | cut -f1)). Install: adb install -r $APK"

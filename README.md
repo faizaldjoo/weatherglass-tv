@@ -53,6 +53,18 @@ About ten minutes. You need a Google TV or Android TV (Android 9 or newer) and a
 
 Works on Android TV and Google TV 9+ (Sharp, Xiaomi, Polytron, Coocaa, Sony, Philips…). Tested on TCL (Android 11) and Hisense (Android 12).
 
+### Without a computer: download the APK
+
+A ready-made build is on the [Releases](https://github.com/faizaldjoo/weatherglass-tv/releases/latest) page: no TMDB key (no trending picks), no camera, the city set to Jakarta until you pick yours, prayer times and exchange rates in rupiah on.
+
+1. **On the TV**, turn on developer mode: Settings → System → About → press *Android TV OS build* 7 times. Then Settings → System → Developer options → turn on **USB debugging**. The switch needs it: Weatherglass TV uses the TV's own debugging to change the home screen.
+2. **Install [Downloader](https://play.google.com/store/apps/details?id=com.esaba.downloader)** (by AFTVnews) from Google Play on the TV, and allow it to install apps (Settings → Apps → Security & restrictions → Unknown sources → Downloader).
+3. **In Downloader**, type `github.com/faizaldjoo/weatherglass-tv/releases/latest/download/WeatherglassTV.apk` and install it.
+4. **Open Weatherglass TV** → *Home Screen* → *Weatherglass TV*, and accept the debugging prompt (tick *Always allow*).
+5. **Your city:** Settings → Widgets → City.
+
+On TCL TVs the switch also needs one command from a computer (TCL blocks the background job by default): `adb shell "appops set io.freemytv AUTO_START allow || appops set io.freemytv APP_AUTO_START allow"`. To have your own TMDB key, camera or name in it, build it yourself (below).
+
 ### The easy way: an AI assistant
 
 1. **On the TV**, turn on developer mode: Settings → System → About → press *Android TV OS build* 7 times. Then Settings → System → Developer options → turn on **USB debugging**. Write down the TV's IP address (Settings → Network & Internet).
