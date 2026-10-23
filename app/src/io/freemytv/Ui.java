@@ -219,6 +219,11 @@ final class Ui {
         return (float) (16 * Math.sin(t * 2 * Math.PI * 2.5) * (1 - t) + 4 * Math.sin(t * Math.PI));
     }
 
+    /** "Friday, October" (the day's number goes on its own line in the date card). */
+    static String dayMonth(long now) {
+        return new SimpleDateFormat("EEEE, MMMM", indo ? ID : en ? Locale.US : locale()).format(new Date(now));
+    }
+
     static String date(long now) {
         return indo ? new SimpleDateFormat("EEEE, d MMMM", ID).format(new Date(now))
                 : ru ? new SimpleDateFormat("EEEE, d MMMM", locale()).format(new Date(now))

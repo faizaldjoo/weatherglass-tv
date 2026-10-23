@@ -254,6 +254,19 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private String greetText = "", dateRest = "";
     private float greetW = -1, waveW, restW;
     private long waveAt = -1;   // uptime when the hand last started waving
+
+    // The clock layout as liquid-glass cards (like the shelf): a pill with the city and the greeting, then the time,
+    // the weather and the date. Laid out when their text changes (cardsLayout), drawn in the hero layer.
+    private final RectF cPill = new RectF(), cTime = new RectF(), cWx = new RectF(), cDate = new RectF();
+    private Paint pPill, pTime, pTemp, pCond, pSoft, pNum, pDay;
+    private String cPillText = "", cTempText = "", cCondText = "", cHlText = "", cNumText = "", cDayText = "", cNoteText = "", cSymbol = "";
+    private float cU, cPillTextX, cPillBase, cWaveX, cTimeX, cTimeBase, cWxX, cTempBase, cCondBase, cHlBase, cSymX, cSymY, cSymSize,
+            cDateX, cNumBase, cDayBase, cNoteBase, cNoteSym;
+    // What the layout was made for (compared by reference: these strings are only replaced when they change)
+    private float cK = -1;
+    private int cPrefs = -1;
+    private long cWeatherAt = -1, cPrayerMinute = -1;
+    private String cLang, cClock, cGreet;
     private Paint lAmPm;
     private long weatherLineAt = -1;
     private int weatherLinePrefs = -1;
@@ -3040,13 +3053,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (!picksOn()) {
             // Top left, level with the corner buttons, at the text size from Settings → Appearance (it scales from
             // that corner): the sky stays open above the shelf.
-            float s = Prefs.textScale(), blockTop = L_DATE_BASE - 26, screenTop = L_BUTTON_CY - L_BUTTON / 2;
-            c.save();
-            c.translate(0, screenTop * k);
-            c.scale(s, s, MARGIN * k, 0);
-            c.translate(0, -blockTop * k);
-            drawClock(c);
-            c.restore();
+            drawClockCards(c);
             return;   // the rates are drawn with the shelf (drawPlatter): this layer ends above it
         }
         String hello = Ui.tr("Para você", "For You");
@@ -3085,6 +3092,149 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     /** The For You picks (tabs and cards): with a TMDB key, and not over the ink mountains (that wallpaper stays clear). */
     private boolean picksOn() {
         return Recs.hasKey(getContext()) && !inkOn();
+    }
+
+    /** Lays the cards out again when anything they show changes (text, weather, prayer, text size, language, size). */
+    private void cardsLayout() {
+        long now = System.currentTimeMillis();
+        HomeData.Weather wx = data.weather;
+        boolean weather = Prefs.weather() && !Double.isNaN(wx.temp);
+        boolean prayers = Config.PRAYER_TIMES && refreshPrayers();
+        long prayerAt = prayers ? prayerMinute : -1;
+        if (cK == k && cPrefs == Prefs.version && cLang == Ui.language && cClock == clockText && cGreet == greetText
+                && cWeatherAt == data.weatherAt && cPrayerMinute == prayerAt) return;
+        cK = k;
+        cPrefs = Prefs.version;
+        cLang = Ui.language;
+        cClock = clockText;
+        cGreet = greetText;
+        cWeatherAt = data.weatherAt;
+        cPrayerMinute = prayerAt;
+        if (pPill == null) {
+            pPill = Ui.text(Ui.semibold, 28, 0xFFFFFFFF);
+            pTime = Ui.numbers(Ui.light, 124, 0xFFFFFFFF);
+            pTemp = Ui.numbers(Ui.semibold, 76, 0xFFFFFFFF);
+            pCond = Ui.text(Ui.medium, 28, 0xFFFFFFFF);
+            pSoft = Ui.text(Ui.medium, 22, 0xFFFFFFFF);
+            pNum = Ui.numbers(Ui.semibold, 66, 0xFFFFFFFF);
+            pDay = Ui.text(Ui.medium, 26, 0xFFFFFFFF);
+        }
+        // Everything scales with Settings → Appearance → Text size, from the top left corner
+        float u = cU = k * Prefs.textScale();
+        pPill.setTextSize(28 * u);
+        pTime.setTextSize(124 * u);
+        pTemp.setTextSize(76 * u);
+        pCond.setTextSize(28 * u);
+        pSoft.setTextSize(22 * u);
+        pNum.setTextSize(66 * u);
+        pDay.setTextSize(26 * u);
+        lWave.setTextSize(30 * u);
+        float ox = MARGIN * k, oy = (L_BUTTON_CY - 36) * k;   // the pill's middle is level with the corner buttons'
+
+        // The pill: "Jakarta · Good Evening, Faizal" and the waving hand
+        String city = Prefs.city().isEmpty() ? Config.CITY : Prefs.city();
+        cPillText = city.isEmpty() ? greetText : city + "  ·  " + greetText;
+        float pw = 28 * u + pPill.measureText(cPillText) + 12 * u + lWave.measureText(Ui.WAVE) + 28 * u;
+        cPill.set(ox, oy, ox + pw, oy + 72 * u);
+        cPillTextX = ox + 28 * u;
+        cPillBase = cPill.centerY() + Ui.halfCap(pPill);
+        cWaveX = cPillTextX + pPill.measureText(cPillText) + 12 * u;
+
+        // The time
+        float top = cPill.bottom + 20 * u, bottom = top + 192 * u;
+        float tw = pTime.measureText(clockText) - Ui.leftBearing(pTime, clockText);
+        cTime.set(ox, top, ox + 40 * u + tw + 40 * u, bottom);
+        cTimeX = ox + 40 * u - Ui.leftBearing(pTime, clockText);
+        cTimeBase = cTime.centerY() + Ui.halfCap(pTime);
+        float x = cTime.right + 20 * u;
+
+        // The weather: degrees, condition, high and low, and its symbol
+        if (weather) {
+            cTempText = HomeData.degrees(wx.temp);
+            cCondText = HomeData.condition(wx.code, wx.isDay);
+            cHlText = (Ui.indo ? "T " : Ui.de ? "H " : Ui.en ? "H " : "Máx. ") + HomeData.degrees(wx.max) + "   "
+                    + (Ui.indo ? "R " : Ui.de ? "T " : Ui.en ? "L " : "Mín. ") + HomeData.degrees(wx.min);
+            cSymbol = Symbols.weather(wx.code, wx.isDay);
+            cSymSize = 70 * u;
+            float text = Math.max(pTemp.measureText(cTempText), Math.max(pCond.measureText(cCondText), pSoft.measureText(cHlText)));
+            float sw = Symbols.width(getContext(), cSymbol, cSymSize);
+            cWx.set(x, top, x + 38 * u + text + 30 * u + sw + 36 * u, bottom);
+            cWxX = x + 38 * u;
+            cTempBase = top + 28 * u + Ui.cap(pTemp);
+            cCondBase = cTempBase + 46 * u;
+            cHlBase = cCondBase + 36 * u;
+            cSymX = cWx.right - 36 * u - sw / 2;
+            cSymY = cWx.centerY();
+            x = cWx.right + 20 * u;
+        } else {
+            cWx.setEmpty();
+        }
+
+        // The date: the day's number, "Friday, October", and the next prayer
+        cNumText = String.valueOf(java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_MONTH));
+        cDayText = Ui.dayMonth(now);
+        cNoteText = prayers ? prayerLine : "";
+        cNoteSym = prayers ? Symbols.width(getContext(), "bedtime", 22 * u) + 8 * u : 0;
+        float dw = Math.max(pNum.measureText(cNumText), Math.max(pDay.measureText(cDayText), cNoteSym + pSoft.measureText(cNoteText)));
+        cDate.set(x, top, x + 38 * u + dw + 38 * u, bottom);
+        cDateX = x + 38 * u;
+        cNumBase = top + 30 * u + Ui.cap(pNum);
+        cDayBase = cNumBase + 42 * u;
+        cNoteBase = bottom - 26 * u;
+    }
+
+    /** The clock layout: the pill and the three cards, each on the shelf's liquid glass. */
+    private void drawClockCards(Canvas c) {
+        cardsLayout();
+        float u = cU;
+        glassCard(c, cPill, cPill.height() / 2);
+        glassCard(c, cTime, 44 * u);
+        if (!cWx.isEmpty()) glassCard(c, cWx, 44 * u);
+        glassCard(c, cDate, 44 * u);
+
+        int fg = tone(L_INK, 0xFFFFFFFF), soft = tone(L_DIM, 0xC2FFFFFF);
+        pPill.setColor(fg);
+        c.drawText(cPillText, cPillTextX, cPillBase, pPill);
+        // The hand turns about its wrist
+        float ww = lWave.measureText(Ui.WAVE);
+        c.save();
+        c.rotate(Ui.waveAngle(SystemClock.uptimeMillis() - waveAt), cWaveX + ww * 0.7f, cPillBase);
+        c.drawText(Ui.WAVE, cWaveX, cPillBase + 2 * u, lWave);
+        c.restore();
+
+        pTime.setColor(fg);
+        c.drawText(clockText, cTimeX, cTimeBase, pTime);
+
+        if (!cWx.isEmpty()) {
+            pTemp.setColor(fg);
+            pCond.setColor(fg);
+            pSoft.setColor(soft);
+            c.drawText(cTempText, cWxX, cTempBase, pTemp);
+            c.drawText(cCondText, cWxX, cCondBase, pCond);
+            c.drawText(cHlText, cWxX, cHlBase, pSoft);
+            Symbols.draw(getContext(), c, cSymbol, cSymX, cSymY, cSymSize, fg);
+        }
+
+        pNum.setColor(fg);
+        pDay.setColor(fg);
+        pSoft.setColor(soft);
+        c.drawText(cNumText, cDateX, cNumBase, pNum);
+        c.drawText(cDayText, cDateX, cDayBase, pDay);
+        if (!cNoteText.isEmpty()) {
+            Symbols.draw(getContext(), c, "bedtime", cDateX + (cNoteSym - 8 * u) / 2, cNoteBase - Ui.halfCap(pSoft), 22 * u, soft);
+            c.drawText(cNoteText, cDateX + cNoteSym, cNoteBase, pSoft);
+        }
+    }
+
+    /** One card of the shelf's glass: its soft shadow, then the glass (white by day, smoked at night). */
+    private void glassCard(Canvas c, RectF r, float radius) {
+        float u = cU;
+        tmp.set(r);
+        tmp.offset(0, 14 * u);
+        shadow.setColor(tone(0x1A000000, 0x47000000));
+        shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
+        scene.liquid(c, r, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
+                tone(24, 28) * u, tone(18, 22) * u, tone(0.65f, 0.95f), 1);
     }
 
     private void drawClock(Canvas c) {
