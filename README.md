@@ -159,6 +159,8 @@ With a free [Watchmode](https://api.watchmode.com/) key (`watchmode_key=` in `co
 
 ## Going back
 
+<p align="center"><img src=".github/weatherglass-original.webp" width="760" alt="Going back to the TV's own home screen: ↑ to the gear, OK opens Settings, Home Screen, pick Original, wait while it switches and measures, and the TV's own home screen, screensaver and apps are back"><br><sub>Back to the TV's own home screen in four steps: the gear, Home Screen, Original, a few seconds' wait.</sub></p>
+
 On the TV: *Weatherglass TV* → *Home Screen* → *Original*. The factory home screen, screensaver and every app come back exactly as they were. If the new home screen ever crashes three times in five minutes, it switches back by itself.
 
 To remove it for good, switch to *Original* first, then uninstall *Weatherglass TV* (Settings → Apps). Uninstalled it while it was on? Install it again and pick *Original*: the list of what it turned off is kept in the TV's settings, so everything comes back.
