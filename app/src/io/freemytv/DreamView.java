@@ -110,17 +110,6 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
     private int prayerNext = -1;
     private String prayerLine = "";
     private final RectF box = new RectF();
-    // The ink layout's glass cards (like the home screen's): the pill, time, weather, prayer times and rates
-    private final RectF gPill = new RectF(), gTime = new RectF(), gWx = new RectF(), gPray = new RectF(), gRates = new RectF();
-    private final Shadows shadows = new Shadows();
-    private Paint gFill, gRim, gShadow, gPillText, gClock, gTemp, gCond, gSoft, gHead, gRateCode, gRateValue;
-    private String gPillStr = "", gTemp_ = "", gCond_ = "", gHl = "", gSym = "", gRatesHead = "";
-    private String[] gCodes = new String[0], gValues = new String[0];
-    private float gWaveX, gPillBase, gClockX, gClockBase, gWxX, gTempBase, gCondBase, gHlBase, gSymX, gSymY, gCellsX, gHeadBase,
-            gNameBase, gTimeBase, gRatesX, gRateRow1, gRateRow2, gRateCol2;
-    private final float[] gCellX = new float[5], gCellW = new float[5];
-    private long gMinute = -1, gWeatherAt = -1, gPricesAt = -1;
-    private int gPrefs = -1;
     private final Recs recs;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -263,24 +252,6 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         iPNameOn = Ui.text(Ui.semibold, 26 * k, 0xFFFFFFFF);
         iPTime = Ui.numbers(Ui.regular, 40 * k, 0xFFFFFFFF);
         iPTimeOn = Ui.numbers(Ui.semibold, 40 * k, 0xFFFFFFFF);
-        gFill = new Paint(Paint.ANTI_ALIAS_FLAG);
-        gRim = new Paint(Paint.ANTI_ALIAS_FLAG);
-        gRim.setStyle(Paint.Style.STROKE);
-        gRim.setStrokeWidth(1.5f * Math.max(1, k));
-        gShadow = new Paint(Paint.ANTI_ALIAS_FLAG);
-        gShadow.setMaskFilter(new android.graphics.BlurMaskFilter(26 * k, android.graphics.BlurMaskFilter.Blur.NORMAL));
-        gPillText = Ui.text(Ui.semibold, 30 * k, 0xFFFFFFFF);
-        gClock = Ui.numbers(Ui.light, 200 * k, 0xFFFFFFFF);
-        gTemp = Ui.numbers(Ui.semibold, 104 * k, 0xFFFFFFFF);
-        gCond = Ui.text(Ui.medium, 36 * k, 0xFFFFFFFF);
-        gSoft = Ui.text(Ui.medium, 28 * k, 0xFFFFFFFF);
-        gHead = Ui.text(Ui.semibold, 20 * k, 0xFFFFFFFF);
-        gHead.setLetterSpacing(0.1f);
-        gRateCode = Ui.text(Ui.semibold, 22 * k, 0xFFFFFFFF);
-        gRateCode.setLetterSpacing(0.06f);
-        gRateValue = Ui.numbers(Ui.medium, 30 * k, 0xFFFFFFFF);
-        iWave.setTextSize(30 * k);
-        gMinute = -1;
         iScrim = new Paint(Paint.ANTI_ALIAS_FLAG);
         iBox = new Paint(Paint.ANTI_ALIAS_FLAG);
         float[][] at = {{330, 250, 640}, {1620, 980, 640}, {400, 990, 680}};
@@ -956,171 +927,71 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         int fg = dark ? 0xFFFFFFFF : 0xFF0B1626, dim = dark ? 0xE0FFFFFF : 0xE615263C;
         RadialGradient[] scrims = dark ? scrimDark : scrimLight;
         float[][] at = {{330, 250, 640}, {1620, 980, 640}, {400, 990, 680}};
-        // Only the top left one: the bottom of the sky is clear now
-        iScrim.setShader(scrims[0]);
-        c.drawCircle(at[0][0] * k, at[0][1] * k, at[0][2] * k, iScrim);
-
-        // The cards drift a few pixels over ten minutes, so nothing stays burned in one place
-        float dx = (float) Math.sin(sec * 2 * Math.PI / 600) * 18 * k, dy = (float) Math.cos(sec * 2 * Math.PI / 600) * 12 * k;
-        inkLayout(now);
-        c.save();
-        c.translate(dx, dy);
-        // The glass: white by day, smoked at night (as the home screen's shelf looks on these TVs)
-        gFill.setColor(dark ? 0x80111113 : 0x80FFFFFF);
-        gRim.setColor(dark ? 0x40FFFFFF : 0x99FFFFFF);
-        gShadow.setColor(dark ? 0x47000000 : 0x1A000000);
-        inkCard(c, gPill, gPill.height() / 2);
-        inkCard(c, gTime, 44 * k);
-        if (!gWx.isEmpty()) inkCard(c, gWx, 44 * k);
-        if (!gPray.isEmpty()) inkCard(c, gPray, 44 * k);
-        if (!gRates.isEmpty()) inkCard(c, gRates, 44 * k);
-
-        int soft = dark ? 0xC2FFFFFF : 0xB30B1626;
-        gPillText.setColor(fg);
-        c.drawText(gPillStr, gPill.left + 30 * k, gPillBase, gPillText);
-        float ww = iWave.measureText(Ui.WAVE);
-        c.save();
-        c.rotate(Ui.waveAngle(up - waveAt), gWaveX + ww * 0.7f, gPillBase);
-        c.drawText(Ui.WAVE, gWaveX, gPillBase + 2 * k, iWave);
-        c.restore();
-
-        gClock.setColor(fg);
-        c.drawText(clock, gClockX, gClockBase, gClock);
-
-        if (!gWx.isEmpty()) {
-            gTemp.setColor(fg);
-            gCond.setColor(fg);
-            gSoft.setColor(soft);
-            c.drawText(gTemp_, gWxX, gTempBase, gTemp);
-            c.drawText(gCond_, gWxX, gCondBase, gCond);
-            c.drawText(gHl, gWxX, gHlBase, gSoft);
-            Symbols.draw(getContext(), c, gSym, gSymX, gSymY, 96 * k, fg);
+        for (int i = 0; i < 3; i++) {
+            iScrim.setShader(scrims[i]);
+            c.drawCircle(at[i][0] * k, at[i][1] * k, at[i][2] * k, iScrim);
         }
 
-        if (!gPray.isEmpty()) {
-            gHead.setColor(soft);
-            c.drawText(Ui.tr("HORÁRIOS DE ORAÇÃO", "PRAYER TIMES"), gCellsX, gHeadBase, gHead);
+        // The text drifts a few pixels over ten minutes, so nothing stays burned in one place
+        float dx = (float) Math.sin(sec * 2 * Math.PI / 600) * 18 * k, dy = (float) Math.cos(sec * 2 * Math.PI / 600) * 12 * k;
+        c.save();
+        c.translate(dx, dy);
+        HomeData.Weather wx = data.weather;
+        boolean weather = Prefs.weather() && !Double.isNaN(wx.temp);
+        String condition = weather ? HomeData.condition(wx.code, wx.isDay) : "";
+        // Top left: greeting and date, the clock, the next prayer, the rates (the weather is at the bottom right)
+        iDate.setColor(dim);
+        c.drawText(greet, 80 * k, 110 * k, iDate);
+        float hx = 80 * k + iDate.measureText(greet) + 10 * k, ww = iWave.measureText(Ui.WAVE);
+        c.save();
+        c.rotate(Ui.waveAngle(up - waveAt), hx + ww * 0.7f, 110 * k);
+        iWave.setAlpha(dark ? 255 : 235);
+        c.drawText(Ui.WAVE, hx, 112 * k, iWave);
+        c.restore();
+        c.drawText(dateRest, hx + ww, 110 * k, iDate);
+        iClock.setColor(fg);
+        c.drawText(clock, 80 * k - Ui.leftBearing(iClock, clock), 330 * k, iClock);
+        iLine.setColor(dim);
+        if (!prayerLine.isEmpty()) c.drawText(prayerLine, 80 * k, 396 * k, iLine);
+        if (Prefs.quotes() && HomeData.active().length > 0) {
+            StringBuilder rates = new StringBuilder();
+            for (int coin : HomeData.active()) {
+                if (rates.length() > 0) rates.append("   ");
+                rates.append(HomeData.RATES ? HomeData.COINS[coin] : HomeData.coinName(coin)).append(' ').append(HomeData.compact(data.prices[coin]));
+            }
+            iSmall.setColor(dim);
+            c.drawText(rates.toString(), 80 * k, 446 * k, iSmall);
+        }
+        // Bottom right: the time of day, the city, the weather
+        String label = phase(hour), city = Prefs.city().isEmpty() ? Config.CITY : Prefs.city();
+        iLabel.setColor(dim);
+        c.drawText(label, 1840 * k - iLabel.measureText(label), 920 * k, iLabel);
+        iName.setColor(fg);
+        if (!city.isEmpty()) c.drawText(city, 1840 * k - iName.measureText(city), 984 * k, iName);
+        if (weather) {
+            String line = condition + "  ·  " + HomeData.degrees(wx.temp) + "  ·  H " + HomeData.degrees(wx.max) + "  L " + HomeData.degrees(wx.min);
+            iSmall.setColor(dim);
+            c.drawText(line, 1840 * k - iSmall.measureText(line), 1030 * k, iSmall);
+        }
+        // Bottom left: today's five prayer times, the next one highlighted
+        if (prayerNext >= 0) {
+            iLabel.setColor(dim);
+            c.drawText(Ui.tr("HORÁRIOS DE ORAÇÃO", "PRAYER TIMES"), 80 * k, 920 * k, iLabel);
             for (int i = 0; i < 5; i++) {
+                float x = (80 + i * 172) * k;
                 boolean on = i == prayerNext;
                 if (on) {
                     iBox.setColor(dark ? 0x29FFFFFF : 0x1715263C);
-                    box.set(gCellX[i] - 16 * k, gHeadBase + 14 * k, gCellX[i] + gCellW[i] + 16 * k, gPray.bottom - 18 * k);
-                    c.drawRoundRect(box, 20 * k, 20 * k, iBox);
+                    box.set(x - 14 * k, 940 * k, x + 144 * k, 1044 * k);
+                    c.drawRoundRect(box, 18 * k, 18 * k, iBox);
                 }
-                iPName.setColor(on ? fg : soft);
-                iPTimeOn.setColor(fg);
-                c.drawText(PrayerTimes.name(i), gCellX[i], gNameBase, iPName);
-                c.drawText(prayerText[i], gCellX[i], gTimeBase, iPTimeOn);
-            }
-        }
-
-        if (!gRates.isEmpty()) {
-            gHead.setColor(soft);
-            c.drawText(gRatesHead, gRatesX, gHeadBase, gHead);
-            for (int i = 0; i < gCodes.length; i++) {
-                float x = i % 2 == 0 ? gRatesX : gRateCol2, y = i < 2 ? gRateRow1 : gRateRow2;
-                gRateCode.setColor(soft);
-                gRateValue.setColor(fg);
-                c.drawText(gCodes[i], x, y, gRateCode);
-                c.drawText(gValues[i], x + gRateCode.measureText(gCodes[i]) + 12 * k, y, gRateValue);
+                Paint name = on ? iPNameOn : iPName, time = on ? iPTimeOn : iPTime;
+                name.setColor(on ? fg : dim);
+                time.setColor(fg);
+                c.drawText(PrayerTimes.name(i), x, 980 * k, name);
+                c.drawText(prayerText[i], x, 1028 * k, time);
             }
         }
         c.restore();
-    }
-
-    /** A glass card: soft shadow, smoked or white glass, a bright rim. */
-    private void inkCard(Canvas c, RectF r, float radius) {
-        box.set(r);
-        box.offset(0, 14 * k);
-        shadows.draw(c, box, radius, 26 * k, gShadow);
-        c.drawRoundRect(r, radius, radius, gFill);
-        c.drawRoundRect(r, radius, radius, gRim);
-    }
-
-    /** Lays the cards out when the minute, the weather, the prices or a setting changes (not on every frame). */
-    private void inkLayout(long now) {
-        long m = now / 60_000;
-        if (m == gMinute && data.weatherAt == gWeatherAt && data.pricesAt == gPricesAt && Prefs.version == gPrefs) return;
-        gMinute = m;
-        gWeatherAt = data.weatherAt;
-        gPricesAt = data.pricesAt;
-        gPrefs = Prefs.version;
-        float x0 = 80 * k;
-
-        // The pill: "Jakarta · Good Evening, Faizal" and the hand
-        String city = Prefs.city().isEmpty() ? Config.CITY : Prefs.city();
-        gPillStr = city.isEmpty() ? greet : city + "  ·  " + greet;
-        float pw = gPillText.measureText(gPillStr);
-        gPill.set(x0, 64 * k, x0 + 30 * k + pw + 14 * k + iWave.measureText(Ui.WAVE) + 30 * k, 144 * k);
-        gPillBase = gPill.centerY() + Ui.halfCap(gPillText);
-        gWaveX = gPill.left + 30 * k + pw + 14 * k;
-
-        // The time and the weather
-        float top = 168 * k, bottom = 448 * k;
-        float lb = Ui.leftBearing(gClock, clock);
-        gTime.set(x0, top, x0 + 60 * k + gClock.measureText(clock) - lb + 60 * k, bottom);
-        gClockX = x0 + 60 * k - lb;
-        gClockBase = gTime.centerY() + Ui.halfCap(gClock);
-        HomeData.Weather wx = data.weather;
-        if (Prefs.weather() && !Double.isNaN(wx.temp)) {
-            gTemp_ = HomeData.degrees(wx.temp);
-            gCond_ = HomeData.condition(wx.code, wx.isDay);
-            gHl = (Ui.indo ? "T " : "H ") + HomeData.degrees(wx.max) + "   " + (Ui.indo ? "R " : Ui.de ? "T " : "L ") + HomeData.degrees(wx.min);
-            gSym = Symbols.weather(wx.code, wx.isDay);
-            float text = Math.max(gTemp.measureText(gTemp_), Math.max(gCond.measureText(gCond_), gSoft.measureText(gHl)));
-            float sw = Symbols.width(getContext(), gSym, 96 * k);
-            float x = gTime.right + 20 * k;
-            gWx.set(x, top, x + 54 * k + text + 40 * k + sw + 48 * k, bottom);
-            gWxX = x + 54 * k;
-            gTempBase = top + 44 * k + Ui.cap(gTemp);
-            gCondBase = gTempBase + 62 * k;
-            gHlBase = gCondBase + 46 * k;
-            gSymX = gWx.right - 48 * k - sw / 2;
-            gSymY = gWx.centerY();
-        } else {
-            gWx.setEmpty();
-        }
-
-        // Today's prayer times and the rates
-        float top2 = bottom + 20 * k, bottom2 = top2 + 176 * k;
-        gHeadBase = top2 + 30 * k + Ui.cap(gHead);
-        gNameBase = gHeadBase + 52 * k;
-        gTimeBase = gNameBase + 46 * k;
-        float x = x0;
-        if (prayerNext >= 0) {
-            gCellsX = x0 + 46 * k;
-            float cx = gCellsX;
-            for (int i = 0; i < 5; i++) {
-                gCellX[i] = cx;
-                gCellW[i] = Math.max(iPName.measureText(PrayerTimes.name(i)), iPTimeOn.measureText(prayerText[i] == null ? "00:00" : prayerText[i]));
-                cx += gCellW[i] + 44 * k;
-            }
-            gPray.set(x0, top2, cx - 44 * k + 46 * k, bottom2);
-            x = gPray.right + 20 * k;
-        } else {
-            gPray.setEmpty();
-        }
-        int[] active = HomeData.active();
-        if (Prefs.quotes() && active.length > 0) {
-            int n = Math.min(4, active.length);
-            gCodes = new String[n];
-            gValues = new String[n];
-            float col1 = 0, col2 = 0;
-            for (int i = 0; i < n; i++) {
-                gCodes[i] = HomeData.RATES ? HomeData.COINS[active[i]] : HomeData.coinName(active[i]);
-                gValues[i] = HomeData.compact(data.prices[active[i]]);
-                float wdt = gRateCode.measureText(gCodes[i]) + 12 * k + gRateValue.measureText(gValues[i]);
-                if (i % 2 == 0) col1 = Math.max(col1, wdt); else col2 = Math.max(col2, wdt);
-            }
-            gRatesHead = HomeData.RATES ? Ui.tr("CÂMBIO", "EXCHANGE RATES") : Ui.tr("COTAÇÕES", "QUOTES");
-            gRatesX = x + 44 * k;
-            gRateCol2 = gRatesX + col1 + 44 * k;
-            float right = Math.max(gRateCol2 + col2, gRatesX + gHead.measureText(gRatesHead)) + 44 * k;
-            gRates.set(x, top2, right, bottom2);
-            gRateRow1 = gNameBase + 6 * k;
-            gRateRow2 = gRateRow1 + 46 * k;
-        } else {
-            gRates.setEmpty();
-        }
     }
 }

@@ -261,7 +261,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private Paint pPill, pTime, pTemp, pCond, pSoft, pNum, pDay;
     private String cPillText = "", cTempText = "", cCondText = "", cHlText = "", cNumText = "", cDayText = "", cNoteText = "", cSymbol = "";
     private float cU, cPillTextX, cPillBase, cWaveX, cTimeX, cTimeBase, cWxX, cTempBase, cCondBase, cHlBase, cSymX, cSymY, cSymSize,
-            cDateX, cNumBase, cDayBase, cNoteBase, cNoteSym;
+            cDateX, cNumBase, cDayBase, cNoteBase, cNoteSym, cWxPin;
     // What the layout was made for (compared by reference: these strings are only replaced when they change)
     private float cK = -1;
     private int cPrefs = -1;
@@ -3110,87 +3110,108 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         cGreet = greetText;
         cWeatherAt = data.weatherAt;
         cPrayerMinute = prayerAt;
+        // Two weights: light for every number (time, degrees, day), medium for every word
         if (pPill == null) {
-            pPill = Ui.text(Ui.semibold, 28, 0xFFFFFFFF);
-            pTime = Ui.numbers(Ui.light, 124, 0xFFFFFFFF);
-            pTemp = Ui.numbers(Ui.semibold, 76, 0xFFFFFFFF);
-            pCond = Ui.text(Ui.medium, 28, 0xFFFFFFFF);
-            pSoft = Ui.text(Ui.medium, 22, 0xFFFFFFFF);
-            pNum = Ui.numbers(Ui.semibold, 66, 0xFFFFFFFF);
-            pDay = Ui.text(Ui.medium, 26, 0xFFFFFFFF);
+            pPill = Ui.text(Ui.medium, 28, 0xFFFFFFFF);
+            pTime = Ui.numbers(Ui.light, 216, 0xFFFFFFFF);
+            pTemp = Ui.numbers(Ui.light, 80, 0xFFFFFFFF);
+            pNum = Ui.numbers(Ui.light, 80, 0xFFFFFFFF);
+            pCond = Ui.text(Ui.medium, 24, 0xFFFFFFFF);
+            pDay = Ui.text(Ui.medium, 24, 0xFFFFFFFF);
+            pSoft = Ui.text(Ui.medium, 20, 0xFFFFFFFF);
         }
         // Everything scales with Settings → Appearance → Text size, from the top left corner
         float u = cU = k * Prefs.textScale();
         pPill.setTextSize(28 * u);
-        pTime.setTextSize(124 * u);
-        pTemp.setTextSize(76 * u);
-        pCond.setTextSize(28 * u);
-        pSoft.setTextSize(22 * u);
-        pNum.setTextSize(66 * u);
-        pDay.setTextSize(26 * u);
+        pTime.setTextSize(216 * u);
+        pTemp.setTextSize(80 * u);
+        pNum.setTextSize(80 * u);
+        pCond.setTextSize(24 * u);
+        pDay.setTextSize(24 * u);
+        pSoft.setTextSize(20 * u);
         lWave.setTextSize(30 * u);
         float ox = MARGIN * k, oy = (L_BUTTON_CY - 36) * k;   // the pill's middle is level with the corner buttons'
+        float gap = 20 * u, waveW = lWave.measureText(Ui.WAVE);
 
-        // The pill: "Jakarta · Good Evening, Faizal" and the waving hand
-        String city = Prefs.city().isEmpty() ? Config.CITY : Prefs.city();
-        cPillText = city.isEmpty() ? greetText : city + "  ·  " + greetText;
-        float pw = 28 * u + pPill.measureText(cPillText) + 12 * u + lWave.measureText(Ui.WAVE) + 28 * u;
-        cPill.set(ox, oy, ox + pw, oy + 72 * u);
-        cPillTextX = ox + 28 * u;
-        cPillBase = cPill.centerY() + Ui.halfCap(pPill);
-        cWaveX = cPillTextX + pPill.measureText(cPillText) + 12 * u;
+        // What each card needs, before they are lined up to one width
+        cPillText = greetText;
+        float pillW = 28 * u + pPill.measureText(cPillText) + 12 * u + waveW + 28 * u;
+        float lb = Ui.leftBearing(pTime, clockText), timeInk = pTime.measureText(clockText) - lb;
+        float timeW = 48 * u + timeInk + 48 * u;
 
-        // The time
-        float top = cPill.bottom + 20 * u, bottom = top + 192 * u;
-        float tw = pTime.measureText(clockText) - Ui.leftBearing(pTime, clockText);
-        cTime.set(ox, top, ox + 40 * u + tw + 40 * u, bottom);
-        cTimeX = ox + 40 * u - Ui.leftBearing(pTime, clockText);
-        cTimeBase = cTime.centerY() + Ui.halfCap(pTime);
-        float x = cTime.right + 20 * u;
-
-        // The weather: degrees, condition, high and low, and its symbol
+        float wxW = 0, iconH = 88 * u;
+        cWxPin = 0;
         if (weather) {
+            String city = Prefs.city().isEmpty() ? Config.CITY : Prefs.city();
             cTempText = HomeData.degrees(wx.temp);
             cCondText = HomeData.condition(wx.code, wx.isDay);
-            cHlText = (Ui.indo ? "T " : Ui.de ? "H " : Ui.en ? "H " : "Máx. ") + HomeData.degrees(wx.max) + "   "
+            cHlText = (city.isEmpty() ? "" : city + "   ")
+                    + (Ui.indo ? "T " : Ui.de ? "H " : Ui.en ? "H " : "Máx. ") + HomeData.degrees(wx.max) + "  "
                     + (Ui.indo ? "R " : Ui.de ? "T " : Ui.en ? "L " : "Mín. ") + HomeData.degrees(wx.min);
             cSymbol = Symbols.weather(wx.code, wx.isDay);
-            cSymSize = 70 * u;
-            float text = Math.max(pTemp.measureText(cTempText), Math.max(pCond.measureText(cCondText), pSoft.measureText(cHlText)));
-            float sw = Symbols.width(getContext(), cSymbol, cSymSize);
-            cWx.set(x, top, x + 38 * u + text + 30 * u + sw + 36 * u, bottom);
-            cWxX = x + 38 * u;
-            cTempBase = top + 28 * u + Ui.cap(pTemp);
-            cCondBase = cTempBase + 46 * u;
-            cHlBase = cCondBase + 36 * u;
-            cSymX = cWx.right - 36 * u - sw / 2;
-            cSymY = cWx.centerY();
-            x = cWx.right + 20 * u;
-        } else {
-            cWx.setEmpty();
+            cSymSize = iconH;
+            float pin = city.isEmpty() ? 0 : 20 * u + 8 * u;
+            float text = Math.max(pTemp.measureText(cTempText), Math.max(pCond.measureText(cCondText), pin + pSoft.measureText(cHlText)));
+            wxW = 34 * u + text + 18 * u + iconH * WeatherIcons.ASPECT + 30 * u;
+            cWxPin = pin;
         }
 
-        // The date: the day's number, "Friday, October", and the next prayer
         cNumText = String.valueOf(java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_MONTH));
         cDayText = Ui.dayMonth(now);
         cNoteText = prayers ? prayerLine : "";
-        cNoteSym = prayers ? Symbols.width(getContext(), "bedtime", 22 * u) + 8 * u : 0;
-        float dw = Math.max(pNum.measureText(cNumText), Math.max(pDay.measureText(cDayText), cNoteSym + pSoft.measureText(cNoteText)));
-        cDate.set(x, top, x + 38 * u + dw + 38 * u, bottom);
-        cDateX = x + 38 * u;
-        cNumBase = top + 30 * u + Ui.cap(pNum);
-        cDayBase = cNumBase + 42 * u;
-        cNoteBase = bottom - 26 * u;
+        cNoteSym = prayers ? Symbols.width(getContext(), "bedtime", 20 * u) + 8 * u : 0;
+        float dateW = 34 * u + Math.max(pNum.measureText(cNumText), Math.max(pDay.measureText(cDayText), cNoteSym + pSoft.measureText(cNoteText))) + 34 * u;
+
+        // One width for the whole block: the widest of the pill, the clock, and the weather and date side by side
+        float rowW = weather ? wxW + gap + dateW : dateW;
+        float width = Math.max(pillW, Math.max(timeW, rowW));
+        // A wider block shares its extra space between the weather and the date, 5 to 4 (as in the design)
+        float extra = width - rowW;
+        if (weather) {
+            wxW += extra * 5 / 9;
+            dateW += extra * 4 / 9;
+        } else {
+            dateW += extra;
+        }
+
+        cPill.set(ox, oy, ox + width, oy + 72 * u);
+        cPillTextX = cPill.centerX() - (pPill.measureText(cPillText) + 12 * u + waveW) / 2;
+        cPillBase = cPill.centerY() + Ui.halfCap(pPill);
+        cWaveX = cPillTextX + pPill.measureText(cPillText) + 12 * u;
+
+        float top = cPill.bottom + gap;
+        cTime.set(ox, top, ox + width, top + 264 * u);
+        cTimeX = cTime.centerX() - timeInk / 2 - lb;
+        cTimeBase = cTime.centerY() + Ui.halfCap(pTime);
+
+        float rowTop = cTime.bottom + gap, rowBottom = rowTop + 176 * u, x = ox;
+        if (weather) {
+            cWx.set(x, rowTop, x + wxW, rowBottom);
+            cWxX = x + 34 * u;
+            cTempBase = rowTop + 24 * u + Ui.cap(pTemp);
+            cCondBase = cTempBase + 40 * u;
+            cHlBase = rowBottom - 26 * u;
+            cSymX = cWx.right - 30 * u - iconH * WeatherIcons.ASPECT / 2;
+            cSymY = cWx.centerY();
+            x = cWx.right + gap;
+        } else {
+            cWx.setEmpty();
+        }
+        cDate.set(x, rowTop, x + dateW, rowBottom);
+        cDateX = x + 34 * u;
+        cNumBase = rowTop + 24 * u + Ui.cap(pNum);
+        cDayBase = cNumBase + 40 * u;
+        cNoteBase = rowBottom - 26 * u;
     }
 
-    /** The clock layout: the pill and the three cards, each on the shelf's liquid glass. */
+    /** The clock layout: the greeting pill, the clock card, and the weather and date cards, on the shelf's glass. */
     private void drawClockCards(Canvas c) {
         cardsLayout();
         float u = cU;
         glassCard(c, cPill, cPill.height() / 2);
         glassCard(c, cTime, 44 * u);
-        if (!cWx.isEmpty()) glassCard(c, cWx, 44 * u);
-        glassCard(c, cDate, 44 * u);
+        if (!cWx.isEmpty()) glassCard(c, cWx, 40 * u);
+        glassCard(c, cDate, 40 * u);
 
         int fg = tone(L_INK, 0xFFFFFFFF), soft = tone(L_DIM, 0xC2FFFFFF);
         pPill.setColor(fg);
@@ -3211,8 +3232,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             pSoft.setColor(soft);
             c.drawText(cTempText, cWxX, cTempBase, pTemp);
             c.drawText(cCondText, cWxX, cCondBase, pCond);
-            c.drawText(cHlText, cWxX, cHlBase, pSoft);
-            Symbols.draw(getContext(), c, cSymbol, cSymX, cSymY, cSymSize, fg);
+            if (cWxPin > 0) WeatherIcons.pin(getContext(), c, cWxX + 10 * u, cHlBase - Ui.halfCap(pSoft), 20 * u, soft);
+            c.drawText(cHlText, cWxX + cWxPin, cHlBase, pSoft);
+            if (!WeatherIcons.draw(getContext(), c, cSymbol, cSymX, cSymY, cSymSize)) {
+                Symbols.draw(getContext(), c, cSymbol, cSymX, cSymY, cSymSize * 0.8f, fg);
+            }
         }
 
         pNum.setColor(fg);
@@ -3221,7 +3245,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         c.drawText(cNumText, cDateX, cNumBase, pNum);
         c.drawText(cDayText, cDateX, cDayBase, pDay);
         if (!cNoteText.isEmpty()) {
-            Symbols.draw(getContext(), c, "bedtime", cDateX + (cNoteSym - 8 * u) / 2, cNoteBase - Ui.halfCap(pSoft), 22 * u, soft);
+            Symbols.draw(getContext(), c, "bedtime", cDateX + (cNoteSym - 8 * u) / 2, cNoteBase - Ui.halfCap(pSoft), 20 * u, soft);
             c.drawText(cNoteText, cDateX + cNoteSym, cNoteBase, pSoft);
         }
     }
