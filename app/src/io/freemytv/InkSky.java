@@ -297,11 +297,7 @@ final class InkSky {
         return true;
     }
 
-    /** The sun's or the moon's color (for the light it throws on the glass), and how strong it is (0 to 1). */
-    int lightColor() {
-        return look.moon ? blend(look.sun0, 0xFFE6ECFF, 0.5f) : look.sun0;
-    }
-
+    /** How strong the sun or the moon is (0 to 1), for the light it throws on the glass. */
     float lightStrength() {
         return Math.min(1, look.sunA);
     }

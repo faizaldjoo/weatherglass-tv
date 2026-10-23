@@ -278,7 +278,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private RadialGradient glowShader;
     private final Matrix glowMatrix = new Matrix();
     private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private int glowColor;
     private final Matrix sheenMatrix = new Matrix();
     private long frostAt = -1;
     private float frostShift;      // the layer being drawn is moved this far down on screen (drawer animation)
@@ -3426,7 +3425,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     /**
-     * The sun's or the moon's light falling on the glass: a soft glow in its color on the side that faces it, fading
+     * The sun's or the moon's light falling on the glass: a soft white glow on the side that faces it, fading
      * across the card (ink mountains only, when there is a sun or a moon).
      */
     private void lightGlow(Canvas c, RectF r, float radius) {
@@ -3446,13 +3445,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         glowMatrix.setScale(size, size);
         glowMatrix.postTranslate(ex, ey);
         glowShader.setLocalMatrix(glowMatrix);
-        // The light's own color (warm sun, cool moon): the paint's color tints the white gradient
-        int color = inkSky.lightColor() | 0xFF000000;
-        if (color != glowColor) {   // a new filter only when the color changes (no allocation per frame)
-            glowColor = color;
-            glowPaint.setColorFilter(new android.graphics.PorterDuffColorFilter(color, android.graphics.PorterDuff.Mode.MULTIPLY));
-        }
-        glowPaint.setAlpha(Math.round(255 * Ui.clamp(inkSky.lightStrength()) * tone(0.28f, 0.2f)));
+        // White light at any hour (the sky's own color already shows through the glass), soft
+        glowPaint.setAlpha(Math.round(255 * Ui.clamp(inkSky.lightStrength()) * tone(0.2f, 0.12f)));
         c.drawRoundRect(r, radius, radius, glowPaint);
     }
 
