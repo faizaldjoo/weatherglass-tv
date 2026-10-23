@@ -82,7 +82,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private static final int COLUMNS = 5, VISIBLE_ROWS = 3;
     private static final float GRID_W = 300, GRID_H = 169, GRID_GAP = 40, GRID_ROW = 239, GRID_TOP = 196, GRID_RADIUS = 22;
     private static final int SMOKE = 0xFF111113, INK = 0xFF1C1C1E, WHITE = 0xFFF5F5F7;
-    private static final int UP_COLOR = 0xFF30D158, DOWN_COLOR = 0xFFFF453A;
     private static final long TOAST_MS = 6000, FADE_MS = 800;
     /** Blur radii of the shadow and shadowDeep paints (Shadows needs them to draw the same blur on older TVs). */
     private static final float SHADOW_BLUR = 26, DEEP_BLUR = 30;
@@ -271,12 +270,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private final Matrix frostMatrix = new Matrix();
     private final Paint frostPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Paint frostVeil = new Paint(Paint.ANTI_ALIAS_FLAG), frostRim = new Paint(Paint.ANTI_ALIAS_FLAG),
-            frostSheen = new Paint(Paint.ANTI_ALIAS_FLAG);
+            frostSheen = new Paint(Paint.ANTI_ALIAS_FLAG), chipRim = new Paint(Paint.ANTI_ALIAS_FLAG);
     private LinearGradient sheenShader;
     private final Matrix sheenMatrix = new Matrix();
     private long frostAt = -1;
     private float frostShift;      // the layer being drawn is moved this far down on screen (drawer animation)
-    private boolean frostStale;    // the drawer opened or closed: the sky behind changed (its veil)
+    private boolean frostStale;    // force a new frost on the next draw
+    private boolean skyVeilOff;    // drawing the frost: the sky without the drawer's veil (the glass adds it live)
     private String frostFor = "";
     private boolean frostFailed;
     // What the layout was made for (compared by reference: these strings are only replaced when they change)
@@ -844,10 +844,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (gridMoving || gridDirty) sheetLayer.invalidate();
         if (drawerMoving || bgFading) sky.invalidate();
         if (bgFading || (drawerWasMoving && !drawerMoving)) platter.invalidate();
-        if (drawerWasMoving && !drawerMoving && frostAt >= 0) {
-            // Resting again: the frost takes the sky with (or without) the drawer's veil
-            frostStale = true;
-            heroLayer.invalidate();
+        if (drawerMoving && frostAt >= 0) {
+            // Frosted glass follows the slide frame by frame (a bitmap and a veil: cheap), so it never jumps
+            platter.invalidate();
             drawerLayer.invalidate();
         }
         drawerWasMoving = drawerMoving;
@@ -1215,6 +1214,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     private void drawSky(Canvas c) {
         drawLightSky(c);
+    }
+
+    /** How much the drawer's veil lightens (by day) or darkens (at night) the sky: 0 closed. */
+    private float skyVeil() {
+        return tone(0.32f, 0.42f) * Ui.clamp(drawer.value);
     }
 
     /** Blends a color on top (the drawer's veil) as part of drawing the image, without another layer. */
@@ -1831,13 +1835,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             float base = r.top + (106 + 40 * i) * k, mid = base - cap / 2;
             boolean next = i == prayerNext;
             if (next) {
-                int accent = tone(0xFF0A7A5A, 0xFF4FD1A5);
                 tmp.set(x - 14 * k, mid - 19 * k, right + 14 * k, mid + 19 * k);
-                fill.setShader(null);
-                fill.setColor(Ui.alpha(accent, 0.22f));
-                c.drawRoundRect(tmp, 19 * k, 19 * k, fill);
+                glassChip(c, tmp, 19 * k);
             }
-            int ink = next ? tone(0xFF0A5C44, 0xFFB8F5DE) : drawerInk(0.92f);
+            int ink = drawerInk(next ? 1 : 0.92f);
             hourTemp.setTextAlign(Paint.Align.LEFT);
             hourTemp.setColor(ink);
             c.drawText(PrayerTimes.name(i), x, base, hourTemp);
@@ -1847,6 +1848,17 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         }
         hourTemp.setColor(drawerInk(0.95f));
         pricePaint.setColor(drawerInk(0.95f));
+    }
+
+    /** A small chip of clear glass (the next prayer, a rate's change): a light fill, a bright rim, light on its top. */
+    private void glassChip(Canvas c, RectF r, float radius) {
+        fill.setShader(null);
+        fill.setColor(tone(0x8CFFFFFF, 0x24FFFFFF));
+        c.drawRoundRect(r, radius, radius, fill);
+        chipRim.setStyle(Paint.Style.STROKE);
+        chipRim.setStrokeWidth(Math.max(1, 1.5f * k));
+        chipRim.setColor(tone(0xE6FFFFFF, 0x4DFFFFFF));
+        c.drawRoundRect(r, radius, radius, chipRim);
     }
 
     /** Square drawer button: symbol and name; an input with no device is dimmed. Focused: white, with dark text. */
@@ -2031,12 +2043,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             c.drawText(priceText[i], right - 128 * k, base, pricePaint);
             double change = data.changes[i];
             if (Double.isNaN(change)) continue;
-            int color = change >= 0 ? tone(0xFF248A3D, UP_COLOR) : tone(0xFFD70015, DOWN_COLOR);
             tmp.set(right - 108 * k, mid - 17 * k, right, mid + 17 * k);
-            fill.setShader(null);
-            fill.setColor(Ui.alpha(color, 0.2f));
-            c.drawRoundRect(tmp, 17 * k, 17 * k, fill);
-            changePaint.setColor(color);
+            glassChip(c, tmp, 17 * k);
+            changePaint.setColor(drawerInk(0.95f));   // the sign says up or down; the chip is clear glass
             c.drawText(changeText[i], tmp.centerX(), mid + Ui.halfCap(changePaint), changePaint);
         }
     }
@@ -3048,7 +3057,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             if (inkOn()) inkSky.draw(c, skyCode(), inkHour(), up, skyParallax, Prefs.wallpaperMotion());
             else weatherSky.draw(c, skyCode(), skyNight, up, skyParallax, Prefs.wallpaperMotion());
             // Drawer open: the same lighter (day) or darker (night) veil as over the photos.
-            float veil = tone(0.32f, 0.42f) * Ui.clamp(drawer.value);
+            float veil = skyVeilOff ? 0 : skyVeil();
             if (veil > 0.002f) {
                 fill.setShader(null);
                 fill.setColor(Ui.alpha(blend(0xFFFFFFFF, 0xFF000000, night), veil));
@@ -3308,7 +3317,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             }
             frostCanvas.save();
             frostCanvas.scale(frostSmall.getWidth() / (float) w, frostSmall.getHeight() / (float) h);
+            skyVeilOff = true;
             drawLightSky(frostCanvas);
+            skyVeilOff = false;
             frostCanvas.restore();
             int[] px = Backdrop.reduce(frostSmall, fw, fh, 2, 2);
             SettingsActivity.saturate(px);
@@ -3339,6 +3350,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         frostMatrix.postTranslate(0, -frostShift);
         frostShader.setLocalMatrix(frostMatrix);
         c.drawRoundRect(r, radius, radius, frostPaint);
+        // The drawer's veil over the sky, as it is right now (the frost is made without it), so the glass matches the
+        // sky around it at every step of the drawer's slide
+        float veil = skyVeil();
+        if (veil > 0.002f) {
+            frostVeil.setColor(Ui.alpha(blend(0xFFFFFFFF, 0xFF000000, night), veil));
+            c.drawRoundRect(r, radius, radius, frostVeil);
+        }
         // A light tint, so the sky and its drops show through: a little white by day, a little black at night
         frostVeil.setColor(tone(Ui.alpha(0xFFFFFFFF, 0.24f), Ui.alpha(0xFF0B0B0D, 0.34f)));
         c.drawRoundRect(r, radius, radius, frostVeil);
