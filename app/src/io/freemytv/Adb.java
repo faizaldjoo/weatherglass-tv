@@ -72,7 +72,9 @@ final class Adb implements Closeable {
             s.connect(new InetSocketAddress("127.0.0.1", 5555), 3000);
         } catch (IOException e) {
             s.close();
-            throw new IOException("debugging is off on the TV (port 5555 closed)");
+            throw new IOException(Ui.tr("a depuração está desligada na TV. Ligue em Configurações → Sistema → Opções do desenvolvedor → Depuração USB",
+                    "debugging is off on the TV. Turn on Settings → System → Developer options → USB debugging (no Developer options? "
+                    + "Settings → System → About → press the build number 7 times). TVs with only Wireless debugging can't switch yet"));
         }
         Adb adb;
         try {

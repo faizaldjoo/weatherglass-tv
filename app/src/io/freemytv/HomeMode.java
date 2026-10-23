@@ -145,7 +145,23 @@ final class HomeMode {
 
     /** Asks the main process to switch (the settings screen calls this). */
     static void request(Context c, String mode) {
-        ModeJob.schedule(c, ModeJob.APPLY, mode, 0);
+        // TCL's TclAppBoot blocks background jobs by default, so the switch would never run. The settings screen is in
+        // the foreground: allow them from here first, through the TV's own debugging (other TVs answer "Unknown
+        // operation string", which is fine), then schedule the switch. No computer needed.
+        Context app = c.getApplicationContext();
+        new Thread(() -> {
+            allowBackground(app);
+            ModeJob.schedule(app, ModeJob.APPLY, mode, 0);
+        }, "mode-request").start();
+    }
+
+    private static void allowBackground(Context c) {
+        try (Adb adb = connect(c, state(c))) {
+            String pkg = c.getPackageName();
+            adb.shell("appops set " + pkg + " AUTO_START allow 2>/dev/null; appops set " + pkg + " APP_AUTO_START allow 2>/dev/null");
+        } catch (IOException e) {
+            AppLog.w("allowing background jobs: " + e.getMessage());   // the switch reports the real problem
+        }
     }
 
     /** Our home screen crashed 3 times in 5 minutes: give the home screen back to the TV's own (asked by :home). */

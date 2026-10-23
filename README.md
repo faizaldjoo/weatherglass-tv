@@ -49,7 +49,7 @@ Everything else is Free My TV's work.
 
 ## Install
 
-About ten minutes. You need a Google TV or Android TV (Android 9 or newer) and a computer on the same Wi-Fi.
+About ten minutes. You need a Google TV or Android TV (Android 9 or newer). Without a computer, use the download just below; to build it yourself, a computer on the same Wi-Fi.
 
 Works on Android TV and Google TV 9+ (Sharp, Xiaomi, Polytron, Coocaa, Sony, Philips…). Tested on TCL (Android 11) and Hisense (Android 12).
 
@@ -63,7 +63,7 @@ A ready-made build is on the [Releases](https://github.com/faizaldjoo/weathergla
 4. **Open Weatherglass TV** → *Home Screen* → *Weatherglass TV*, and accept the debugging prompt (tick *Always allow*).
 5. **Your city:** Settings → Widgets → City.
 
-On TCL TVs the switch also needs one command from a computer (TCL blocks the background job by default): `adb shell "appops set io.freemytv AUTO_START allow || appops set io.freemytv APP_AUTO_START allow"`. To have your own TMDB key, camera or name in it, build it yourself (below).
+It works on TVs that open debugging on the network when USB debugging is on (TCL, Hisense and many others). On TVs that only offer *Wireless debugging* with a pairing code, it can't switch yet. To have your own TMDB key, camera or name in it, build it yourself (below).
 
 ### The easy way: an AI assistant
 
@@ -166,8 +166,6 @@ Free, and it takes two minutes: create an account at [themoviedb.org](https://ww
 ### Opening a title, not just its app (optional)
 
 With a free [Watchmode](https://api.watchmode.com/) key (`watchmode_key=` in `config.properties`), a pick opens its own page in the streaming app instead of the app's home. The free plan (2,500 credits a month) is enough: each title costs two requests the first time and is remembered after that. It works where the app takes the title's web address (tested: Prime Video and JioHotstar); where it doesn't, the pick just opens the app, as without a key.
-
-**"The TV's first setup saved the Wi-Fi"?** Some TVs (seen on a Hisense) keep networks saved by Google's setup app, and turning that app off would erase them, so the switch stops first. Forget those networks and connect again from the TV's settings, or from the computer: `adb shell cmd wifi list-networks`, then `adb shell cmd wifi forget-network <id>` for each one except your current Wi-Fi.
 
 ## Going back
 

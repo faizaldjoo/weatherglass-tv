@@ -178,6 +178,7 @@ public class SettingsActivity extends Activity {
         private static final int PICK_CITY = 0;
         private final List<String[]> cities = new ArrayList<>();
         private String cityStatus = "";
+        private String switchHint = "";   // what to do before switching (debugging off), shown under the sections
         private final RectF tmp = new RectF(), rowRect = new RectF(), focusBox = new RectF(), panel = new RectF();
         private final Path panelPath = new Path();
         private JSONObject state = new JSONObject(), recs = new JSONObject();
@@ -660,7 +661,7 @@ public class SettingsActivity extends Activity {
 
             // Under the sections: what the TV is asking for while it switches, or what went wrong.
             float y = (rowTop(SECTIONS - 1) + MAIN_H + 46) * k;
-            String error = state.optString("error");
+            String error = !switchHint.isEmpty() ? switchHint : state.optString("error");
             if (working && (busyText.contains("Permitir") || busyText.contains("Allow") || busyText.contains("разрешите"))) {
                 wrap(c, Ui.tr("Na TV: marque “Sempre permitir” e aperte OK.", "On the TV: tick “Always allow” and press OK."),
                         (L + INSET) * k, y, new TextPaint(warn), 3);
@@ -1425,6 +1426,44 @@ public class SettingsActivity extends Activity {
                     (L + INSET) * k, y, hint, 1);
         }
 
+        /** The switch needs the TV's own debugging: if it's off, say how and open Developer options (or About). */
+        private void switchWhenDebugging(Context c) {
+            pendingAt = SystemClock.uptimeMillis();
+            new Thread(() -> {
+                boolean open;
+                try (java.net.Socket s = new java.net.Socket()) {
+                    s.connect(new java.net.InetSocketAddress("127.0.0.1", 5555), 1500);
+                    open = true;
+                } catch (java.io.IOException e) {
+                    open = false;
+                }
+                boolean on = open;
+                handler.post(() -> {
+                    if (on) {
+                        switchHint = "";
+                        HomeMode.request(c, HomeMode.FREE);
+                        return;
+                    }
+                    pendingAt = 0;
+                    switchHint = Ui.tr("Ligue a depuração USB nas Opções do desenvolvedor e tente de novo.",
+                            "Turn on USB debugging in Developer options, then try again.");
+                    invalidate();
+                    Intent dev = new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    try {
+                        activity.startActivity(dev);
+                    } catch (RuntimeException e) {
+                        // No Developer options yet: About, where pressing the build number 7 times turns them on
+                        switchHint = Ui.tr("Em Sobre, aperte o número da versão 7 vezes; depois ligue a depuração USB.",
+                                "In About, press the build number 7 times; then turn on USB debugging in Developer options.");
+                        try {
+                            activity.startActivity(new Intent(Settings.ACTION_DEVICE_INFO_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                        } catch (RuntimeException ignored) {
+                        }
+                    }
+                });
+            }, "debug-check").start();
+        }
+
         private void activate() {
             Context c = getContext();
             if (screen == ABOUT) return;
@@ -1432,8 +1471,13 @@ public class SettingsActivity extends Activity {
                 boolean wantFree = focus == 0;
                 boolean already = wantFree ? freeActive() : HomeMode.ORIGINAL.equals(state.optString("mode", HomeMode.ORIGINAL));
                 if (!already && !busy()) {
-                    HomeMode.request(c, wantFree ? HomeMode.FREE : HomeMode.ORIGINAL);
-                    pendingAt = SystemClock.uptimeMillis();
+                    if (wantFree) {
+                        switchWhenDebugging(c);
+                    } else {
+                        switchHint = "";
+                        HomeMode.request(c, HomeMode.ORIGINAL);
+                        pendingAt = SystemClock.uptimeMillis();
+                    }
                 }
                 screen = MAIN;
                 focus = S_HOME;
