@@ -275,6 +275,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private LinearGradient sheenShader;
     private final Matrix sheenMatrix = new Matrix();
     private long frostAt = -1;
+    private float frostShift;      // the layer being drawn is moved this far down on screen (drawer animation)
+    private boolean frostStale;    // the drawer opened or closed: the sky behind changed (its veil)
     private String frostFor = "";
     private boolean frostFailed;
     // What the layout was made for (compared by reference: these strings are only replaced when they change)
@@ -357,6 +359,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             // drawer and the top buttons are always drawn as if resting in place (they are only visible there and are
             // not redrawn while they move).
             scene.setOffset(0, kind == DRAWER || kind == STATUS ? 0 : getTranslationY());
+            frostShift = getTranslationY();   // the frosted glass reads the sky where the layer really is on screen
             switch (kind) {
                 case SKY: drawSky(c); break;
                 case HERO: drawLightTop(c); break;
@@ -841,6 +844,12 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (gridMoving || gridDirty) sheetLayer.invalidate();
         if (drawerMoving || bgFading) sky.invalidate();
         if (bgFading || (drawerWasMoving && !drawerMoving)) platter.invalidate();
+        if (drawerWasMoving && !drawerMoving && frostAt >= 0) {
+            // Resting again: the frost takes the sky with (or without) the drawer's veil
+            frostStale = true;
+            heroLayer.invalidate();
+            drawerLayer.invalidate();
+        }
         drawerWasMoving = drawerMoving;
         tilesDirty = statusDirty = heroDirty = drawerDirty = gridDirty = motionDirty = false;
         if (updateClock()) {
@@ -1758,6 +1767,14 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     /** Glass for a drawer card or button: white by day, smoked at night (both during the transition). */
     private void drawerGlass(Canvas c, RectF r, float radius, float lightTint, int shadowColor, float drop) {
         float dk = dark();
+        // Frosted, like the shelf and the clock cards (Settings → Appearance → Glass)
+        if (!Prefs.glass().equals("clear") && skyOn()) {
+            tmp.set(r);
+            tmp.offset(0, drop);
+            shadow.setColor(Ui.alpha(shadowColor, 1 - dk * 0.5f));
+            shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
+            if (frostedGlass(c, r, radius)) return;
+        }
         if (dk < 0.999f) {
             tmp.set(r);
             tmp.offset(0, drop);
@@ -3277,7 +3294,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private boolean frost(String glass) {
         if (frostFailed || !skyOn() || w == 0) return false;   // photo backgrounds live on the GPU: no frost from them
         long up = SystemClock.uptimeMillis();
-        if (glass.equals(frostFor) && frostAt >= 0 && up - frostAt < 30_000 && frostImage != null) return true;
+        if (glass.equals(frostFor) && frostAt >= 0 && up - frostAt < 30_000 && frostImage != null && !frostStale) return true;
+        frostStale = false;
         try {
             // Lighter than the settings drawer, so the raindrops still show as soft blobs: the sky at a quarter size
             // (480 × 270 at 1080p, drawn straight at that size), two box passes of radius 2, more color
@@ -3295,8 +3313,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             int[] px = Backdrop.reduce(frostSmall, fw, fh, 2, 2);
             SettingsActivity.saturate(px);
             frostImage.setPixels(px, 0, fw, 0, 0, fw, fh);
-            frostMatrix.setScale(w / (float) fw, h / (float) fh);
-            frostShader.setLocalMatrix(frostMatrix);
             frostPaint.setShader(frostShader);
             if (frostAt < 0) AppLog.w("frost: " + glass + " " + fw + "x" + fh);
             frostAt = up;
@@ -3319,6 +3335,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             if (glass.equals("clear")) frostAt = -1;   // nothing to refresh
             return false;
         }
+        frostMatrix.setScale(w / (float) frostImage.getWidth(), h / (float) frostImage.getHeight());
+        frostMatrix.postTranslate(0, -frostShift);
+        frostShader.setLocalMatrix(frostMatrix);
         c.drawRoundRect(r, radius, radius, frostPaint);
         // A light tint, so the sky and its drops show through: a little white by day, a little black at night
         frostVeil.setColor(tone(Ui.alpha(0xFFFFFFFF, 0.24f), Ui.alpha(0xFF0B0B0D, 0.34f)));
