@@ -928,9 +928,9 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         HomeData.Weather wx = data.weather;
         boolean weather = Prefs.weather() && !Double.isNaN(wx.temp);
         String condition = weather ? HomeData.condition(wx.code, wx.isDay) : "";
-        // Top left: date and weather, the clock, the next prayer, the rates
+        // Top left: greeting and date, the clock, the next prayer, the rates (the weather is at the bottom right)
         iDate.setColor(dim);
-        c.drawText(date + (weather ? "  ·  " + HomeData.degrees(wx.temp) + " " + condition : ""), 80 * k, 110 * k, iDate);
+        c.drawText(date, 80 * k, 110 * k, iDate);
         iClock.setColor(fg);
         c.drawText(clock, 80 * k - Ui.leftBearing(iClock, clock), 330 * k, iClock);
         iLine.setColor(dim);
