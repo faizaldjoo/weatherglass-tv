@@ -270,7 +270,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private BitmapShader frostShader;
     private final Matrix frostMatrix = new Matrix();
     private final Paint frostPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-    private final Paint frostVeil = new Paint(Paint.ANTI_ALIAS_FLAG), frostRim = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint frostVeil = new Paint(Paint.ANTI_ALIAS_FLAG), frostRim = new Paint(Paint.ANTI_ALIAS_FLAG),
+            frostSheen = new Paint(Paint.ANTI_ALIAS_FLAG);
     private long frostAt = -1;
     private String frostFor = "";
     private boolean frostFailed;
@@ -854,7 +855,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         boolean waving = !picksOn() && waveAt >= 0 && up - waveAt < Ui.WAVE_MS + 100;
         if (waving) heroLayer.invalidate();
         // The frosted cards show the sky as it was; every 30 s they take it again
-        if (frostAt >= 0 && up - frostAt >= 30_000 && !picksOn()) heroLayer.invalidate();
+        if (frostAt >= 0 && up - frostAt >= 30_000) {
+            heroLayer.invalidate();
+            platter.invalidate();
+        }
 
         // Busy: something is moving, or the sheet or the drawer is open.
         boolean busy = waving || tilesMoving || statusMoving || heroMoving || drawerItemsMoving || gridMoving || drawerMoving
@@ -1379,15 +1383,19 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         tmp.offset(0, 18 * k);
         shadow.setColor(tone(0x1F000000, 0x52000000));
         shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
-        // White glass by day; smoked glass at night.
-        scene.liquid(c, platterRect, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
-                tone(30, 34) * k, tone(22, 28) * k, tone(0.65f, 0.95f), 1);
+        // The settings drawer's frosted glass (Clock glass setting), or white glass by day and smoked glass at night
+        if (!frostedGlass(c, platterRect, radius)) {
+            scene.liquid(c, platterRect, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
+                    tone(30, 34) * k, tone(22, 28) * k, tone(0.65f, 0.95f), 1);
+        }
         if (!cameraRect.isEmpty()) {
             tmp.set(cameraRect);
             tmp.offset(0, 18 * k);
             shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
-            scene.liquid(c, cameraRect, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
-                    tone(30, 34) * k, tone(22, 28) * k, tone(0.65f, 0.95f), 1);
+            if (!frostedGlass(c, cameraRect, radius)) {
+                scene.liquid(c, cameraRect, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
+                        tone(30, 34) * k, tone(22, 28) * k, tone(0.65f, 0.95f), 1);
+            }
         }
         // Clock layout: the rates just above the shelf, at the right, at the text size from Settings (scaled from
         // that corner)
@@ -3269,6 +3277,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         long up = SystemClock.uptimeMillis();
         if (glass.equals(frostFor) && frostAt >= 0 && up - frostAt < 30_000 && frostImage != null) return true;
         try {
+            // The settings drawer's recipe: 240 × 135 at 1080p, three box passes of radius 3 (strong: 5), more color
             int fw = Math.max(1, w / FROST_DIV), fh = Math.max(1, h / FROST_DIV);
             if (frostImage == null || frostImage.getWidth() != fw || frostImage.getHeight() != fh) {
                 frostSmall = Bitmap.createBitmap(fw * 2, fh * 2, Bitmap.Config.ARGB_8888);
@@ -3281,11 +3290,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             drawLightSky(frostCanvas);
             frostCanvas.restore();
             boolean strong = glass.equals("strong");
-            int[] px = Backdrop.reduce(frostSmall, fw, fh, strong ? 4 : 2, strong ? 3 : 2);
+            int[] px = Backdrop.reduce(frostSmall, fw, fh, strong ? 5 : 3, 3);
+            SettingsActivity.saturate(px);
             frostImage.setPixels(px, 0, fw, 0, 0, fw, fh);
             frostMatrix.setScale(w / (float) fw, h / (float) fh);
             frostShader.setLocalMatrix(frostMatrix);
             frostPaint.setShader(frostShader);
+            if (frostAt < 0) AppLog.w("frost: " + glass + " " + fw + "x" + fh);
             frostAt = up;
             frostFor = glass;
             return true;
@@ -3296,6 +3307,35 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         }
     }
 
+    /**
+     * The settings drawer's frosted glass on `r`: the sky blurred, the drawer's tint (black at night, grey by day), its
+     * sheen along the top and its rim. False when the glass is set to Transparent (or there is no sky to frost).
+     */
+    private boolean frostedGlass(Canvas c, RectF r, float radius) {
+        String glass = Prefs.glass();
+        if (glass.equals("clear") || !frost(glass)) {
+            if (glass.equals("clear")) frostAt = -1;   // nothing to refresh
+            return false;
+        }
+        boolean strong = glass.equals("strong");
+        c.drawRoundRect(r, radius, radius, frostPaint);
+        // The drawer's tint: 0x9E0B0B0D at night, 0x8A48484E by day (a little lighter here: the cards are small)
+        frostVeil.setColor(tone(Ui.alpha(0xFF48484E, strong ? 0.6f : 0.5f), Ui.alpha(0xFF0B0B0D, strong ? 0.66f : 0.56f)));
+        c.drawRoundRect(r, radius, radius, frostVeil);
+        // The sheen: light on the top edge, fading down a third of the way
+        frostSheen.setShader(null);
+        frostSheen.setColor(tone(0x29FFFFFF, 0x1FFFFFFF));
+        c.save();
+        c.clipRect(r.left, r.top, r.right, r.top + r.height() * 0.35f);
+        c.drawRoundRect(r, radius, radius, frostSheen);
+        c.restore();
+        frostRim.setStyle(Paint.Style.STROKE);
+        frostRim.setStrokeWidth(Math.max(1, 1.5f * k));
+        frostRim.setColor(tone(0x66FFFFFF, 0x3DFFFFFF));
+        c.drawRoundRect(r, radius, radius, frostRim);
+        return true;
+    }
+
     /** One card: its soft shadow, then the glass (the shelf's, or frosted: Settings → Appearance → Clock glass). */
     private void glassCard(Canvas c, RectF r, float radius) {
         float u = cU;
@@ -3303,20 +3343,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         tmp.offset(0, 14 * u);
         shadow.setColor(tone(0x1A000000, 0x47000000));
         shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
-        String glass = Prefs.glass();
-        if (!glass.equals("clear") && frost(glass)) {
-            // The blurred sky, a milky veil (white by day, smoked at night; stronger frost is milkier), a bright rim
-            boolean strong = glass.equals("strong");
-            c.drawRoundRect(r, radius, radius, frostPaint);
-            frostVeil.setColor(tone(Ui.alpha(0xFFFFFFFF, strong ? 0.5f : 0.34f), Ui.alpha(0xFF2A2E3A, strong ? 0.42f : 0.34f)));
-            c.drawRoundRect(r, radius, radius, frostVeil);
-            frostRim.setStyle(Paint.Style.STROKE);
-            frostRim.setStrokeWidth(Math.max(1.5f, 1.5f * k));
-            frostRim.setColor(tone(0xB3FFFFFF, 0x4DFFFFFF));
-            c.drawRoundRect(r, radius, radius, frostRim);
-            return;
-        }
-        frostAt = -1;   // clear glass: nothing to refresh
+        if (frostedGlass(c, r, radius)) return;
         scene.liquid(c, r, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
                 tone(24, 28) * u, tone(18, 22) * u, tone(0.65f, 0.95f), 1);
     }

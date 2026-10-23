@@ -56,7 +56,15 @@ public class SettingsActivity extends Activity {
     /** From the home screen, before it opens the settings: its picture (any size), blurred here, and its look. */
     static void setBackdrop(Bitmap screen, boolean night) {
         int[] px = Backdrop.reduce(screen, FROST_W, FROST_H, 3, 3);
-        // A touch more color, as frosted glass has (the blur alone greys it)
+        saturate(px);
+        Bitmap b = Bitmap.createBitmap(FROST_W, FROST_H, Bitmap.Config.ARGB_8888);
+        b.setPixels(px, 0, FROST_W, 0, 0, FROST_W, FROST_H);
+        frost = b;
+        homeNight = night;
+    }
+
+    /** A touch more color, as frosted glass has (the blur alone greys it). The home screen's frosted glass uses it too. */
+    static void saturate(int[] px) {
         for (int i = 0; i < px.length; i++) {
             int r = (px[i] >> 16) & 255, g = (px[i] >> 8) & 255, b = px[i] & 255;
             float y = 0.299f * r + 0.587f * g + 0.114f * b;
@@ -65,10 +73,6 @@ public class SettingsActivity extends Activity {
             b = Math.max(0, Math.min(255, Math.round(y + (b - y) * 1.35f)));
             px[i] = 0xFF000000 | (r << 16) | (g << 8) | b;
         }
-        Bitmap b = Bitmap.createBitmap(FROST_W, FROST_H, Bitmap.Config.ARGB_8888);
-        b.setPixels(px, 0, FROST_W, 0, 0, FROST_W, FROST_H);
-        frost = b;
-        homeNight = night;
     }
 
     private SettingsView view;
