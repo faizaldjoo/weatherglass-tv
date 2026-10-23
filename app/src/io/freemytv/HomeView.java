@@ -264,7 +264,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             cDateX, cNumBase, cDayBase, cNoteBase, cNoteSym, cWxPin;
     // Frosted glass for the clock cards (Settings → Appearance → Clock glass): the sky, drawn small and blurred, shows
     // through them. Made again every 30 s (the sky moves slowly), on a change of glass or size; a few kB.
-    private static final int FROST_DIV = 8;
+    private static final int FROST_DIV = 4;
     private Bitmap frostSmall, frostImage;
     private Canvas frostCanvas;
     private BitmapShader frostShader;
@@ -3279,10 +3279,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         long up = SystemClock.uptimeMillis();
         if (glass.equals(frostFor) && frostAt >= 0 && up - frostAt < 30_000 && frostImage != null) return true;
         try {
-            // The settings drawer's recipe: 240 × 135 at 1080p, three box passes of radius 3, more color
+            // Lighter than the settings drawer, so the raindrops still show as soft blobs: the sky at a quarter size
+            // (480 × 270 at 1080p, drawn straight at that size), two box passes of radius 2, more color
             int fw = Math.max(1, w / FROST_DIV), fh = Math.max(1, h / FROST_DIV);
             if (frostImage == null || frostImage.getWidth() != fw || frostImage.getHeight() != fh) {
-                frostSmall = Bitmap.createBitmap(fw * 2, fh * 2, Bitmap.Config.ARGB_8888);
+                frostSmall = Bitmap.createBitmap(fw, fh, Bitmap.Config.ARGB_8888);
                 frostCanvas = new Canvas(frostSmall);
                 frostImage = Bitmap.createBitmap(fw, fh, Bitmap.Config.ARGB_8888);
                 frostShader = new BitmapShader(frostImage, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
@@ -3291,7 +3292,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             frostCanvas.scale(frostSmall.getWidth() / (float) w, frostSmall.getHeight() / (float) h);
             drawLightSky(frostCanvas);
             frostCanvas.restore();
-            int[] px = Backdrop.reduce(frostSmall, fw, fh, 3, 3);
+            int[] px = Backdrop.reduce(frostSmall, fw, fh, 2, 2);
             SettingsActivity.saturate(px);
             frostImage.setPixels(px, 0, fw, 0, 0, fw, fh);
             frostMatrix.setScale(w / (float) fw, h / (float) fh);
@@ -3319,8 +3320,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             return false;
         }
         c.drawRoundRect(r, radius, radius, frostPaint);
-        // The drawer's tint: 0x9E0B0B0D at night, 0x8A48484E by day (a little lighter here, so the blur shows)
-        frostVeil.setColor(tone(Ui.alpha(0xFF48484E, 0.5f), Ui.alpha(0xFF0B0B0D, 0.5f)));
+        // A light tint, so the sky and its drops show through: a little white by day, a little black at night
+        frostVeil.setColor(tone(Ui.alpha(0xFFFFFFFF, 0.24f), Ui.alpha(0xFF0B0B0D, 0.34f)));
         c.drawRoundRect(r, radius, radius, frostVeil);
         // The sheen: light along the top edge, fading out smoothly over the top half (one gradient, moved to the card)
         if (sheenShader == null) {
