@@ -11,7 +11,7 @@ Modified by xACTDx · English and Bahasa Indonesia
 
 [GitHub](https://github.com/faizaldjoo/weatherglass-tv) · [Free My TV](https://github.com/simbasjungles/free-my-tv) · [What's different](#whats-different) · [Install](#install) · [Settings](#settings)
 
-<img src=".github/weatherglass-preview.webp" width="880" alt="Weatherglass TV at night: the ink mountains under the moon, the greeting and date, a big clock, the weather, the next prayer, exchange rates and a glass shelf of apps with the CCTV tile">
+<img src=".github/weatherglass-sky.webp" width="880" alt="An animated day on the ink-mountain wallpaper: sunrise, noon, golden hour, sunset, a rain shower and a starry night, with the clock, greeting and weather changing along">
 
 </div>
 
@@ -29,6 +29,8 @@ Weatherglass TV starts from Free My TV and adds or changes:
 - **A new name and logo, and no ambient sound.**
 
 Everything else is Free My TV's work.
+
+<p align="center"><img src=".github/weatherglass-preview.webp" width="760" alt="Weatherglass TV at night: the ink mountains under the moon, the greeting and date, a big clock, the weather, the next prayer, exchange rates and a glass shelf of apps with the CCTV tile"><br><sub>On a TCL TV at night.</sub></p>
 
 ## What you get
 
