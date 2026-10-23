@@ -1399,7 +1399,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         shadow.setColor(tone(0x1F000000, 0x52000000));
         shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
         // The settings drawer's frosted glass (Clock glass setting), or white glass by day and smoked glass at night
-        if (!frostedGlass(c, platterRect, radius)) {
+        if (!frostedGlass(c, platterRect, radius) && !clearGlass(c, platterRect, radius)) {
             scene.liquid(c, platterRect, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
                     tone(30, 34) * k, tone(22, 28) * k, tone(0.65f, 0.95f), 1);
         }
@@ -1407,7 +1407,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             tmp.set(cameraRect);
             tmp.offset(0, 18 * k);
             shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
-            if (!frostedGlass(c, cameraRect, radius)) {
+            if (!frostedGlass(c, cameraRect, radius) && !clearGlass(c, cameraRect, radius)) {
                 scene.liquid(c, cameraRect, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
                         tone(30, 34) * k, tone(22, 28) * k, tone(0.65f, 0.95f), 1);
             }
@@ -1772,12 +1772,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void drawerGlass(Canvas c, RectF r, float radius, float lightTint, int shadowColor, float drop) {
         float dk = dark();
         // Frosted, like the shelf and the clock cards (Settings → Appearance → Glass)
-        if (!Prefs.glass().equals("clear") && skyOn()) {
+        // (or, without the Liquid Glass shader, the same light transparent glass as theirs)
+        if ((!Prefs.glass().equals("clear") && skyOn()) || !scene.hasLiquid()) {
             tmp.set(r);
             tmp.offset(0, drop);
             shadow.setColor(Ui.alpha(shadowColor, 1 - dk * 0.5f));
             shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
-            if (frostedGlass(c, r, radius)) return;
+            if (frostedGlass(c, r, radius) || clearGlass(c, r, radius)) return;
         }
         if (dk < 0.999f) {
             tmp.set(r);
@@ -3377,6 +3378,30 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         return true;
     }
 
+    /**
+     * Transparent glass where the real Liquid Glass shader can't run (Android 12 and older): a light tint (a little black
+     * at night, white by day) instead of the half-dark fill, the sheen and the rim. False where the shader runs.
+     */
+    private boolean clearGlass(Canvas c, RectF r, float radius) {
+        if (scene.hasLiquid()) return false;
+        frostVeil.setColor(tone(Ui.alpha(0xFFFFFFFF, 0.42f), Ui.alpha(0xFF0B0B0D, 0.24f)));
+        c.drawRoundRect(r, radius, radius, frostVeil);
+        if (sheenShader == null) {
+            sheenShader = new LinearGradient(0, 0, 0, 1, 0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
+            frostSheen.setShader(sheenShader);
+        }
+        sheenMatrix.setScale(1, Math.min(r.height() * 0.5f, 120 * k));
+        sheenMatrix.postTranslate(0, r.top);
+        sheenShader.setLocalMatrix(sheenMatrix);
+        frostSheen.setAlpha(Math.round(255 * tone(0.16f, 0.12f)));
+        c.drawRoundRect(r, radius, radius, frostSheen);
+        frostRim.setStyle(Paint.Style.STROKE);
+        frostRim.setStrokeWidth(Math.max(1, 1.5f * k));
+        frostRim.setColor(tone(0x99FFFFFF, 0x47FFFFFF));
+        c.drawRoundRect(r, radius, radius, frostRim);
+        return true;
+    }
+
     /** One card: its soft shadow, then the glass (the shelf's, or frosted: Settings → Appearance → Clock glass). */
     private void glassCard(Canvas c, RectF r, float radius) {
         float u = cU;
@@ -3384,7 +3409,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         tmp.offset(0, 14 * u);
         shadow.setColor(tone(0x1A000000, 0x47000000));
         shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
-        if (frostedGlass(c, r, radius)) return;
+        if (frostedGlass(c, r, radius) || clearGlass(c, r, radius)) return;
         scene.liquid(c, r, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
                 tone(24, 28) * u, tone(18, 22) * u, tone(0.65f, 0.95f), 1);
     }

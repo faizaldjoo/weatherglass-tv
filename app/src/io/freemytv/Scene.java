@@ -163,6 +163,11 @@ final class Scene {
      * Liquid Glass in rectangle `r` (screen coordinates). band and refraction in px (the thick rim and how much it
      * bends the image), specular = rim highlight, alpha = opacity of the whole glass.
      */
+    /** Whether the real Liquid Glass shader runs here (Android 13+); without it, liquid() is a plain translucent fill. */
+    boolean hasLiquid() {
+        return liquid != null;
+    }
+
     void liquid(Canvas c, RectF r, float radius, int tint, float tintAlpha, float lift, float band, float refraction,
                 float specular, float alpha) {
         if (alpha <= 0.004f) return;
