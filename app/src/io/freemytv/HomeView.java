@@ -2047,10 +2047,14 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             c.drawText(priceText[i], right - 128 * k, base, pricePaint);
             double change = data.changes[i];
             if (Double.isNaN(change)) continue;
-            tmp.set(right - 108 * k, mid - 17 * k, right, mid + 17 * k);
+            tmp.set(right - 118 * k, mid - 17 * k, right, mid + 17 * k);
             glassChip(c, tmp, 17 * k);
-            changePaint.setColor(drawerInk(0.95f));   // the sign says up or down; the chip is clear glass
-            c.drawText(changeText[i], tmp.centerX(), mid + Ui.halfCap(changePaint), changePaint);
+            // A small dot says up (green) or down (red) at a glance; the chip itself stays clear glass
+            fill.setShader(null);
+            fill.setColor(change >= 0 ? tone(0xFF248A3D, 0xFF30D158) : tone(0xFFD70015, 0xFFFF453A));
+            c.drawCircle(tmp.left + 16 * k, mid, 5 * k, fill);
+            changePaint.setColor(drawerInk(0.95f));
+            c.drawText(changeText[i], tmp.centerX() + 9 * k, mid + Ui.halfCap(changePaint), changePaint);
         }
     }
 
