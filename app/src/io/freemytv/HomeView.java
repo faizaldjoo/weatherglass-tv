@@ -13,6 +13,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
+import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.media.tv.TvInputManager;
@@ -274,6 +275,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private LinearGradient sheenShader, rimShader;
     private final Matrix rimMatrix = new Matrix();
     private final float[] lightAt = new float[2];
+    private RadialGradient glowShader;
+    private final Matrix glowMatrix = new Matrix();
+    private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private int glowColor;
     private final Matrix sheenMatrix = new Matrix();
     private long frostAt = -1;
     private float frostShift;      // the layer being drawn is moved this far down on screen (drawer animation)
@@ -3369,6 +3374,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         sheenShader.setLocalMatrix(sheenMatrix);
         frostSheen.setAlpha(Math.round(255 * tone(0.16f, 0.12f)));
         c.drawRoundRect(r, radius, radius, frostSheen);
+        lightGlow(c, r, radius);
         glassRim(c, r, radius);
         return true;
     }
@@ -3389,6 +3395,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         sheenShader.setLocalMatrix(sheenMatrix);
         frostSheen.setAlpha(Math.round(255 * tone(0.16f, 0.12f)));
         c.drawRoundRect(r, radius, radius, frostSheen);
+        lightGlow(c, r, radius);
         glassRim(c, r, radius);
         return true;
     }
@@ -3416,6 +3423,37 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         m.setScale(1, l);
         m.postRotate((float) Math.toDegrees(Math.atan2(dx, -dy)));
         m.postTranslate(cx + dx * depth / 2, cy + dy * depth / 2);
+    }
+
+    /**
+     * The sun's or the moon's light falling on the glass: a soft glow in its color on the side that faces it, fading
+     * across the card (ink mountains only, when there is a sun or a moon).
+     */
+    private void lightGlow(Canvas c, RectF r, float radius) {
+        if (!inkOn() || !inkSky.light(lightAt)) return;
+        if (glowShader == null) {
+            glowShader = new RadialGradient(0, 0, 1, new int[] {0xFFFFFFFF, 0x59FFFFFF, 0x00FFFFFF},
+                    new float[] {0, 0.45f, 1}, Shader.TileMode.CLAMP);
+            glowPaint.setShader(glowShader);
+        }
+        float cx = r.centerX(), cy = r.centerY(), dx = lightAt[0] - cx, dy = lightAt[1] - cy;
+        float len = (float) Math.hypot(dx, dy);
+        if (len < 1) return;
+        dx /= len;
+        dy /= len;
+        // Centered on the edge facing the light, as big as the card
+        float ex = cx + dx * r.width() / 2, ey = cy + dy * r.height() / 2, size = Math.max(r.width(), r.height()) * 0.9f;
+        glowMatrix.setScale(size, size);
+        glowMatrix.postTranslate(ex, ey);
+        glowShader.setLocalMatrix(glowMatrix);
+        // The light's own color (warm sun, cool moon): the paint's color tints the white gradient
+        int color = inkSky.lightColor() | 0xFF000000;
+        if (color != glowColor) {   // a new filter only when the color changes (no allocation per frame)
+            glowColor = color;
+            glowPaint.setColorFilter(new android.graphics.PorterDuffColorFilter(color, android.graphics.PorterDuff.Mode.MULTIPLY));
+        }
+        glowPaint.setAlpha(Math.round(255 * Ui.clamp(inkSky.lightStrength()) * tone(0.28f, 0.2f)));
+        c.drawRoundRect(r, radius, radius, glowPaint);
     }
 
     private void glassRim(Canvas c, RectF r, float radius) {

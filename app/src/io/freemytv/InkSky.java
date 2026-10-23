@@ -297,6 +297,15 @@ final class InkSky {
         return true;
     }
 
+    /** The sun's or the moon's color (for the light it throws on the glass), and how strong it is (0 to 1). */
+    int lightColor() {
+        return look.moon ? blend(look.sun0, 0xFFE6ECFF, 0.5f) : look.sun0;
+    }
+
+    float lightStrength() {
+        return Math.min(1, look.sunA);
+    }
+
     void draw(Canvas c, int code, float hour, long ms, float parallax, boolean motion) {
         if (w == 0) return;
         // Drizzle: the cloudy sky, with just a sprinkle of small drops on the glass (no rain falling outside)
