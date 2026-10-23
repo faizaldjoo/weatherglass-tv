@@ -195,6 +195,11 @@ final class Indonesian {
             case "Medium": return "Sedang";
             case "Large": return "Besar";
             case "Your name": return "Nama Anda";
+            case "Clock widget": return "Widget jam";
+            case "Clock glass": return "Kaca jam";
+            case "Transparent": return "Bening";
+            case "Frosted": return "Buram";
+            case "Strong frost": return "Sangat buram";
             case "CCTV camera": return "Kamera CCTV";
             case "Camera address": return "Alamat kamera";
             case "None": return "Tidak ada";

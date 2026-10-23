@@ -262,6 +262,18 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private String cPillText = "", cTempText = "", cCondText = "", cHlText = "", cNumText = "", cDayText = "", cNoteText = "", cSymbol = "";
     private float cU, cPillTextX, cPillBase, cWaveX, cTimeX, cTimeBase, cWxX, cTempBase, cCondBase, cHlBase, cSymX, cSymY, cSymSize,
             cDateX, cNumBase, cDayBase, cNoteBase, cNoteSym, cWxPin;
+    // Frosted glass for the clock cards (Settings → Appearance → Clock glass): the sky, drawn small and blurred, shows
+    // through them. Made again every 30 s (the sky moves slowly), on a change of glass or size; a few kB.
+    private static final int FROST_DIV = 8;
+    private Bitmap frostSmall, frostImage;
+    private Canvas frostCanvas;
+    private BitmapShader frostShader;
+    private final Matrix frostMatrix = new Matrix();
+    private final Paint frostPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint frostVeil = new Paint(Paint.ANTI_ALIAS_FLAG), frostRim = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private long frostAt = -1;
+    private String frostFor = "";
+    private boolean frostFailed;
     // What the layout was made for (compared by reference: these strings are only replaced when they change)
     private float cK = -1;
     private int cPrefs = -1;
@@ -841,6 +853,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         // The hand waving after the greeting (clock layout)
         boolean waving = !picksOn() && waveAt >= 0 && up - waveAt < Ui.WAVE_MS + 100;
         if (waving) heroLayer.invalidate();
+        // The frosted cards show the sky as it was; every 30 s they take it again
+        if (frostAt >= 0 && up - frostAt >= 30_000 && !picksOn()) heroLayer.invalidate();
 
         // Busy: something is moving, or the sheet or the drawer is open.
         boolean busy = waving || tilesMoving || statusMoving || heroMoving || drawerItemsMoving || gridMoving || drawerMoving
@@ -3249,13 +3263,60 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         }
     }
 
-    /** One card of the shelf's glass: its soft shadow, then the glass (white by day, smoked at night). */
+    /** The frosted sky behind the cards, made again if it is older than 30 s or the glass changed. False: not available. */
+    private boolean frost(String glass) {
+        if (frostFailed || !skyOn() || w == 0) return false;   // photo backgrounds live on the GPU: no frost from them
+        long up = SystemClock.uptimeMillis();
+        if (glass.equals(frostFor) && frostAt >= 0 && up - frostAt < 30_000 && frostImage != null) return true;
+        try {
+            int fw = Math.max(1, w / FROST_DIV), fh = Math.max(1, h / FROST_DIV);
+            if (frostImage == null || frostImage.getWidth() != fw || frostImage.getHeight() != fh) {
+                frostSmall = Bitmap.createBitmap(fw * 2, fh * 2, Bitmap.Config.ARGB_8888);
+                frostCanvas = new Canvas(frostSmall);
+                frostImage = Bitmap.createBitmap(fw, fh, Bitmap.Config.ARGB_8888);
+                frostShader = new BitmapShader(frostImage, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+            }
+            frostCanvas.save();
+            frostCanvas.scale(frostSmall.getWidth() / (float) w, frostSmall.getHeight() / (float) h);
+            drawLightSky(frostCanvas);
+            frostCanvas.restore();
+            boolean strong = glass.equals("strong");
+            int[] px = Backdrop.reduce(frostSmall, fw, fh, strong ? 4 : 2, strong ? 3 : 2);
+            frostImage.setPixels(px, 0, fw, 0, 0, fw, fh);
+            frostMatrix.setScale(w / (float) fw, h / (float) fh);
+            frostShader.setLocalMatrix(frostMatrix);
+            frostPaint.setShader(frostShader);
+            frostAt = up;
+            frostFor = glass;
+            return true;
+        } catch (RuntimeException e) {
+            AppLog.w("frost: " + e);
+            frostFailed = true;
+            return false;
+        }
+    }
+
+    /** One card: its soft shadow, then the glass (the shelf's, or frosted: Settings → Appearance → Clock glass). */
     private void glassCard(Canvas c, RectF r, float radius) {
         float u = cU;
         tmp.set(r);
         tmp.offset(0, 14 * u);
         shadow.setColor(tone(0x1A000000, 0x47000000));
         shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
+        String glass = Prefs.glass();
+        if (!glass.equals("clear") && frost(glass)) {
+            // The blurred sky, a milky veil (white by day, smoked at night; stronger frost is milkier), a bright rim
+            boolean strong = glass.equals("strong");
+            c.drawRoundRect(r, radius, radius, frostPaint);
+            frostVeil.setColor(tone(Ui.alpha(0xFFFFFFFF, strong ? 0.5f : 0.34f), Ui.alpha(0xFF2A2E3A, strong ? 0.42f : 0.34f)));
+            c.drawRoundRect(r, radius, radius, frostVeil);
+            frostRim.setStyle(Paint.Style.STROKE);
+            frostRim.setStrokeWidth(Math.max(1.5f, 1.5f * k));
+            frostRim.setColor(tone(0xB3FFFFFF, 0x4DFFFFFF));
+            c.drawRoundRect(r, radius, radius, frostRim);
+            return;
+        }
+        frostAt = -1;   // clear glass: nothing to refresh
         scene.liquid(c, r, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
                 tone(24, 28) * u, tone(18, 22) * u, tone(0.65f, 0.95f), 1);
     }

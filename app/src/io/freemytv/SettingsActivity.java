@@ -280,7 +280,7 @@ public class SettingsActivity extends Activity {
 
         /** Appearance, Wallpaper and Widgets: which Home Settings rows each one shows, in its order. */
         private int[] sectionRows() {
-            if (section == S_APPEARANCE) return new int[] {NAME_ROW, 0, 2, TEXT_ROW, 1, 3};
+            if (section == S_APPEARANCE) return new int[] {NAME_ROW, 0, 2, TEXT_ROW, GLASS_ROW, 1, 3};
             if (section == S_WALLPAPER) return new int[] {WALLPAPER_ROW, MOTION_ROW, SKY_WEATHER_ROW, SKY_TIME_ROW};
             int coins = settingLabels().length - COIN_ROWS;
             int[] r = new int[5 + coins];
@@ -1085,13 +1085,13 @@ public class SettingsActivity extends Activity {
          * weather, wallpaper, its motion, the sky preview (weather, time of day), city, quotes, then one row per coin.
          */
         private static final int WALLPAPER_ROW = 5, MOTION_ROW = 6, SKY_WEATHER_ROW = 7, SKY_TIME_ROW = 8,
-                CITY_ROW = 9, QUOTES_ROW = 10, TEXT_ROW = 11, NAME_ROW = 12, CAMERA_ROW = 13, CAMERA_URL_ROW = 14, COIN_ROWS = 15;
+                CITY_ROW = 9, QUOTES_ROW = 10, TEXT_ROW = 11, NAME_ROW = 12, CAMERA_ROW = 13, CAMERA_URL_ROW = 14, GLASS_ROW = 15, COIN_ROWS = 16;
 
         /** Rows whose value is typed (OK opens the keyboard): the city, the name, the camera's address. */
         private static boolean isTyped(int row) {
             return row == CITY_ROW || row == NAME_ROW || row == CAMERA_URL_ROW;
         }
-        private static final String[] TEXT_SIZES = {"small", "medium", "large"};
+        private static final String[] TEXT_SIZES = {"small", "medium", "large"}, GLASSES = {"clear", "frosted", "strong"};
 
         private boolean dollar() {
             return "BRL".equalsIgnoreCase(Config.CURRENCY.trim());
@@ -1110,10 +1110,11 @@ public class SettingsActivity extends Activity {
             l.add(Ui.tr("Hora do dia", "Time of day"));
             l.add(Ui.tr("Cidade", "City"));
             l.add(HomeData.RATES ? Ui.tr("Widget de câmbio", "Exchange rates widget") : Ui.tr("Widget de cotações", "Quotes widget"));
-            l.add(Ui.tr("Tamanho do texto", "Text size"));
+            l.add(Ui.tr("Widget do relógio", "Clock widget"));
             l.add(Ui.tr("Seu nome", "Your name"));
             l.add(Ui.tr("Câmera de segurança", "CCTV camera"));
             l.add(Ui.tr("Endereço da câmera", "Camera address"));
+            l.add(Ui.tr("Vidro do relógio", "Clock glass"));
             if (HomeData.RATES) {
                 for (int i = 0; i < HomeData.RATE_CODES.length; i++) l.add(HomeData.coinName(i));
             } else {
@@ -1149,6 +1150,8 @@ public class SettingsActivity extends Activity {
             v[SKY_TIME_ROW] = times[Math.max(0, java.util.Arrays.asList(Prefs.SKY_TIMES).indexOf(Prefs.skyTime()))];
             v[QUOTES_ROW] = onOff(Prefs.quotes());
             String size = Prefs.textSize();
+            String glass = Prefs.glass();
+            v[GLASS_ROW] = glass.equals("clear") ? Ui.tr("Transparente", "Transparent") : glass.equals("strong") ? Ui.tr("Bem fosco", "Strong frost") : Ui.tr("Fosco", "Frosted");
             v[TEXT_ROW] = size.equals("small") ? Ui.tr("Pequeno", "Small") : size.equals("large") ? Ui.tr("Grande", "Large") : Ui.tr("Médio", "Medium");
             v[NAME_ROW] = Prefs.greetingName().isEmpty() ? Ui.tr("Nenhum", "None") : Prefs.greetingName();
             v[CAMERA_ROW] = onOff(Prefs.camera());
@@ -1255,6 +1258,11 @@ public class SettingsActivity extends Activity {
                     else Prefs.setCamera(!Prefs.camera());
                     break;
                 case QUOTES_ROW: Prefs.setQuotes(!Prefs.quotes()); break;
+                case GLASS_ROW: {
+                    int at = java.util.Arrays.asList(GLASSES).indexOf(Prefs.glass());
+                    Prefs.setGlass(GLASSES[(at + dir + GLASSES.length) % GLASSES.length]);
+                    break;
+                }
                 case TEXT_ROW: {
                     int at = java.util.Arrays.asList(TEXT_SIZES).indexOf(Prefs.textSize());
                     Prefs.setTextSize(TEXT_SIZES[(at + dir + TEXT_SIZES.length) % TEXT_SIZES.length]);

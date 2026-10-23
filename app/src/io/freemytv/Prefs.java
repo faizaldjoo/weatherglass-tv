@@ -98,6 +98,14 @@ final class Prefs {
 
     static void setTextSize(String v) { put("text_size", v); }
 
+    /** The clock widget's glass: "clear" (the shelf's), "frosted" (the sky blurred through it) or "strong" (more blur, milkier). */
+    static String glass() {
+        String v = sp().getString("glass", "frosted");
+        return v.equals("clear") || v.equals("strong") ? v : "frosted";
+    }
+
+    static void setGlass(String v) { put("glass", v); }
+
     /** textSize() as a scale of the original (large) layout. */
     static float textScale() {
         String v = textSize();
