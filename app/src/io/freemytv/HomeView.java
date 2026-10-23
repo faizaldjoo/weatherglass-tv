@@ -3129,9 +3129,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         pCond.setTextSize(24 * u);
         pDay.setTextSize(24 * u);
         pSoft.setTextSize(20 * u);
-        lWave.setTextSize(30 * u);
         float ox = MARGIN * k, oy = (L_BUTTON_CY - 36) * k;   // the pill's middle is level with the corner buttons'
-        float gap = 20 * u, waveW = lWave.measureText(Ui.WAVE);
+        float gap = 20 * u, waveW = 32 * u;
 
         // What each card needs, before they are lined up to one width
         cPillText = greetText;
@@ -3216,11 +3215,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         int fg = tone(L_INK, 0xFFFFFFFF), soft = tone(L_DIM, 0xC2FFFFFF);
         pPill.setColor(fg);
         c.drawText(cPillText, cPillTextX, cPillBase, pPill);
-        // The hand turns about its wrist
-        float ww = lWave.measureText(Ui.WAVE);
+        // The hand, in the text's color, turns about its wrist (bottom left of the icon)
+        float hs = 32 * u, hcx = cWaveX + hs / 2, hcy = cPillBase - Ui.halfCap(pPill);
         c.save();
-        c.rotate(Ui.waveAngle(SystemClock.uptimeMillis() - waveAt), cWaveX + ww * 0.7f, cPillBase);
-        c.drawText(Ui.WAVE, cWaveX, cPillBase + 2 * u, lWave);
+        c.rotate(Ui.waveAngle(SystemClock.uptimeMillis() - waveAt), hcx - hs * 0.15f, hcy + hs * 0.35f);
+        WeatherIcons.wave(getContext(), c, hcx, hcy, hs, fg);
         c.restore();
 
         pTime.setColor(fg);

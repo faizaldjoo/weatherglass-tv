@@ -14,7 +14,7 @@ import java.util.Map;
 
 /**
  * The home screen's glass weather icons (assets/weather, 256 × 192, in color: a glass cloud in front of the sun or the
- * moon) and the location pin (white, tinted when drawn). Named like Symbols.weather: sunny, partly_cloudy_day...
+ * moon), the location pin and the waving hand (white, tinted when drawn). Named like Symbols.weather: sunny, partly_cloudy_day...
  */
 final class WeatherIcons {
     private WeatherIcons() {}
@@ -54,7 +54,16 @@ final class WeatherIcons {
 
     /** The location pin, `size` px square, centered at (cx, cy), in `color`. */
     static void pin(Context c, Canvas canvas, float cx, float cy, float size, int color) {
-        Bitmap b = get(c, "location", true);
+        tinted(c, canvas, "location", cx, cy, size, color);
+    }
+
+    /** The waving hand after the greeting, one color like the text (a phosphor icon, not the emoji). */
+    static void wave(Context c, Canvas canvas, float cx, float cy, float size, int color) {
+        tinted(c, canvas, "wave", cx, cy, size, color);
+    }
+
+    private static void tinted(Context c, Canvas canvas, String name, float cx, float cy, float size, int color) {
+        Bitmap b = get(c, name, true);
         if (b == null) return;
         synchronized (PAINT) {
             PAINT.setColor(color);

@@ -942,11 +942,10 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         // Top left: greeting and date, the clock, the next prayer, the rates (the weather is at the bottom right)
         iDate.setColor(dim);
         c.drawText(greet, 80 * k, 110 * k, iDate);
-        float hx = 80 * k + iDate.measureText(greet) + 10 * k, ww = iWave.measureText(Ui.WAVE);
+        float hs = 30 * k, hx = 80 * k + iDate.measureText(greet) + 10 * k, ww = hs, hcy = 110 * k - Ui.halfCap(iDate);
         c.save();
-        c.rotate(Ui.waveAngle(up - waveAt), hx + ww * 0.7f, 110 * k);
-        iWave.setAlpha(dark ? 255 : 235);
-        c.drawText(Ui.WAVE, hx, 112 * k, iWave);
+        c.rotate(Ui.waveAngle(up - waveAt), hx + hs * 0.35f, hcy + hs * 0.35f);
+        WeatherIcons.wave(getContext(), c, hx + hs / 2, hcy, hs, dim);
         c.restore();
         c.drawText(dateRest, hx + ww, 110 * k, iDate);
         iClock.setColor(fg);
