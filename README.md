@@ -28,6 +28,9 @@ Weatherglass TV starts from Free My TV and adds or changes:
 - **Exchange rates.** Up to four currencies (e.g. USD, AUD, JPY, EUR) priced in yours.
 - **A new name and logo, and no ambient sound.**
 
+
+<p align="center"><img src=".github/weatherglass-drawer.webp" width="760" alt="The settings drawer sliding in over the home screen in black frosted glass: the focus moves down to Appearance, → opens it, a switch flips, ← goes back and the drawer slides out"><br><sub>The settings drawer at night: black frosted glass over the home screen, opened and worked with the arrow keys.</sub></p>
+
 Everything else is Free My TV's work.
 
 <p align="center"><img src=".github/weatherglass-preview.webp" width="760" alt="Weatherglass TV at night: the ink mountains under the moon, the greeting and date, a big clock, the weather, the next prayer, exchange rates and a glass shelf of apps with the CCTV tile"><br><sub>On a Hisense 43″ TV at night.</sub></p>
