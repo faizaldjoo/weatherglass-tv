@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 12 and newer: the screensaver in :home, as on Android 8 to 10. -->
+<!-- Android 12 and newer: the screensaver in :home, as on Android 9 and 10. -->
 <resources>
     <bool name="dream_in_home">true</bool>
     <bool name="dream_alone">false</bool>

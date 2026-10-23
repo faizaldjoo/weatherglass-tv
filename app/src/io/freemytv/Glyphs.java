@@ -44,8 +44,8 @@ final class Glyphs {
         int slot = slot(coin), key = slot << 16 | frame;
         synchronized (BITMAPS) {
             if (BITMAPS.indexOfKey(key) >= 0) return BITMAPS.get(key);
-            Drawable d = context.getDrawable(IDS[slot]);
-            Bitmap b = null;
+            Drawable d = slot >= 10 ? null : context.getDrawable(IDS[slot]);
+            Bitmap b = slot >= 10 ? label(coin, frame) : null;
             if (d != null) {
                 Bitmap full = Bitmap.createBitmap(frame, frame, Bitmap.Config.ARGB_8888);
                 d.setBounds(0, 0, frame, frame);
@@ -77,7 +77,22 @@ final class Glyphs {
 
     private static final int[] IDS = {R.drawable.coin_btc, R.drawable.coin_eth, R.drawable.coin_sol, R.drawable.coin_usdt};
 
+    /** Exchange rates (HomeData.RATES): the currency code in bold letters, on the same frame as the coin logos. */
+    private static Bitmap label(String code, int frame) {
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setTypeface(Ui.semibold != null ? Ui.semibold : android.graphics.Typeface.DEFAULT_BOLD);
+        p.setTextSize(frame * 0.46f);
+        android.graphics.Rect bounds = new android.graphics.Rect();
+        p.getTextBounds(code, 0, code.length(), bounds);
+        Bitmap full = Bitmap.createBitmap(Math.max(1, bounds.width() + 2), frame, Bitmap.Config.ARGB_8888);
+        new Canvas(full).drawText(code, 1 - bounds.left, frame / 2f - bounds.exactCenterY(), p);
+        return full.extractAlpha();
+    }
+
     private static int slot(String coin) {
+        if (HomeData.RATES) {
+            for (int i = 0; i < HomeData.RATE_CODES.length; i++) if (HomeData.RATE_CODES[i].equals(coin)) return 10 + i;
+        }
         switch (coin) {
             case "BTC": return 0;
             case "ETH": return 1;

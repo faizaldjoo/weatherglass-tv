@@ -8,7 +8,7 @@ import android.os.Build;
 
 /**
  * A recorded drawing that can be replayed with an alpha and a translation: a RenderNode on Android 10+, a Picture on
- * Android 9 and older (no RenderNode). Only Node touches RenderNode, so the classes that use Recording still verify there.
+ * Android 9 (no RenderNode). Only Node touches RenderNode, so the classes that use Recording still verify on Android 9.
  */
 abstract class Recording {
     static Recording create(String name) {
@@ -18,7 +18,7 @@ abstract class Recording {
     abstract Canvas beginRecording(int width, int height);
     abstract void endRecording();
     abstract void setPosition(int left, int top, int right, int bottom);
-    /** On Android 9 and older the layer is skipped: the alpha is applied with saveLayerAlpha only when it's below 1. */
+    /** On Android 9 the layer is skipped: the alpha is applied with saveLayerAlpha only when it's below 1. */
     abstract void setUseCompositingLayer(boolean use, Paint paint);
     abstract void setAlpha(float alpha);
     abstract void setTranslationX(float x);

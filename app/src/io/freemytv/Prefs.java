@@ -30,11 +30,9 @@ final class Prefs {
     /** Sony's app buttons, as SONY_KEY + scan code (read from a BRAVIA's log; the key codes are shared). */
     static final int SONY_KEY = 100_000;
     static final int KEY_SONY_CORE = SONY_KEY + 496, KEY_SONY_NETFLIX = SONY_KEY + 583, KEY_SONY_DISNEY = SONY_KEY + 491,
-            KEY_SONY_PRIME = SONY_KEY + 490, KEY_SONY_YOUTUBE = SONY_KEY + 485, KEY_SONY_CRUNCHYROLL = SONY_KEY + 507,
-            KEY_SONY_PLAY = SONY_KEY + 587;   // the Google Play button of older remotes: BUTTON_8 (BRAVIA 4K UR3, Android 10)
+            KEY_SONY_PRIME = SONY_KEY + 490, KEY_SONY_YOUTUBE = SONY_KEY + 485, KEY_SONY_CRUNCHYROLL = SONY_KEY + 507;
     static final int[] KEYS = RemoteKeys.SONY
-            ? new int[] {KEY_SONY_CORE, KEY_SONY_NETFLIX, KEY_SONY_DISNEY, KEY_SONY_PRIME, KEY_SONY_YOUTUBE, KEY_SONY_CRUNCHYROLL,
-                    KEY_SONY_PLAY}
+            ? new int[] {KEY_SONY_CORE, KEY_SONY_NETFLIX, KEY_SONY_DISNEY, KEY_SONY_PRIME, KEY_SONY_YOUTUBE, KEY_SONY_CRUNCHYROLL}
             : RemoteKeys.STEM_NETFLIX ? new int[] {KEY_STEM_NETFLIX}
             : RemoteKeys.KTC ? new int[] {KEY_KTC_TABII}
             : new int[] {KEY_NETFLIX, KEY_YOUTUBE, KEY_PRIME, KEY_TCL_CHANNEL};
@@ -48,11 +46,6 @@ final class Prefs {
         app = c.getApplicationContext();
         migrateKeys();   // before anything reads the button choices
         Ui.applyLanguage();   // the language picked on the TV, now that it can be read
-    }
-
-    /** The app's context in this process (null before App.onCreate). */
-    static Context context() {
-        return app;
     }
 
     private static SharedPreferences sp() {
@@ -71,11 +64,12 @@ final class Prefs {
 
     // MARK: - Language and units
 
-    /** "auto" or a language code as picked ("pt", "fr", "zh-CN"…); Ui.applyLanguage finds its catalogue. */
+    /** "auto", "pt", "en", "es", "de" or "ru". */
     static String language() {
         String v = app == null ? Config.LANGUAGE : sp().getString("language", Config.LANGUAGE);
-        v = v.trim();
-        return v.isEmpty() || v.equalsIgnoreCase("auto") ? "auto" : v;
+        v = v.trim().toLowerCase(Locale.ROOT);
+        return v.startsWith("ru") ? "ru" : v.startsWith("pt") ? "pt" : v.startsWith("es") ? "es" : v.startsWith("de") ? "de"
+                : v.startsWith("en") ? "en" : "auto";
     }
 
     static void setLanguage(String v) { put("language", v); Ui.applyLanguage(); }
@@ -116,6 +110,56 @@ final class Prefs {
     static boolean weather() { return sp().getBoolean("weather", true); }
     static void setWeather(boolean on) { put("weather", on); }
 
+    /**
+     * The home screen's background: "ink" (ink mountains, following the time of day and the weather) or "photos" (the
+     * picks' photos, as before). The default comes from config.properties (weather_wallpaper).
+     */
+    static final String[] WALLPAPERS = {"ink", "photos"};
+
+    static String wallpaper() {
+        String v = sp().getString("wallpaper", Config.WEATHER_SKY ? "ink" : "photos");
+        return v.equals("photos") ? "photos" : "ink";   // the weather sky (and the earlier rain-on-glass) became the ink mountains
+    }
+    static void setWallpaper(String v) { put("wallpaper", v); }
+
+    /** The weather sky moves (clouds, rain, stars); off keeps it still for slower TVs. */
+    static boolean wallpaperMotion() { return sp().getBoolean("wallpaperMotion", Config.WEATHER_MOTION); }
+    static void setWallpaperMotion(boolean on) { put("wallpaperMotion", on); }
+
+    /**
+     * Sky preview: which weather the sky shows ("live" = the real weather) and whether by day or night ("live" = the
+     * real time). Only the sky changes; the weather widget keeps the real forecast.
+     */
+    static final String[] SKY_WEATHERS = {"live", "clear", "partly", "cloudy", "drizzle", "rain", "storm", "haze"};
+    private static final int[] SKY_CODES = {-1, 0, 2, 3, 53, 61, 95, 45};
+    static final String[] SKY_TIMES = {"live", "sunrise", "morning", "noon", "afternoon", "golden", "sunset", "dusk", "night"};
+    /** The hour (on the ink wallpaper's fixed day) for each Sky preview time; -1 for the real time. */
+    private static final float[] SKY_TIME_HOURS = {-1, 5.75f, 7.5f, 12, 15.3f, 16.9f, 17.7f, 18.4f, 21.5f};
+
+    static String skyWeather() {
+        String v = sp().getString("skyWeather", "live");
+        return java.util.Arrays.asList(SKY_WEATHERS).contains(v) ? v : "live";
+    }
+    static void setSkyWeather(String v) { put("skyWeather", v); }
+
+    /** The weather code the sky should show instead of the real one, or Integer.MIN_VALUE for the real one. */
+    static int skyWeatherCode() {
+        int at = java.util.Arrays.asList(SKY_WEATHERS).indexOf(skyWeather());
+        return at <= 0 ? Integer.MIN_VALUE : SKY_CODES[at];
+    }
+
+    static String skyTime() {
+        String v = sp().getString("skyTime", "live");
+        if (v.equals("day")) return "afternoon";   // the first version had only Day and Night
+        return java.util.Arrays.asList(SKY_TIMES).contains(v) ? v : "live";
+    }
+
+    /** The hour picked in Sky preview: time, or -1 for the real time. */
+    static float skyTimeHour() {
+        return SKY_TIME_HOURS[Math.max(0, java.util.Arrays.asList(SKY_TIMES).indexOf(skyTime()))];
+    }
+    static void setSkyTime(String v) { put("skyTime", v); }
+
     static boolean quotes() { return sp().getBoolean("quotes", Config.SHOW_CRYPTO); }
     static void setQuotes(boolean on) { put("quotes", on); }
 
@@ -137,26 +181,6 @@ final class Prefs {
         StringBuilder sb = new StringBuilder();
         for (String p : packages) sb.append(sb.length() == 0 ? "" : ",").append(p);
         put("shelf", sb.toString());
-    }
-
-    // MARK: - Top buttons
-
-    /**
-     * The round buttons at the top right, in order: "live", "inputs" and/or "settings". null until the user edits
-     * them (then HomeApps.TOP_DEFAULT applies); empty when they took all three off.
-     */
-    static List<String> topButtons() {
-        String v = sp().getString("topButtons", null);
-        if (v == null) return null;
-        List<String> out = new ArrayList<>();
-        for (String p : v.split(",")) if (!p.isEmpty()) out.add(p);
-        return out;
-    }
-
-    static void setTopButtons(List<String> keys) {
-        StringBuilder sb = new StringBuilder();
-        for (String p : keys) sb.append(sb.length() == 0 ? "" : ",").append(p);
-        put("topButtons", sb.toString());
     }
 
     // MARK: - Remote buttons

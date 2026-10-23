@@ -23,7 +23,6 @@ final class Shadows {
     private final RectF dst = new RectF();
     private final float[] xs = new float[4], ys = new float[4];
     private final int[] sx = new int[4], sy = new int[4];
-    boolean dither;
 
     /** Draws `shape` (radius `r`) with `paint`, whose BlurMaskFilter was made with radius `blur`. */
     void draw(Canvas c, RectF shape, float r, float blur, Paint paint) {
@@ -36,9 +35,8 @@ final class Shadows {
         int corner = radius + 2 * m;                  // the slice that holds the curve and the blur on both sides of it
         int w = slices(shape.left - m, shape.right + m, corner, xs, sx);
         int h = slices(shape.top - m, shape.bottom + m, corner, ys, sy);
-        Bitmap mask = mask(radius, b, m, w, h, dither);
+        Bitmap mask = mask(radius, b, m, w, h);
         tint.setColor(paint.getColor());
-        tint.setFilterBitmap(!dither);
         for (int i = 0; i < 3; i++) {
             if (sy[i + 1] == sy[i]) continue;
             for (int j = 0; j < 3; j++) {
@@ -67,8 +65,8 @@ final class Shadows {
         return size;
     }
 
-    private Bitmap mask(int radius, int b, int m, int w, int h, boolean dither) {
-        long key = (long) radius << 48 | (long) b << 32 | (long) w << 16 | h | (dither ? Long.MIN_VALUE : 0);
+    private Bitmap mask(int radius, int b, int m, int w, int h) {
+        long key = (long) radius << 48 | (long) b << 32 | (long) w << 16 | h;
         Bitmap mask = cache.get(key);
         if (mask != null) return mask;
         Bitmap full = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
@@ -76,18 +74,6 @@ final class Shadows {
         p.setColor(0xFF000000);
         p.setMaskFilter(new BlurMaskFilter(b, BlurMaskFilter.Blur.NORMAL));
         new Canvas(full).drawRoundRect(m, m, w - m, h - m, radius, radius, p);
-        if (dither) {
-            int[] px = new int[w * h];
-            full.getPixels(px, 0, w, 0, 0, w, h);
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    int a = px[y * w + x] >>> 24;
-                    float d = (Ui.BAYER[(y & 3) * 4 + (x & 3)] + 0.5f) / 16f - 0.5f;
-                    px[y * w + x] = Math.max(0, Math.min(255, Math.round(a + d * Math.min(64, 2 * a)))) << 24;
-                }
-            }
-            full.setPixels(px, 0, w, 0, 0, w, h);
-        }
         mask = full.extractAlpha();
         full.recycle();
         if (cache.size() > 64) cache.clear();     // focus animations step through a few sizes; keep it bounded

@@ -69,13 +69,14 @@
     <!-- Hero -->
     <section class="hero">
       <div class="hero-copy">
-        <p class="kicker" data-reveal>Google TV, Android TV, LG &amp; Samsung</p>
+        <p class="kicker" data-reveal>Open source · Google TV, Android TV, LG &amp; Samsung</p>
         <h1 data-reveal>Free your <span class="grad">TV.</span></h1>
         <p class="lede" data-reveal>Swap the ad-filled home screen for a fast, clean one. Trending picks from your own apps, the weather at a glance, and a look that follows the sunset. One button to undo.</p>
         <div class="cta" data-reveal>
           <a class="btn btn-dark" href="https://github.com/simbasjungles/free-my-tv" rel="noopener">Get it on GitHub <span aria-hidden="true">→</span></a>
           <button class="btn btn-glass" type="button" data-film><span class="play" aria-hidden="true"></span>Watch the 45-second film</button>
         </div>
+        <p class="built" data-reveal>Built with <b>Claude Code</b> · MIT license</p>
       </div>
       <div class="hero-stage" data-reveal>
         <div class="tv tilt" id="heroTv">
@@ -223,7 +224,7 @@
               <div class="code prompt"><code>Install Free My TV (github.com/simbasjungles/free-my-tv) on my TV at 192.168.1.50. I live in Lisbon.</code><button class="copy-btn" type="button" aria-label="Copy prompt">Copy</button></div>
               It downloads the code, installs the tools it needs, builds the app and puts it on your TV, and asks before anything important. Swap in your TV's IP and your city.
             </li>
-            <li><b>Back on the TV:</b> open <em>Free My TV</em> → <em>Home Screen</em> → <em>Free My TV</em>. That's when the TV asks <em>Allow USB debugging?</em> for Free My TV: tick <em>Always allow</em> and accept.</li>
+            <li><b>Back on the TV:</b> open <em>Free My TV</em> → <em>Home Screen</em> → <em>Free My TV</em>, and accept the debugging prompt (tick <em>Always allow</em>).</li>
           </ol>
         </div>
 
@@ -300,7 +301,7 @@
         <details><summary>Does it work on LG TVs?</summary><p>Yes. On LG it installs through LG's own Developer Mode, with nothing rooted or changed on the TV, and it opens with one press of a number key. Same home screen, same picks, weather and prices. Press EXTEND in the Developer Mode app once a month to keep it.</p></details>
         <details><summary>Does it work on Samsung TVs?</summary><p>Yes, on Samsung TVs from 2017 on. It installs through Samsung's own Developer Mode with TizenBrew Installer, the community's installer, with nothing rooted or changed on the TV. Same home screen, weather and prices, with your city from the TV's time zone. For the trending picks, Claude Code builds it with your free TMDB key.</p></details>
         <details><summary>Can I make it mine?</summary><p>That's the idea. Open the folder in Claude Code and just ask: "add Crunchyroll to the shelf", "show prices in euros", "set it up for my Sony". It changes the code, rebuilds the app and puts it on your TV.</p></details>
-        <details><summary>Does it speak my language?</summary><p>English, Spanish, Portuguese, Russian, German, French, Italian, Japanese and 17 more, following the TV's language, or the one you pick in its settings. Want another one? Ask Claude to add it.</p></details>
+        <details><summary>Does it speak my language?</summary><p>English, Spanish, Portuguese, Russian and German, following the TV's language, or the one you pick in its settings. Want another one? Ask Claude to add it.</p></details>
         <details><summary>Does it collect any data?</summary><p>No accounts, no analytics, no tracking. It only talks to TMDB (picks), Open-Meteo (weather, for your city) and Binance (prices), and Watchmode (links to titles) only if you set its key.</p></details>
         <details><summary>Is it free?</summary><p>Yes. MIT license, and the TMDB key is free too.</p></details>
       </div>
@@ -319,7 +320,7 @@
 
   <footer class="foot">
     <div class="brand"><img src="assets/icon-512.png" alt="" width="24" height="24"><span>Free My TV</span></div>
-    <p>Not affiliated with Google, TCL, LG, Samsung or any streaming service; app names and logos belong to their owners.</p>
+    <p>Built with Claude Code. MIT license. Not affiliated with Google, TCL, LG, Samsung or any streaming service; app names and logos belong to their owners.</p>
     <p>This product uses the TMDB API but is not endorsed or certified by TMDB. Weather data by <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). Prices from Binance. Links to titles by <a href="https://api.watchmode.com/" rel="noopener">Watchmode</a>. Icons: Material Symbols. Font: Inter.</p>
   </footer>
 

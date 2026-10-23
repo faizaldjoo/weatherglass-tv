@@ -63,13 +63,14 @@
     <!-- Hero -->
     <section class="hero">
       <div class="hero-copy">
-        <p class="kicker" data-reveal>Google TV, Android TV, LG e Samsung</p>
+        <p class="kicker" data-reveal>Código aberto · Google TV, Android TV, LG e Samsung</p>
         <h1 data-reveal>Liberte sua <span class="grad">TV.</span></h1>
         <p class="lede" data-reveal>Troque a tela inicial cheia de anúncios por uma rápida e limpa. O que está em alta nos seus próprios apps, o clima num relance e um visual que acompanha o pôr do sol. Um botão para desfazer.</p>
         <div class="cta" data-reveal>
           <a class="btn btn-dark" href="https://github.com/simbasjungles/free-my-tv" rel="noopener">Baixar no GitHub <span aria-hidden="true">→</span></a>
           <button class="btn btn-glass" type="button" data-film><span class="play" aria-hidden="true"></span>Assista ao filme de 45 segundos</button>
         </div>
+        <p class="built" data-reveal>Feito com <b>Claude Code</b> · licença MIT</p>
       </div>
       <div class="hero-stage" data-reveal>
         <div class="tv tilt" id="heroTv">
@@ -217,7 +218,7 @@
               <div class="code prompt"><code>Instale o Free My TV (github.com/simbasjungles/free-my-tv) na minha TV em 192.168.1.50. Eu moro em São Paulo.</code><button class="copy-btn" type="button" aria-label="Copiar pedido">Copiar</button></div>
               Ele baixa o código, instala o que falta, compila o app e coloca na sua TV, e pede a sua permissão antes de qualquer coisa importante. Troque pelo IP da sua TV e pela sua cidade.
             </li>
-            <li><b>De volta na TV:</b> abra <em>Free My TV</em> → <em>Início</em> → <em>Free My TV</em>. É nessa hora que a TV pergunta <em>Permitir a depuração USB?</em> para o Free My TV: marque <em>Sempre permitir</em> e aceite.</li>
+            <li><b>De volta na TV:</b> abra <em>Free My TV</em> → <em>Início</em> → <em>Free My TV</em> e aceite o aviso de depuração (marque <em>Sempre permitir</em>).</li>
           </ol>
         </div>
 
@@ -294,7 +295,7 @@
         <details><summary>Funciona em TV LG?</summary><p>Funciona. Na LG ele é instalado pelo próprio Developer Mode da LG, sem root e sem mudar nada na TV, e abre com um toque numa tecla numérica. A mesma tela inicial, com destaques, clima e cotações. Aperte EXTEND no app Developer Mode uma vez por mês para mantê-lo.</p></details>
         <details><summary>Funciona em TV Samsung?</summary><p>Funciona, nas TVs Samsung de 2017 em diante. Ele é instalado pelo próprio Developer Mode da Samsung com o TizenBrew Installer, o instalador da comunidade, sem root e sem mudar nada na TV. A mesma tela inicial, clima e cotações, com a sua cidade pelo fuso da TV. Para os destaques, o Claude Code compila com a sua chave grátis do TMDB.</p></details>
         <details><summary>Dá para deixar do meu jeito?</summary><p>Essa é a ideia. Abra a pasta no Claude Code e é só pedir: "coloque o Crunchyroll na prateleira", "mostre as cotações em reais", "configure para a minha Sony". Ele muda o código, compila o app e coloca na sua TV.</p></details>
-        <details><summary>Fica em português?</summary><p>Fica. O app segue o idioma da TV (português, inglês, espanhol, russo, alemão, francês, italiano, japonês e mais 17), ou o que você escolher nos ajustes dele. Quer outro idioma? Peça ao Claude.</p></details>
+        <details><summary>Fica em português?</summary><p>Fica. O app segue o idioma da TV (português, inglês, espanhol, russo ou alemão), ou o que você escolher nos ajustes dele. Quer outro idioma? Peça ao Claude.</p></details>
         <details><summary>Ele coleta algum dado?</summary><p>Não. Sem contas, sem análises, sem rastreamento. Ele só fala com o TMDB (destaques), o Open-Meteo (clima, da sua cidade) e a Binance (cotações), e o Watchmode (links dos títulos) só se você colocar a chave dele.</p></details>
         <details><summary>É grátis?</summary><p>Sim. Licença MIT, e a chave do TMDB também é grátis.</p></details>
       </div>
@@ -313,7 +314,7 @@
 
   <footer class="foot">
     <div class="brand"><img src="../assets/icon-512.png" alt="" width="24" height="24"><span>Free My TV</span></div>
-    <p>Sem ligação com o Google, a TCL, a LG, a Samsung ou qualquer serviço de streaming; nomes e logos dos apps pertencem aos seus donos.</p>
+    <p>Feito com Claude Code. Licença MIT. Sem ligação com o Google, a TCL, a LG, a Samsung ou qualquer serviço de streaming; nomes e logos dos apps pertencem aos seus donos.</p>
     <p>Este produto usa a API do TMDB, mas não é endossado nem certificado pelo TMDB. Dados do clima por <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a> (CC BY 4.0). Cotações da Binance. Links dos títulos por <a href="https://api.watchmode.com/" rel="noopener">Watchmode</a>. Ícones: Material Symbols. Fonte: Inter.</p>
   </footer>
 

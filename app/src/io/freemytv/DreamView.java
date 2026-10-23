@@ -9,6 +9,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RadialGradient;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.RuntimeShader;
 import android.graphics.Shader;
 import android.os.Handler;
@@ -38,6 +39,10 @@ import java.util.concurrent.Executors;
  *  - bottom left, the photo's caption: the time-of-day label ("TONIGHT"), the title, and genre · runtime · service.
  * Dark scrims only where there is text, stronger where the photo is bright. Any key exits (as on Apple TV).
  * Without photos (no TMDB key, or before the first fetch): the big clock over the night aurora.
+ *
+ * With the Ink mountains wallpaper: the same mountains, gliding on their own (the depths sway, a slow zoom), with the
+ * clock top left, today's prayer times bottom left (the next one highlighted) and the time of day, city and weather
+ * bottom right; the text drifts a few pixels over 10 minutes so nothing burns in.
  */
 final class DreamView extends View implements Choreographer.FrameCallback, HomeData.Listener, Recs.Listener {
     private static final long SHOW_MS = 30_000, FADE_MS = 3_000, FIRST_MS = 1_600;
@@ -47,10 +52,6 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
     private static final float MARGIN = 80, RIGHT = 1840, TITLE_W = 900, META_BASE = 1008;
     private static final float DATE_BASE = 92, CLOCK_TOP = 120, CLOCK_SIZE = 200, QUOTES_GAP = 52;
     private static final double DRIFT_PERIOD_S = 600;
-    // The high and low and the stale prices line, made again only when they change (drawn on every frame).
-    private String range = "", staleLine = "", staleFor = "";
-    private HomeData.Weather rangeWeather;
-    private int rangeGeneration = -1, rangePrefs = -1, staleGeneration = -1;
 
     /** One photo on screen: the image, its motion (zooming in or out, toward a corner) and its caption. */
     private static final class Slide {
@@ -99,6 +100,16 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
 
     private final Scene scene = new Scene(false);
     private final HomeData data;
+    // The Ink mountains screensaver
+    private final WeatherSky inkHelper = new WeatherSky();
+    private final InkSky ink = new InkSky(inkHelper);
+    private Paint iDate, iClock, iLine, iSmall, iLabel, iName, iPName, iPNameOn, iPTime, iPTimeOn, iScrim, iBox;
+    private RadialGradient[] scrimDark, scrimLight;
+    private final long[] prayerAt = new long[5];
+    private final String[] prayerText = new String[5];
+    private int prayerNext = -1;
+    private String prayerLine = "";
+    private final RectF box = new RectF();
     private final Recs recs;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private ExecutorService worker = Executors.newSingleThreadExecutor();
@@ -153,7 +164,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         try {
             glassShader = new RuntimeShader(Shaders.GLASS_TEXT);
             glassPaint.setShader(glassShader);
-        } catch (RuntimeException | LinkageError e) {   // Android 8 to 12: no AGSL
+        } catch (RuntimeException | LinkageError e) {   // Android 9 to 12: no AGSL
             AppLog.w("glass clock unavailable: " + e.getMessage());
             glassShader = null;
         }
@@ -173,8 +184,10 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         recs.addListener(this);
         data.refreshIfStale();
         recs.refreshIfStale();
-        recs.prefetchAll();
-        prepareNext();
+        if (!inkMode()) {
+            recs.prefetchAll();
+            prepareNext();
+        }
         handler.postDelayed(tick, 60_000);
         Choreographer.getInstance().postFrameCallback(this);
         invalidate();
@@ -198,6 +211,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         }
         if (!gone.isEmpty()) handler.postDelayed(() -> { for (Bitmap b : gone) b.recycle(); }, 1000);
         current = incoming = prepared = null;
+        ink.release();
         glass = null;
         slides = 0;
         glassFor = "";
@@ -222,6 +236,29 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         w = width;
         h = height;
         k = w / 1920f;
+        inkHelper.setSize(w, h);
+        ink.setSize(w, h);
+        iDate = Ui.text(Ui.semibold, 32 * k, 0xFFFFFFFF);
+        iClock = Ui.numbers(Ui.light, 230 * k, 0xFFFFFFFF);
+        iLine = Ui.numbers(Ui.medium, 32 * k, 0xFFFFFFFF);
+        iSmall = Ui.numbers(Ui.medium, 26 * k, 0xFFFFFFFF);
+        iLabel = Ui.text(Ui.semibold, 24 * k, 0xFFFFFFFF);
+        iLabel.setLetterSpacing(0.12f);
+        iName = Ui.text(Ui.displaySemibold, 56 * k, 0xFFFFFFFF);
+        iPName = Ui.text(Ui.medium, 26 * k, 0xFFFFFFFF);
+        iPNameOn = Ui.text(Ui.semibold, 26 * k, 0xFFFFFFFF);
+        iPTime = Ui.numbers(Ui.regular, 40 * k, 0xFFFFFFFF);
+        iPTimeOn = Ui.numbers(Ui.semibold, 40 * k, 0xFFFFFFFF);
+        iScrim = new Paint(Paint.ANTI_ALIAS_FLAG);
+        iBox = new Paint(Paint.ANTI_ALIAS_FLAG);
+        float[][] at = {{330, 250, 640}, {1620, 980, 640}, {400, 990, 680}};
+        int[] strength = {0x47, 0x6B, 0x5C};
+        scrimDark = new RadialGradient[3];
+        scrimLight = new RadialGradient[3];
+        for (int i = 0; i < 3; i++) {
+            scrimDark[i] = new RadialGradient(at[i][0] * k, at[i][1] * k, at[i][2] * k, strength[i] << 24, 0, Shader.TileMode.CLAMP);
+            scrimLight[i] = new RadialGradient(at[i][0] * k, at[i][1] * k, at[i][2] * k, strength[i] << 24 | 0xFFFAF0, 0x00FFFAF0, Shader.TileMode.CLAMP);
+        }
         scene.setSize(w, h);
         content.setPosition(0, 0, w, h);
         chrome.setPosition(0, 0, w, h);
@@ -398,7 +435,13 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
 
     @Override public void doFrame(long frameTimeNanos) {
         if (!running) return;
-        if (frameTimeNanos - lastFrame >= 45_000_000L) {
+        // The ink mountains drift slowly: 12 frames a second (rain falls: 20); the photos keep their 22.
+        long every = 45_000_000L;
+        if (inkMode()) {
+            int kind = WeatherSky.kind(inkCode());
+            every = kind == WeatherSky.RAIN || kind == WeatherSky.STORM ? 50_000_000L : 83_000_000L;
+        }
+        if (frameTimeNanos - lastFrame >= every) {
             lastFrame = frameTimeNanos;
             invalidate();
         }
@@ -418,9 +461,14 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         if (now / 60_000 != minute) {
             minute = now / 60_000;
             clock = Ui.clock(now);
-            date = Ui.date(now);
+            date = Ui.greeting(now) + "  ·  " + Ui.date(now);   // "Good Evening, Haikal · Friday, 23 October"
             dirty = true;
             chromeDirty = true;
+            if (inkMode()) refreshPrayers(now);
+        }
+        if (inkMode()) {
+            drawInk(canvas, now, up);
+            return;
         }
         if (running) advance(up);
         if (!glassFor.equals(clock)) buildGlass(clock);
@@ -549,7 +597,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
                 c.drawText(values[i], qx, base, cornerQuote);
                 qx += cornerQuote.measureText(values[i]) + spacing;
             }
-            String stale = HomeData.staleness(data.pricesAt, 5 * 60_000L);
+            String stale = HomeData.staleness(data.pricesAt, HomeData.pricesEvery());
             if (!stale.isEmpty() && n > 0) c.drawText(stale, right - total - 24 * k - cornerStale.measureText(stale), base, cornerStale);
         } finally {
             chrome.endRecording();
@@ -758,12 +806,11 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
             float base = clockBase + 76 * k;
             String symbol = Symbols.weather(wx.code, wx.isDay);
             String now = HomeData.degrees(wx.temp);
-            if (wx != rangeWeather || Ui.generation != rangeGeneration || Prefs.version != rangePrefs) {
-                range = HomeData.highLow(wx, "  ");
-                rangeWeather = wx;
-                rangeGeneration = Ui.generation;
-                rangePrefs = Prefs.version;
-            }
+            String range = Ui.ru ? "Макс. " + HomeData.degrees(wx.max) + "  Мин. " + HomeData.degrees(wx.min)
+                    : Ui.indo ? "T:" + HomeData.degrees(wx.max) + "  R:" + HomeData.degrees(wx.min)
+                    : Ui.en ? "H:" + HomeData.degrees(wx.max) + "  L:" + HomeData.degrees(wx.min)
+                    : Ui.de ? "H:" + HomeData.degrees(wx.max) + "  T:" + HomeData.degrees(wx.min)
+                    : "Máx. " + HomeData.degrees(wx.max) + "  Mín. " + HomeData.degrees(wx.min);
             float sw = Symbols.width(getContext(), symbol, 32 * k);
             float width = sw + 12 * k + weatherPaint.measureText(now) + 18 * k + weatherDim.measureText(range);
             float x = cx - width / 2;
@@ -791,14 +838,142 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
             c.drawText(values[i], x, base, quotePaint);
             x += quotePaint.measureText(values[i]) + spacing;
         }
-        String stale = HomeData.staleness(data.pricesAt, 5 * 60_000L);
-        if (!stale.isEmpty() && values.length > 0) {
-            if (!stale.equals(staleFor) || Ui.generation != staleGeneration) {
-                staleLine = Ui.trf("prices from {ago}", "ago", stale);
-                staleFor = stale;
-                staleGeneration = Ui.generation;
-            }
-            c.drawText(staleLine, cx, base + 38 * k, stalePaint);
+        String stale = HomeData.staleness(data.pricesAt, HomeData.pricesEvery());
+        if (!stale.isEmpty() && values.length > 0) c.drawText(Ui.tr("cotações de ", "prices from ") + stale, cx, base + 38 * k, stalePaint);
+    }
+
+    // MARK: - Ink mountains
+
+    private static boolean inkMode() {
+        return Prefs.wallpaper().equals("ink");
+    }
+
+    /** The weather the sky shows: the real one, or the one picked in Home Settings (Sky preview). */
+    private int inkCode() {
+        int code = Prefs.skyWeatherCode();
+        return code == Integer.MIN_VALUE ? data.weather.code : code;
+    }
+
+    /** The hour on the ink wallpaper's day: the one picked in Sky preview, or now with today's real sunrise and sunset. */
+    private float inkHour(long now) {
+        float picked = Prefs.skyTimeHour();
+        if (picked >= 0) return picked;
+        float hour = Shaders.timeOfDay(now, 0) / 3_600_000f;
+        float rise = Shaders.timeOfDay(data.weather.sunrise, (long) (InkSky.SUNRISE * 3_600_000L)) / 3_600_000f;
+        float set = Shaders.timeOfDay(data.weather.sunset, (long) (InkSky.SUNSET * 3_600_000L)) / 3_600_000f;
+        return InkSky.canonical(hour, rise, set);
+    }
+
+    private void refreshPrayers(long now) {
+        prayerNext = -1;
+        prayerLine = "";
+        double lat, lon;
+        try {
+            lat = Double.parseDouble(Prefs.latitude());
+            lon = Double.parseDouble(Prefs.longitude());
+        } catch (Exception e) {
+            return;
         }
+        long[] today = PrayerTimes.times(lat, lon, now, 0), next = PrayerTimes.next(lat, lon, now);
+        for (int i = 0; i < 5; i++) {
+            prayerAt[i] = today[i];
+            prayerText[i] = Ui.clock(today[i]);
+        }
+        prayerNext = next[1] == today[(int) next[0]] ? (int) next[0] : 0;   // after Isha: tomorrow's Fajr
+        long left = Math.max(0, (next[1] - now + 59_999) / 60_000);
+        prayerLine = PrayerTimes.name((int) next[0]) + " " + Ui.clock(next[1]) + "  ·  " + Ui.tr("em ", "in ")
+                + (left >= 60 ? (left / 60) + (Ui.indo ? " jam " : " h ") + (left % 60) + (Ui.indo ? " menit" : " min")
+                : left + (Ui.indo ? " menit" : " min"));
+    }
+
+    /** The caption for the time of day, on the wallpaper's day. */
+    private static String phase(float hour) {
+        if (hour < 4.2f || hour >= 19.2f) return Ui.tr("ESTA NOITE", "TONIGHT");
+        if (hour < 5.1f) return Ui.tr("ANTES DO AMANHECER", "BEFORE DAWN");
+        if (hour < 5.75f) return Ui.tr("AMANHECER", "DAWN");
+        if (hour < 7.5f) return Ui.tr("NASCER DO SOL", "SUNRISE");
+        if (hour < 11) return Ui.tr("ESTA MANHÃ", "THIS MORNING");
+        if (hour < 14.5f) return Ui.tr("MEIO-DIA", "MIDDAY");
+        if (hour < 16.6f) return Ui.tr("ESTA TARDE", "THIS AFTERNOON");
+        if (hour < 17.5f) return Ui.tr("HORA DOURADA", "GOLDEN HOUR");
+        if (hour < 18.2f) return Ui.tr("PÔR DO SOL · MAGHRIB", "SUNSET · MAGHRIB");
+        return Ui.tr("CREPÚSCULO", "DUSK");
+    }
+
+    private void drawInk(Canvas c, long now, long up) {
+        float hour = inkHour(now), sec = (up - startedAt) / 1000f;
+        int code = inkCode(), kind = WeatherSky.kind(code);
+        boolean motion = Prefs.wallpaperMotion();
+        // The mountains glide on their own: the depths sway over ~90 s, under a slow zoom in and out
+        float par = motion ? (float) Math.sin(sec * 2 * Math.PI / 90) * 0.9f : 0;
+        float z = 1.04f + (motion ? 0.03f * (float) Math.sin(sec * 2 * Math.PI / 240) : 0);
+        c.save();
+        c.scale(z, z, w / 2f, h / 2f);
+        ink.draw(c, code, hour, up, par, motion);
+        c.restore();
+
+        boolean dark = InkSky.night(hour) >= 0.5f || kind == WeatherSky.STORM;
+        int fg = dark ? 0xFFFFFFFF : 0xFF0B1626, dim = dark ? 0xE0FFFFFF : 0xE615263C;
+        RadialGradient[] scrims = dark ? scrimDark : scrimLight;
+        float[][] at = {{330, 250, 640}, {1620, 980, 640}, {400, 990, 680}};
+        for (int i = 0; i < 3; i++) {
+            iScrim.setShader(scrims[i]);
+            c.drawCircle(at[i][0] * k, at[i][1] * k, at[i][2] * k, iScrim);
+        }
+
+        // The text drifts a few pixels over ten minutes, so nothing stays burned in one place
+        float dx = (float) Math.sin(sec * 2 * Math.PI / 600) * 18 * k, dy = (float) Math.cos(sec * 2 * Math.PI / 600) * 12 * k;
+        c.save();
+        c.translate(dx, dy);
+        HomeData.Weather wx = data.weather;
+        boolean weather = Prefs.weather() && !Double.isNaN(wx.temp);
+        String condition = weather ? HomeData.condition(wx.code, wx.isDay) : "";
+        // Top left: date and weather, the clock, the next prayer, the rates
+        iDate.setColor(dim);
+        c.drawText(date + (weather ? "  ·  " + HomeData.degrees(wx.temp) + " " + condition : ""), 80 * k, 110 * k, iDate);
+        iClock.setColor(fg);
+        c.drawText(clock, 80 * k - Ui.leftBearing(iClock, clock), 330 * k, iClock);
+        iLine.setColor(dim);
+        if (!prayerLine.isEmpty()) c.drawText(prayerLine, 80 * k, 396 * k, iLine);
+        if (Prefs.quotes() && HomeData.active().length > 0) {
+            StringBuilder rates = new StringBuilder();
+            for (int coin : HomeData.active()) {
+                if (rates.length() > 0) rates.append("   ");
+                rates.append(HomeData.RATES ? HomeData.COINS[coin] : HomeData.coinName(coin)).append(' ').append(HomeData.compact(data.prices[coin]));
+            }
+            iSmall.setColor(dim);
+            c.drawText(rates.toString(), 80 * k, 446 * k, iSmall);
+        }
+        // Bottom right: the time of day, the city, the weather
+        String label = phase(hour), city = Prefs.city().isEmpty() ? Config.CITY : Prefs.city();
+        iLabel.setColor(dim);
+        c.drawText(label, 1840 * k - iLabel.measureText(label), 920 * k, iLabel);
+        iName.setColor(fg);
+        if (!city.isEmpty()) c.drawText(city, 1840 * k - iName.measureText(city), 984 * k, iName);
+        if (weather) {
+            String line = condition + "  ·  " + HomeData.degrees(wx.temp) + "  ·  H " + HomeData.degrees(wx.max) + "  L " + HomeData.degrees(wx.min);
+            iSmall.setColor(dim);
+            c.drawText(line, 1840 * k - iSmall.measureText(line), 1030 * k, iSmall);
+        }
+        // Bottom left: today's five prayer times, the next one highlighted
+        if (prayerNext >= 0) {
+            iLabel.setColor(dim);
+            c.drawText(Ui.tr("HORÁRIOS DE ORAÇÃO", "PRAYER TIMES"), 80 * k, 920 * k, iLabel);
+            for (int i = 0; i < 5; i++) {
+                float x = (80 + i * 172) * k;
+                boolean on = i == prayerNext;
+                if (on) {
+                    iBox.setColor(dark ? 0x29FFFFFF : 0x1715263C);
+                    box.set(x - 14 * k, 940 * k, x + 144 * k, 1044 * k);
+                    c.drawRoundRect(box, 18 * k, 18 * k, iBox);
+                }
+                Paint name = on ? iPNameOn : iPName, time = on ? iPTimeOn : iPTime;
+                name.setColor(on ? fg : dim);
+                time.setColor(fg);
+                c.drawText(PrayerTimes.name(i), x, 980 * k, name);
+                c.drawText(prayerText[i], x, 1028 * k, time);
+            }
+        }
+        c.restore();
     }
 }

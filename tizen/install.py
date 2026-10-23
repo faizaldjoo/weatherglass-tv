@@ -11,7 +11,7 @@ restart the TV.
 It speaks SDB (Samsung's ADB, port 26101) itself, so it needs only Python 3: no Tizen Studio, and no Rosetta on Apple
 Silicon, where Samsung's sdb (an Intel binary) doesn't run. Like Samsung's tools it pushes the package to the folder
 the TV names in its capabilities and installs it with `0 vd_appinstall`, the command TizenBrew Installer uses on
-every Tizen; `0 was_execute` opens it. Tested on a 2017 UN50MU6100 (Tizen 3.0) and a 2019 UN55RU7100 (Tizen 5.0).
+every Tizen; `0 was_execute` opens it. Tested on a 2017 UN50MU6100 (Tizen 3.0).
 """
 import os
 import re
@@ -25,7 +25,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WGT = os.path.join(ROOT, 'FreeMyTV-tizen.wgt')
 PORT = 26101
 MAX_DATA = 4096   # what this side announces; sdbd keeps each packet within both sides' maximum
-ON_TV = 'Apps, Settings, Free My TV, Delete'   # removing it on the TV itself
 
 
 class Sdb:
@@ -170,11 +169,8 @@ def main():
                                          caps.get('platform_version', '?')))
 
     if uninstall:
-        out = sdb.shell('0 vd_appuninstall ' + package, r'spend time', 120).strip()
-        if not re.search(r'uninstall completed', out):
-            # Some TVs' sdbd refuses this command and answers nothing.
-            sys.exit(('The TV said:\n' + out if out else 'The TV didn\'t answer.') + '\nRemove it on the TV instead: ' + ON_TV + '.')
-        print('Removed.')
+        out = sdb.shell('0 vd_appuninstall ' + package, r'spend time', 120)
+        print('Removed.' if re.search(r'uninstall completed|cmd_ret:0', out) else 'The TV said:\n' + out.strip())
         return
 
     remote = caps.get('sdk_toolpath', '/home/owner/share/tmp/sdk_tools').rstrip('/') + '/FreeMyTV-tizen.wgt'
@@ -184,12 +180,8 @@ def main():
     sdb.push(remote, data)
     print('Installing ...')
     out = sdb.shell('0 vd_appinstall %s %s' % (package, remote), r'spend time', 120)
-    if not re.search(r'install completed', out):
-        hint = ''
-        if 'different certificate' in out:
-            hint = ('\nThe Free My TV on the TV was signed with another certificate, and the TV only updates it with the '
-                    'same one. Remove it on the TV (' + ON_TV + '), then run this again.')
-        sys.exit('The TV didn\'t finish installing. It said:\n' + out.strip() + hint)
+    if not re.search(r'install completed|cmd_ret:0', out):
+        sys.exit('The TV didn\'t finish installing. It said:\n' + out.strip())
     sdb.shell('0 was_execute ' + app_id, r'launched|spend time', 20)
     print('Installed and open on the TV.')
     print('Tip: turn on Autorun Last App in the TV\'s settings (General, Smart Features; where it is changes by year) '

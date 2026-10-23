@@ -15,8 +15,7 @@ import android.view.KeyEvent;
  * On Vestel TVs and Formovie (Xiaomi) projectors only the Netflix button is ours: the system opens Netflix itself (a
  * global key, after the filter).
  * On KTC TVs (NextStar) only the Tabii button is ours, a global key too: the TV's hot-key receiver opens Tabii with it.
- * On Sony TVs, the app buttons (and the Google Play button of older remotes) are global keys for Sony's own receiver;
- * the filter sees them first, the same way.
+ * On Sony TVs, the six app buttons are global keys for Sony's own receiver; the filter sees them first, the same way.
  */
 final class RemoteKeys {
     private RemoteKeys() {}
@@ -48,10 +47,8 @@ final class RemoteKeys {
         if ((source & InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD
                 || (source & InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK) return false;
         int keyCode = e.getKeyCode() == KEY_YOUTUBE_TCL ? Prefs.KEY_YOUTUBE : e.getKeyCode();
-        // Sony sends BUTTON_9 for five app buttons (BUTTON_4 for Netflix, BUTTON_8 for Google Play): only the scan code
-        // tells them apart.
-        if (SONY && (keyCode == KeyEvent.KEYCODE_BUTTON_4 || keyCode == KeyEvent.KEYCODE_BUTTON_8
-                || keyCode == KeyEvent.KEYCODE_BUTTON_9)) {
+        // Sony sends BUTTON_9 for five app buttons (BUTTON_4 for Netflix): only the scan code tells them apart.
+        if (SONY && (keyCode == KeyEvent.KEYCODE_BUTTON_4 || keyCode == KeyEvent.KEYCODE_BUTTON_9)) {
             keyCode = Prefs.SONY_KEY + e.getScanCode();
         }
         boolean ours = false;

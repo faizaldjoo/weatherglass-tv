@@ -46,6 +46,7 @@ final class Recs {
         int id;
         String kind;            // "movie" or "tv"
         String title, backdrop, meta = "", app, pkg;
+        String poster;          // the title's poster (TMDB path), for the two tall cards
         String link;            // opens the title in its app (looked up with Watchmode), or null: the app's home
         boolean detailed;
     }
@@ -59,8 +60,14 @@ final class Recs {
     private static final int ANIMATION = 16;
     private static final long LIST_EVERY = 6 * 3600_000L;
     /** Bump when what is saved for each title changes (the saved list is discarded and fetched again). */
-    private static final int CACHE_VERSION = 3;
+    private static final int CACHE_VERSION = 4;   // 4: picks carry their poster
     private static final int MANHA = 0, TARDE = 1, NOITE = 2;
+    static final String[] PERIOD_LABEL = {"PARA ESTA MANHÃ", "PARA ESTA TARDE", "PARA ESTA NOITE"};
+    static final String[] PERIOD_LABEL_RU = {"ЭТИМ УТРОМ", "СЕГОДНЯ ДНЁМ", "СЕГОДНЯ ВЕЧЕРОМ"};
+    static final String[] PERIOD_LABEL_EN = {"THIS MORNING", "THIS AFTERNOON", "TONIGHT"};
+    static final String[] PERIOD_LABEL_ID = {"PAGI INI", "SORE INI", "MALAM INI"};
+    static final String[] PERIOD_LABEL_ES = {"PARA ESTA MAÑANA", "PARA ESTA TARDE", "PARA ESTA NOCHE"};
+    static final String[] PERIOD_LABEL_DE = {"HEUTE MORGEN", "HEUTE NACHMITTAG", "HEUTE ABEND"};
     /** Service name on TMDB (part of the name, lowercase) → TV app (HomeApps key, package). */
     private static final String[][] SERVICES = {
         {"netflix", "netflix", "com.netflix.ninja"},
@@ -96,10 +103,7 @@ final class Recs {
         SERVICE_NAME.put("oneplay", "Oneplay");
     }
     /** Country for "what streams where" (config.properties "tmdb_region", e.g. US, GB, BR). */
-    static final String REGION = Config.TMDB_REGION.trim().toUpperCase(Locale.ROOT);
-    /** The errors the settings say in words: TMDB lists none of the TV's apps in REGION, or the TV has none we know. */
-    static final String NO_APPS = "none of the TV's streaming services are on TMDB";
-    static final String NO_KNOWN_APPS = "none of the TV's streaming apps can give picks";
+    private static final String REGION = Config.TMDB_REGION.trim().toUpperCase(Locale.ROOT);
 
     private static Recs instance;
 
@@ -115,6 +119,9 @@ final class Recs {
     private final List<Listener> listeners = new ArrayList<>();
     private final Map<String, Backdrop> images = new LinkedHashMap<>();   // this hour's, built and ready to draw
     private final java.util.Set<String> pending = new java.util.HashSet<>();
+    private final Map<String, Bitmap> posters = new LinkedHashMap<>();   // tall-card posters, ready to draw
+    private final java.util.Set<String> posterPending = new java.util.HashSet<>();
+    private static final String POSTERS = "https://image.tmdb.org/t/p/w780";
     private volatile List<Pick> picks = new ArrayList<>();
     private volatile int period = -1;
     private volatile long listAt;
@@ -168,8 +175,8 @@ final class Recs {
     String error() { return error; }
 
     static String periodLabel() {
-        int p = period(System.currentTimeMillis());
-        return p == MANHA ? Ui.tr("THIS MORNING") : p == TARDE ? Ui.tr("THIS AFTERNOON") : Ui.tr("TONIGHT");
+        return (Ui.indo ? PERIOD_LABEL_ID : Ui.ru ? PERIOD_LABEL_RU : Ui.es ? PERIOD_LABEL_ES : Ui.de ? PERIOD_LABEL_DE : Ui.en ? PERIOD_LABEL_EN : PERIOD_LABEL)
+                [period(System.currentTimeMillis())];
     }
 
     private static int period(long now) {
@@ -235,6 +242,74 @@ final class Recs {
             }
         });
         return null;
+    }
+
+    /** The pick's poster as a tall card (or null: loads it in the background and notifies when it's ready). */
+    Bitmap poster(Pick p) {
+        if (p == null || p.poster == null) return null;
+        final String key = p.poster;
+        synchronized (posters) {
+            Bitmap b = posters.get(key);
+            if (b != null) return b;
+            if (!posterPending.add(key)) return null;
+        }
+        io.execute(() -> {
+            try {
+                loadPoster(key);
+            } finally {
+                synchronized (posters) { posterPending.remove(key); }
+            }
+        });
+        return null;
+    }
+
+    /** Downloads the poster once (kept on disk, the newest 30) and crops it to the tall card. */
+    private void loadPoster(String path) {
+        File dir = new File(context.getCacheDir(), "posters");
+        File f = new File(dir, path.replace("/", ""));
+        try {
+            if (!f.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                dir.mkdirs();
+                File part = new File(f.getPath() + ".part");
+                HttpURLConnection c = (HttpURLConnection) new URL(POSTERS + path).openConnection();
+                c.setConnectTimeout(8000);
+                c.setReadTimeout(20000);
+                try (InputStream in = c.getInputStream(); FileOutputStream out = new FileOutputStream(part)) {
+                    byte[] buffer = new byte[16384];
+                    int n;
+                    while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
+                } finally {
+                    c.disconnect();
+                }
+                if (!part.renameTo(f)) throw new IOException("couldn't save the poster");
+                File[] files = dir.listFiles((d, name) -> !name.endsWith(".part"));
+                if (files != null && files.length > 30) {
+                    Arrays.sort(files, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+                    //noinspection ResultOfMethodCallIgnored
+                    for (int i = 0; i < files.length - 30; i++) files[i].delete();
+                }
+            }
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(f.getPath(), bounds);
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inSampleSize = 1;
+            while (bounds.outWidth / (opts.inSampleSize * 2) >= Backdrop.TALL_W && bounds.outHeight / (opts.inSampleSize * 2) >= Backdrop.TALL_H) opts.inSampleSize *= 2;
+            Bitmap b = BitmapFactory.decodeFile(f.getPath(), opts);
+            if (b == null) throw new IOException("unreadable poster");
+            Bitmap card = Backdrop.card(b, Backdrop.TALL_W, Backdrop.TALL_H);
+            if (card != b) b.recycle();
+            synchronized (posters) {
+                posters.put(path, card);
+                while (posters.size() > 12) posters.remove(posters.keySet().iterator().next());
+            }
+            notifyListeners();
+        } catch (IOException | RuntimeException | OutOfMemoryError e) {
+            //noinspection ResultOfMethodCallIgnored
+            f.delete();
+            AppLog.w("poster: " + e.getMessage());
+        }
     }
 
     private boolean hasImage(Pick p) {
@@ -386,10 +461,6 @@ final class Recs {
     // MARK: - TMDB
 
     private void fetchList(int p) throws Exception {
-        // None of the services we know is on the TV (or hide_services hides them all): no region would change that.
-        boolean any = false;
-        for (String[] s : SERVICES) any |= installed(s[2]);
-        if (!any) throw new IOException(NO_KNOWN_APPS);
         // The services the TV has, by their TMDB ids in your region.
         Map<Integer, String[]> services = new HashMap<>();
         JSONArray providers = get("/watch/providers/movie?language=" + lang() + "&watch_region=" + REGION).getJSONArray("results");
@@ -398,7 +469,7 @@ final class Recs {
             String[] s = service(o.optString("provider_name"));
             if (s != null && installed(s[2])) services.put(o.getInt("provider_id"), s);
         }
-        if (services.isEmpty()) throw new IOException(NO_APPS);
+        if (services.isEmpty()) throw new IOException("none of the TV's streaming services are on TMDB");
         StringBuilder ids = new StringBuilder();
         for (int id : services.keySet()) ids.append(ids.length() == 0 ? "" : "|").append(id);
         String common = "&language=" + lang() + "&watch_region=" + REGION + "&with_watch_monetization_types=flatrate&include_adult=false"
@@ -441,15 +512,12 @@ final class Recs {
         listLanguage = Ui.language;
     }
 
-    /** Language of titles and genres (TMDB's "fr-FR", "zh-CN"…); the services come from the region. */
+    /** Language of titles and genres; the services come from the region. */
     private static String lang() {
-        String lang = Ui.language;
-        if (lang.equals("en")) return "en-US";
-        if (lang.equals("pt")) return "pt-BR";
-        if (lang.equals("es")) return "ES".equals(java.util.Locale.getDefault().getCountry()) ? "es-ES" : "es-MX";
-        if (lang.equals("de")) return "de-DE";   // TMDB's de-AT and de-CH have few translations of their own
-        if (lang.indexOf('-') > 0) return lang;
-        return lang + "-" + Ui.locale().getCountry();
+        if (Ui.ru) return "ru-RU";
+        if (Ui.es) return "ES".equals(java.util.Locale.getDefault().getCountry()) ? "es-ES" : "es-MX";
+        if (Ui.de) return "de-DE";   // TMDB's de-AT and de-CH have few translations of their own
+        return Ui.en ? "en-US" : "pt-BR";
     }
 
     private static void alternate(List<Pick> out, java.util.Set<String> seen, List<Pick> a, List<Pick> b, int max) {
@@ -475,6 +543,8 @@ final class Recs {
         p.kind = kind;
         p.title = o.optString(kind.equals("movie") ? "title" : "name");
         p.backdrop = backdrop;
+        String poster = o.optString("poster_path", "");
+        if (!poster.isEmpty() && !"null".equals(poster)) p.poster = poster;
         list.add(p);
     }
 
@@ -487,23 +557,30 @@ final class Recs {
     /** Genre, runtime (or seasons) and the service it's on, among the ones the TV has. */
     private void fetchDetails(Pick p) throws Exception {
         JSONObject o = get("/" + p.kind + "/" + p.id
-                + "?language=" + lang() + "&append_to_response=watch/providers,images&include_image_language=null," + Ui.language.replaceAll("-.*", "") + ",en");
+                + "?language=" + lang() + "&append_to_response=watch/providers,images&include_image_language=null," + Ui.language + ",en");
         p.title = title(p, o);
         String best = bestBackdrop(o.optJSONObject("images"));
         if (best != null) p.backdrop = best;
+        String poster = o.optString("poster_path", "");   // in the TV's language when TMDB has one
+        if (!poster.isEmpty() && !"null".equals(poster)) p.poster = poster;
         List<String> parts = new ArrayList<>();
         JSONArray genres = o.optJSONArray("genres");
-        if (p.kind.equals("tv")) parts.add(Ui.tr("Series"));
+        if (p.kind.equals("tv")) parts.add(Ui.tr("Série", "Series"));
         if (genres != null && genres.length() > 0) {
             String name = genres.getJSONObject(0).optString("name");
-            parts.add(genre(name));
+            parts.add(Ui.en ? name : genre(name));
         }
         if (p.kind.equals("movie")) {
             int minutes = o.optInt("runtime");
-            if (minutes > 0) parts.add(minutes >= 60 ? Ui.trf("{h}h {m}m", "h", minutes / 60, "m", minutes % 60) : Ui.trf("{m}m", "m", minutes));
+            if (minutes > 0 && Ui.ru) parts.add(minutes >= 60 ? (minutes / 60) + " ч " + (minutes % 60) + " мин" : minutes + " мин");
+            else if (minutes > 0 && Ui.en) parts.add(minutes >= 60 ? (minutes / 60) + "h " + (minutes % 60) + "m" : minutes + "m");
+            else if (minutes > 0) parts.add(minutes >= 60 ? (minutes / 60) + " h " + (minutes % 60) + " min" : minutes + " min");
         } else {
             int seasons = o.optInt("number_of_seasons");
-            if (seasons > 0) parts.add(Ui.plural("plural|one:{n} season|other:{n} seasons", seasons));
+            if (seasons > 0 && Ui.ru) parts.add(Russian.count(seasons, "сезон", "сезона", "сезонов"));
+            else if (seasons > 0 && Ui.en) parts.add(seasons == 1 ? "1 season" : seasons + " seasons");
+            else if (seasons > 0 && Ui.de) parts.add(seasons == 1 ? "1 Staffel" : seasons + " Staffeln");
+            else if (seasons > 0) parts.add(seasons == 1 ? "1 temporada" : seasons + " temporadas");
         }
         JSONObject wp = o.optJSONObject("watch/providers");
         JSONObject br = wp == null ? null : wp.optJSONObject("results") == null ? null : wp.optJSONObject("results").optJSONObject(REGION);
@@ -528,9 +605,8 @@ final class Recs {
         String field = p.kind.equals("movie") ? "title" : "name";
         String own = o.optString(field, p.title);
         String original = o.optString("original_language");
-        String lang = Ui.language.replaceAll("-.*", "");   // TMDB's original_language has no country: "zh", not "zh-CN"
-        if (lang.equals("en") || own.isEmpty() || !own.equals(o.optString("original_" + field))
-                || lang.equals(original) || "en".equals(original)) return own;
+        if (Ui.en || own.isEmpty() || !own.equals(o.optString("original_" + field))
+                || Ui.language.equals(original) || "en".equals(original)) return own;
         try {
             String english = get("/" + p.kind + "/" + p.id + "?language=en-US").optString(field);
             return english.isEmpty() ? own : english;
@@ -539,18 +615,26 @@ final class Recs {
         }
     }
 
-    /** TV genres that TMDB returns in English even in other languages (pt-BR, es, de…). */
+    /** TV genres that TMDB returns in English even in pt-BR. */
+    private static final String[][] GENRES_PT = {
+        {"Action & Adventure", "Ação e Aventura"}, {"Sci-Fi & Fantasy", "Ficção Científica e Fantasia"},
+        {"War & Politics", "Guerra e Política"}, {"Kids", "Infantil"}, {"News", "Notícias"}, {"Soap", "Novela"},
+        {"Talk", "Entrevistas"},
+    };
+    private static final String[][] GENRES_ES = {
+        {"Action & Adventure", "Acción y Aventura"}, {"Sci-Fi & Fantasy", "Ciencia ficción y Fantasía"},
+        {"War & Politics", "Guerra y Política"}, {"Kids", "Infantil"}, {"News", "Noticias"},
+        {"Soap", "Telenovela"}, {"Talk", "Entrevistas"},
+    };
+    private static final String[][] GENRES_DE = {
+        {"Action & Adventure", "Action & Abenteuer"}, {"War & Politics", "Krieg & Politik"}, {"Kids", "Kinder"},
+        {"News", "Nachrichten"}, {"Soap", "Seifenoper"}, {"Talk", "Talkshow"},
+    };
+
     private static String genre(String name) {
-        switch (name) {
-            case "Action & Adventure": return Ui.tr("genre|Action & Adventure");
-            case "Sci-Fi & Fantasy": return Ui.tr("genre|Sci-Fi & Fantasy");
-            case "War & Politics": return Ui.tr("genre|War & Politics");
-            case "Kids": return Ui.tr("genre|Kids");
-            case "News": return Ui.tr("genre|News");
-            case "Soap": return Ui.tr("genre|Soap");
-            case "Talk": return Ui.tr("genre|Talk");
-            default: return name;
-        }
+        if (Ui.ru) return Russian.text(name);
+        for (String[] g : Ui.es ? GENRES_ES : Ui.de ? GENRES_DE : GENRES_PT) if (g[0].equalsIgnoreCase(name)) return g[1];
+        return name;
     }
 
     /**
@@ -587,18 +671,7 @@ final class Recs {
         return first;
     }
 
-    /** Services named in hide_services (config.properties), trimmed and lowercased: never a source of picks. */
-    private static final Set<String> HIDDEN = new HashSet<>();
-    static {
-        for (String s : Config.HIDE_SERVICES.split(",")) {
-            String key = s.trim().toLowerCase(Locale.ROOT);
-            if (!key.isEmpty()) HIDDEN.add(key);
-        }
-    }
-
-    /** The service's app is on the TV, and the service isn't hidden (an app the TV ships without a subscription, say). */
     private boolean installed(String pkg) {
-        if (!HIDDEN.isEmpty()) for (String[] s : SERVICES) if (s[2].equals(pkg) && HIDDEN.contains(s[1])) return false;
         return HomeApps.launchIntent(context.getPackageManager(), pkg) != null;
     }
 
@@ -790,7 +863,7 @@ final class Recs {
         try {
             JSONArray a = new JSONArray();
             for (Pick p : picks) {
-                a.put(new JSONObject().put("id", p.id).put("kind", p.kind).put("title", p.title).put("backdrop", p.backdrop).put("link", p.link == null ? "" : p.link)
+                a.put(new JSONObject().put("id", p.id).put("kind", p.kind).put("title", p.title).put("backdrop", p.backdrop).put("poster", p.poster == null ? "" : p.poster).put("link", p.link == null ? "" : p.link)
                         .put("meta", p.meta).put("app", p.app == null ? "" : p.app).put("pkg", p.pkg == null ? "" : p.pkg)
                         .put("detailed", p.detailed));
             }
@@ -816,6 +889,7 @@ final class Recs {
             p.kind = o.optString("kind");
             p.title = o.optString("title");
             p.backdrop = o.optString("backdrop");
+            p.poster = o.optString("poster").isEmpty() ? null : o.optString("poster");
             p.link = o.optString("link").isEmpty() ? null : o.optString("link");
             p.meta = o.optString("meta");
             p.app = o.optString("app").isEmpty() ? null : o.optString("app");

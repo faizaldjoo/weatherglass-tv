@@ -73,7 +73,6 @@
     ['peacock', /peacock/, /peacock/i, ['#1C1C1E', '#000000']],
     ['nfl', /nfl/, /^nfl/i, ['#013369', '#00163D']],
     ['globoplay', /globoplay/, /globoplay/i, ['#FF8A1F', '#FF2D5A']],
-    ['jellyfin', /jellyfin/i, /jellyfin/i, ['#AA5CC3', '#00A4DC']],
     ['spotify', /spotify/, /spotify/i, ['#1DB954', '#0F7A36']]
   ];
   var MAX_SHELF = 8;
@@ -134,11 +133,11 @@
 
   // MARK: - Focus
 
-  var Z = {TOP: 'top', CARDS: 'cards', SHELF: 'shelf', DRAWER: 'drawer', APPS: 'apps', SETTINGS: 'settings', EDIT: 'edit', LANG: 'lang'};
-  var st = {zone: Z.SHELF, top: 0, tab: 0, card: 0, shelf: 0, drawer: 0, grid: 0, row: 0, edit: 0, lang: 0};
+  var Z = {TOP: 'top', CARDS: 'cards', SHELF: 'shelf', DRAWER: 'drawer', APPS: 'apps', SETTINGS: 'settings', EDIT: 'edit'};
+  var st = {zone: Z.SHELF, top: 0, tab: 0, card: 0, shelf: 0, drawer: 0, grid: 0, row: 0, edit: 0};
   var cards = [];
 
-  function sheetOpen() { return st.zone === Z.APPS || st.zone === Z.SETTINGS || st.zone === Z.EDIT || st.zone === Z.LANG; }
+  function sheetOpen() { return st.zone === Z.APPS || st.zone === Z.SETTINGS || st.zone === Z.EDIT; }
 
   function updateFocus() {
     var i, list;
@@ -162,8 +161,6 @@
     $('apps').lastChild.style.webkitTransform = $('apps').lastChild.style.transform = 'translateY(' + (-first * 239) + 'px)';
     focusRows($('settings'), st.row, st.zone === Z.SETTINGS);
     focusRows($('shelfedit'), st.edit, st.zone === Z.EDIT);
-    focusRows($('langpick'), st.lang, st.zone === Z.LANG);
-    if (langHint) langHint.textContent = (st.lang + 1) + ' / ' + languageChoices().length + '  ·  ' + tr('OK picks, Back cancels.');
     setClass(body, 'drawer-open', st.zone === Z.DRAWER);
   }
 
@@ -196,17 +193,18 @@
   var TAB_KIND = [null, 'movie', 'tv'];
 
   function renderTop() {
-    $('title').textContent = tr('For You');
+    $('title').textContent = tr('Para você', 'For You', 'Para ti');
     var tabs = $('tabs');
     tabs.innerHTML = '';
-    var names = [tr('Explore'), tr('Movies'), tr('Shows')];
+    var names = [tr('Explorar', 'Explore', 'Explorar'), tr('Filmes', 'Movies', 'Películas'), tr('Séries', 'Shows', 'Series')];
     for (var i = 0; i < 3; i++) {
       var t = el('button', 'tab', tabs, names[i]);
       hover(t, Z.TOP, i);
     }
     var buttons = $('buttons');
     buttons.innerHTML = '';
-    var defs = [['live_tv', tr('light|Live TV')], ['hdmi', tr('HDMI Inputs')], ['settings', tr('light|Settings')]];
+    var defs = [['live_tv', tr('TV aberta', 'Live TV', 'TV en vivo')], ['hdmi', tr('Entradas HDMI', 'HDMI Inputs', 'Entradas HDMI')],
+      ['settings', tr('Ajustes', 'Settings', 'Ajustes')]];
     for (var b = 0; b < 3; b++) {
       var r = el('button', 'round' + (b === 2 ? ' last' : ''), buttons);
       r.style.left = (1596 + 88 * b) + 'px';
@@ -280,8 +278,12 @@
 
   function renderClock() {
     var d = new Date(), c = $('clock');
-    c.firstChild.textContent = formatDate('format|h:mm', d.getTime());
-    c.lastChild.textContent = formatDate('format|EEEE, MMMM d', d.getTime());
+    c.firstChild.textContent = Data.time(d.getTime());
+    try {
+      c.lastChild.textContent = d.toLocaleDateString(I18N.locale(), {weekday: 'long', day: 'numeric', month: 'long'});
+    } catch (e) {
+      c.lastChild.textContent = d.toDateString();
+    }
   }
 
   // MARK: - Shelf
@@ -322,21 +324,21 @@
     drawerItems = [];
     for (var i = 0; i < inputs.length; i++) {
       var x = inputs[i];
-      drawerItems.push({label: x.label || tr('Live TV'), symbol: x.symbol, off: !x.connected, run: launcher(x.id, x.label)});
+      drawerItems.push({label: x.label || tr('TV aberta', 'Live TV', 'TV en vivo'), symbol: x.symbol, off: !x.connected, run: launcher(x.id, x.label)});
     }
     drawerInputs = drawerItems.length;
-    drawerItems.push({label: tr('All Apps'), symbol: 'apps', run: openApps});
-    drawerItems.push({label: tr('Home Settings'), symbol: 'settings', run: openSettings});
-    drawerItems.push({label: tr('TV Settings'), symbol: 'tv_settings', run: tvSettings});
+    drawerItems.push({label: tr('Todos os Apps', 'All Apps', 'Todas las apps'), symbol: 'apps', run: openApps});
+    drawerItems.push({label: tr('Ajustes do Início', 'Home Settings', 'Ajustes de inicio'), symbol: 'settings', run: openSettings});
+    drawerItems.push({label: tr('Ajustes da TV', 'TV Settings', 'Ajustes del TV'), symbol: 'tv_settings', run: tvSettings});
     var n = drawerItems.length, gap = 18, groupGap = 56, groups = drawerInputs > 0 && drawerInputs < n ? 2 : 1;
     var tw = Math.min(230, (1760 - Math.max(0, n - groups) * gap - (groups - 1) * groupGap) / Math.max(1, n));
     var xPos = 80;
     for (var k = 0; k < n; k++) {
       if (k === drawerInputs && k > 0) {
         xPos += groupGap - gap;
-        el('div', 'row-title', d, tr('Shortcuts')).style.left = (xPos + 4) + 'px';
+        el('div', 'row-title', d, tr('Atalhos', 'Shortcuts', 'Accesos directos')).style.left = (xPos + 4) + 'px';
       }
-      if (k === 0 && drawerInputs) el('div', 'row-title', d, tr('Inputs')).style.left = '84px';
+      if (k === 0 && drawerInputs) el('div', 'row-title', d, tr('Entradas', 'Inputs', 'Entradas')).style.left = '84px';
       var item = drawerItems[k], key = el('div', 'key glass' + (item.off ? ' off' : ''), d);
       key.style.left = xPos + 'px';
       key.style.width = tw + 'px';
@@ -373,17 +375,18 @@
   }
 
   function renderWeather(card) {
-    el('div', 'head', card, Data.city || tr('Weather'));
+    el('div', 'head', card, Data.city || tr('Clima', 'Weather', 'Clima'));
     var w = Data.weather;
     if (!w) {
-      el('div', 'cond', card, tr('No weather data right now.')).style.top = '96px';
+      el('div', 'cond', card, tr('Sem dados do clima agora.', 'No weather data right now.', 'No hay datos del clima ahora.')).style.top = '96px';
       return;
     }
     var now = el('div', 'now', card);
     sym(Data.symbol(w.code, w.isDay), now);
     el('span', 'temp', now, Data.degrees(w.temp));
     el('div', 'cond', card, Data.condition(w.code, w.isDay));
-    el('div', 'range', card, trf('H:{max}', {max: Data.degrees(w.max)}) + '   ' + trf('L:{min}', {min: Data.degrees(w.min)}));
+    el('div', 'range', card, I18N.lang === 'ru' ? 'Макс. ' + Data.degrees(w.max) + '   Мин. ' + Data.degrees(w.min) : tr('Máx. ' + Data.degrees(w.max) + '   Mín. ' + Data.degrees(w.min), 'H:' + Data.degrees(w.max) + '   L:' + Data.degrees(w.min),
+        'Máx. ' + Data.degrees(w.max) + '   Mín. ' + Data.degrees(w.min)));
     el('div', 'split', card);
     var hours = el('div', 'hours', card), width = parseFloat(card.style.width) - 30 - 422, hw = width / 6;
     for (var i = 0; i < w.hours.length && i < 6; i++) {
@@ -395,14 +398,14 @@
       el('div', 'd', h, Data.degrees(x.temp));
     }
     var sun = el('div', 'sun', card);
-    if (w.sunrise) { var a = el('span', '', sun); sym('sunrise', a); a.appendChild(document.createTextNode(trf('Sunrise {time}', {time: Data.time(w.sunrise)}))); }
-    if (w.sunset) { var b = el('span', '', sun); sym('sunset', b); b.appendChild(document.createTextNode(trf('Sunset {time}', {time: Data.time(w.sunset)}))); }
+    if (w.sunrise) { var a = el('span', '', sun); sym('sunrise', a); a.appendChild(document.createTextNode(tr('Nascer ', 'Sunrise ', 'Amanecer ') + Data.time(w.sunrise))); }
+    if (w.sunset) { var b = el('span', '', sun); sym('sunset', b); b.appendChild(document.createTextNode(tr('Pôr do sol ', 'Sunset ', 'Atardecer ') + Data.time(w.sunset))); }
   }
 
   function renderPrices(card, coins) {
-    el('div', 'head', card, tr('Crypto'));
+    el('div', 'head', card, tr('Cotações', 'Crypto', 'Cripto'));
     var stale = Data.staleness(Data.pricesAt, 5 * 60000);
-    el('div', 'side', card, stale ? trf('quotes|{ago}', {ago: stale}) : tr('24h change'));
+    el('div', 'side', card, stale || tr('variação em 24 h', '24h change', 'variación en 24 h'));
     for (var j = 0; j < coins.length; j++) {
       var i = coins[j], row = el('div', 'coin', card);
       row.style.top = (86 + 52 * j) + 'px';
@@ -433,7 +436,7 @@
 
   function renderApps() {
     var sheet = $('apps');
-    sheet.firstChild.textContent = tr('All Apps');
+    sheet.firstChild.textContent = tr('Todos os Apps', 'All Apps', 'Todas las apps');
     var grid = sheet.lastChild;
     grid.innerHTML = '';
     for (var i = 0; i < others.length; i++) {
@@ -458,8 +461,6 @@
     setClass($('apps'), 'open', false);
     setClass($('settings'), 'open', false);
     setClass($('shelfedit'), 'open', false);
-    setClass($('langpick'), 'open', false);
-    langHint = null;
     st.zone = Z.SHELF;
     updateFocus();
   }
@@ -467,21 +468,21 @@
   // MARK: - Home Settings
 
   function settingRows() {
-    var unit = Prefs.temperature(), theme = Prefs.theme();
-    var auto = tr('Automatic'), picked = pickedLanguage();
+    var lang = Prefs.language(), unit = Prefs.temperature(), theme = Prefs.theme();
+    var auto = tr('Automático', 'Automatic', 'Automático'), on = tr('Ligado', 'On', 'Activado'), off = tr('Desligado', 'Off', 'Desactivado');
     var rows = [
-      {label: tr('Language'), value: picked === 'auto' ? auto : I18N.languageName(picked), opens: true, language: true,
-        step: function (d) { if (d >= 0) openLanguages(); }},
-      {label: tr('Temperature'), value: unit === 'C' ? '°C' : unit === 'F' ? '°F' : tr('unit|Automatic'),
+      {label: tr('Idioma', 'Language', 'Idioma'), value: lang === 'ru' ? 'Русский' : lang === 'de' ? 'Deutsch' : lang === 'pt' ? 'Português' : lang === 'en' ? 'English' : lang === 'es' ? 'Español' : auto,
+        step: function (d) { cycle('language', ['auto', 'de', 'en', 'es', 'pt', 'ru'], lang, d); I18N.set(Prefs.language()); renderAll(); }},
+      {label: tr('Temperatura', 'Temperature', 'Temperatura'), value: unit === 'C' ? '°C' : unit === 'F' ? '°F' : auto,
         step: function (d) { cycle('temperature', ['auto', 'C', 'F'], unit, d); renderPanels(); }},
-      {label: tr('Theme'), value: theme === 'light' ? tr('Light') : theme === 'dark' ? tr('Dark') : auto,
+      {label: tr('Tema', 'Theme', 'Tema'), value: theme === 'light' ? tr('Claro', 'Light', 'Claro') : theme === 'dark' ? tr('Escuro', 'Dark', 'Oscuro') : auto,
         step: function (d) { cycle('theme', ['auto', 'light', 'dark'], theme, d); checkNight(); }},
-      {label: tr('Weather widget'), toggle: Prefs.weather(),
+      {label: tr('Widget do clima', 'Weather widget', 'Widget del clima'), toggle: Prefs.weather(),
         step: function () { Prefs.set('weather', !Prefs.weather()); renderPanels(); }},
-      {label: tr('Quotes widget'), toggle: Prefs.quotes(),
+      {label: tr('Widget de cotações', 'Quotes widget', 'Widget de cotizaciones'), toggle: Prefs.quotes(),
         step: function () { Prefs.set('quotes', !Prefs.quotes()); Data.settingsChanged(); }}
     ];
-    var names = ['Bitcoin', 'Ethereum', 'Solana', tr('Dollar')];
+    var names = ['Bitcoin', 'Ethereum', 'Solana', tr('Dólar', 'Dollar', 'Dólar')];
     var count = Data.currency === 'BRL' ? 4 : 3;
     for (var i = 0; i < count; i++) {
       (function (i) {
@@ -489,8 +490,8 @@
           step: function () { if (Prefs.quotes()) { Prefs.setCoin(i, !Prefs.coin(i)); Data.settingsChanged(); } }});
       })(i);
     }
-    rows.push({label: tr('Shelf'), value: '›', step: function (d) { if (d >= 0) openShelfEdit(); }});
-    rows.push({label: tr('TV Settings'), value: '›', step: function (d) { if (d >= 0) tvSettings(); }});
+    rows.push({label: tr('Prateleira', 'Shelf', 'Estante'), value: '›', step: function (d) { if (d >= 0) openShelfEdit(); }});
+    rows.push({label: tr('Ajustes da TV', 'TV Settings', 'Ajustes del TV'), value: '›', step: function (d) { if (d >= 0) tvSettings(); }});
     return rows;
   }
 
@@ -506,7 +507,7 @@
     box.innerHTML = '';
     var title = el('div', 'title', box);
     sym('settings', title);
-    title.appendChild(document.createTextNode(tr('Home Settings')));
+    title.appendChild(document.createTextNode(tr('Ajustes do Início', 'Home Settings', 'Ajustes de inicio')));
     var list = el('div', 'list', box), holder = el('div', 'rows', list);
     rowsNow = settingRows();
     list.style.height = Math.min(rowsNow.length, 7) * 78 + 'px';
@@ -516,12 +517,11 @@
       else {
         var v = el('span', 'value', row);
         if (r.value === '›') v.textContent = '›';
-        else if (r.opens) { v.appendChild(document.createTextNode(r.value)); el('span', 'chev', v, '›'); }
         else { el('span', 'chev', v, '‹'); v.appendChild(document.createTextNode(r.value)); el('span', 'chev', v, '›'); }
       }
       hover(row, Z.SETTINGS, i);
     }
-    el('div', 'hint', box, tr('OK or the arrows change the value.'));
+    el('div', 'hint', box, tr('OK ou as setas mudam o valor.', 'OK or the arrows change the value.', 'OK o las flechas cambian el valor.'));
     updateFocus();
   }
 
@@ -533,60 +533,15 @@
     updateFocus();
   }
 
-  // MARK: - Language: a list of every catalogue in its own name, as on Android (moving through it doesn't switch the app)
-
-  var langHint = null;
-
-  function languageChoices() {
-    return ['auto'].concat(I18N.languages());
-  }
-
-  /** The language in use: "auto", or the catalogue the setting resolved to ("pt-BR" in config.properties is "pt"). */
-  function pickedLanguage() {
-    return Prefs.language() === 'auto' ? 'auto' : I18N.lang;
-  }
-
-  function renderLanguages() {
-    var box = $('langpick').firstChild, choices = languageChoices(), current = choices.indexOf(pickedLanguage());
-    box.innerHTML = '';
-    el('div', 'title', box, tr('Language'));
-    var list = el('div', 'list', box), holder = el('div', 'rows', list);
-    list.style.height = Math.min(choices.length, 7) * 78 + 'px';
-    for (var i = 0; i < choices.length; i++) {
-      var row = el('div', 'row', holder, choices[i] === 'auto' ? tr('Automatic') : I18N.languageName(choices[i]));
-      if (i === current) sym('check', el('span', 'value', row));
-      hover(row, Z.LANG, i);
-    }
-    langHint = el('div', 'hint', box);
-    updateFocus();
-  }
-
-  function openLanguages() {
-    setClass($('settings'), 'open', false);
-    st.zone = Z.LANG;
-    st.lang = Math.max(0, languageChoices().indexOf(pickedLanguage()));
-    renderLanguages();
-    setClass($('langpick'), 'open', true);
-    updateFocus();
-  }
-
-  /** OK: the language under the focus; Back: none. Either way, back to Home Settings, on the Language row. */
-  function closeLanguages(pick) {
-    setClass($('langpick'), 'open', false);
-    langHint = null;
-    var code = languageChoices()[st.lang];
-    if (pick && code !== pickedLanguage()) {
-      Prefs.set('language', code);
-      I18N.set(Prefs.language());
-      renderAll();
-      Data.refresh();   // the picks' titles and genres come in the new language
-    }
-    openSettings();
-    for (var i = 0; i < rowsNow.length; i++) if (rowsNow[i].language) st.row = i;
-    updateFocus();
-  }
-
   // MARK: - Shelf editor: which apps, in what order
+
+  function ordinal(n) {
+    if (I18N.lang === 'ru') return n + '-е';
+    if (I18N.lang === 'de') return n + '.';
+    if (I18N.lang !== 'en') return n + 'º';
+    var s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
 
   function editList() {
     var ids = shelf.map(function (a) { return a.id; });
@@ -602,15 +557,15 @@
     box.innerHTML = '';
     var title = el('div', 'title', box);
     sym('apps', title);
-    title.appendChild(document.createTextNode(tr('Shelf')));
+    title.appendChild(document.createTextNode(tr('Prateleira', 'Shelf', 'Estante')));
     var list = el('div', 'list', box), holder = el('div', 'rows', list);
     list.style.height = Math.min(e.rows.length, 7) * 78 + 'px';
     for (var i = 0; i < e.rows.length; i++) {
       var a = e.rows[i], at = e.ids.indexOf(a.id), row = el('div', 'row', holder, a.title);
-      el('span', 'value', row, at >= 0 ? '#' + (at + 1) : tr('shelf|Off'));
+      el('span', 'value', row, at >= 0 ? tr('Na prateleira · ', 'On · ', 'En el estante · ') + ordinal(at + 1) : tr('Fora', 'Off', 'Fuera'));
       hover(row, Z.EDIT, i);
     }
-    el('div', 'hint', box, trf('OK adds or removes (up to {n}). ← → change the order.', {n: MAX_SHELF}));
+    el('div', 'hint', box, tr('OK põe ou tira · ← → mudam a ordem', 'OK adds or removes · ← → change the order', 'OK pone o quita · ← → cambian el orden'));
     updateFocus();
   }
 
@@ -630,7 +585,7 @@
     if (dx === 0) {
       if (at >= 0) ids.splice(at, 1);
       else if (ids.length < MAX_SHELF) ids.push(app.id);
-      else { toast(trf('The shelf holds up to {n} apps.', {n: MAX_SHELF})); return; }
+      else { toast(tr('A prateleira cabe até ' + MAX_SHELF + ' apps.', 'The shelf holds up to ' + MAX_SHELF + ' apps.', 'El estante tiene hasta ' + MAX_SHELF + ' apps.')); return; }
     } else {
       if (at < 0) return;
       var to = Math.max(0, Math.min(ids.length - 1, at + dx));
@@ -650,14 +605,14 @@
   function launcher(id, name) {
     return function () {
       TV.launch(id, null, function (ok) {
-        if (!ok) toast(trf("Couldn't open {app}.", {app: name || id}));
+        if (!ok) toast(tr('Não deu para abrir ', "Couldn't open ", 'No se pudo abrir ') + (name || id));
       });
     };
   }
 
   function tvSettings() {
     TV.settings(function (ok) {
-      if (!ok) toast(tr("Couldn't open TV Settings"));
+      if (!ok) toast(tr('Não deu para abrir os Ajustes da TV', "Couldn't open TV Settings", 'No se pudieron abrir los Ajustes del TV'));
     });
   }
 
@@ -670,7 +625,7 @@
     switch (st.zone) {
       case Z.TOP:
         if (st.top < 3) return;
-        if (st.top === 3) { var live = liveTV(); if (live) launcher(live.id, tr('Live TV'))(); }
+        if (st.top === 3) { var live = liveTV(); if (live) launcher(live.id, tr('TV aberta', 'Live TV', 'TV en vivo'))(); }
         else if (st.top === 4) { st.zone = Z.SHELF; openDrawer(); st.drawer = 1 < drawerInputs ? 1 : 0; updateFocus(); }
         else openSettings();
         return;
@@ -692,9 +647,6 @@
         return;
       case Z.EDIT:
         editShelf(0);
-        return;
-      case Z.LANG:
-        closeLanguages(true);
         return;
     }
   }
@@ -742,15 +694,12 @@
         if (dy) st.row = Math.max(0, Math.min(rowsNow.length - 1, st.row + dy));
         else if (dx && rowsNow[st.row]) {
           var r = rowsNow[st.row];
-          if (r.value !== '›') { r.step(dx); if (st.zone === Z.SETTINGS) renderSettings(); }
+          if (r.value !== '›') { r.step(dx); renderSettings(); }
         }
         break;
       case Z.EDIT:
         if (dy) st.edit = Math.max(0, Math.min(apps.length - 1, st.edit + dy));
         else if (dx) editShelf(dx);
-        break;
-      case Z.LANG:
-        if (dy) st.lang = Math.max(0, Math.min(languageChoices().length - 1, st.lang + dy));
         break;
     }
     updateFocus();
@@ -758,7 +707,6 @@
 
   function back() {
     if (st.zone === Z.EDIT) { setClass($('shelfedit'), 'open', false); openSettings(); st.row = rowsNow.length - 2; updateFocus(); return; }
-    if (st.zone === Z.LANG) { closeLanguages(false); return; }
     if (sheetOpen()) { closeSheets(); return; }
     if (st.zone === Z.DRAWER) { closeDrawer(); return; }
     if (st.zone !== Z.SHELF && shelf.length) { st.zone = Z.SHELF; updateFocus(); return; }
@@ -768,7 +716,7 @@
   /** The pointer focuses what it's over (the Magic Remote, or a mouse when previewing). */
   function hover(node, zone, index) {
     node.onmouseover = function () {
-      if (saverOn || (sheetOpen() !== (zone === Z.APPS || zone === Z.SETTINGS || zone === Z.EDIT || zone === Z.LANG))) return;
+      if (saverOn || (sheetOpen() !== (zone === Z.APPS || zone === Z.SETTINGS || zone === Z.EDIT))) return;
       if (zone === Z.DRAWER && st.zone !== Z.DRAWER) return;
       if (zone !== Z.DRAWER && st.zone === Z.DRAWER && zone !== Z.SHELF) return;
       if (zone === Z.SHELF && st.zone === Z.DRAWER) closeDrawer();
@@ -780,7 +728,6 @@
       else if (zone === Z.APPS) st.grid = index;
       else if (zone === Z.SETTINGS) st.row = index;
       else if (zone === Z.EDIT) st.edit = index;
-      else if (zone === Z.LANG) st.lang = index;
       updateFocus();
     };
     node.onclick = function () { node.onmouseover(); activate(); };
@@ -841,8 +788,12 @@
 
   function tickSaverClock(clock) {
     var d = new Date();
-    clock.firstChild.textContent = formatDate('format|h:mm', d.getTime());
-    clock.children[1].textContent = formatDate('format|EEEE, MMMM d', d.getTime());
+    clock.firstChild.textContent = Data.time(d.getTime()).replace(/ (AM|PM)$/, '');
+    try {
+      clock.children[1].textContent = d.toLocaleDateString(I18N.locale(), {weekday: 'long', day: 'numeric', month: 'long'});
+    } catch (e) {
+      clock.children[1].textContent = d.toDateString();
+    }
   }
 
   function hideSaver() {
@@ -888,17 +839,9 @@
     updateFocus();
   }
 
-  /** hide_apps in config.properties: left out of the shelf, All Apps and the picks, by id or name (part of it). */
-  var HIDE = (CONFIG.hideApps || []).map(function (s) { return s.toLowerCase(); });
-  function hidden(app) {
-    var id = (app.id || '').toLowerCase(), title = (app.title || '').toLowerCase();
-    for (var i = 0; i < HIDE.length; i++) if (id.indexOf(HIDE[i]) >= 0 || title.indexOf(HIDE[i]) >= 0) return true;
-    return false;
-  }
-
   function loadApps(done) {
     TV.apps(function (list) {
-      apps = list.filter(function (a) { return !hidden(a); });
+      apps = list;
       Data.setApps(apps);
       pickShelf();
       TV.inputs(function (list2) {

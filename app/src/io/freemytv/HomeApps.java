@@ -57,6 +57,80 @@ final class HomeApps {
     static final int APP = 0, LIVE_TV = 1, INPUT = 2, ALL_APPS = 3, SETTINGS = 4, ANDROID_SETTINGS = 5;
     /** The "HDMI Inputs" button: opens the bottom drawer on the inputs (the home screen handles it). */
     static final int INPUTS = 7;
+    /** A CCTV camera (config.properties cctv_url): its own glass at the end of the shelf, opened live in a popup (CameraPopup), full screen in VLC. */
+    static final int CAMERA = 8;
+    static final String VLC = "org.videolan.vlc";
+
+    /**
+     * The camera's shelf item: a dark 16:9 card with a drawn camera and a red LIVE mark (its name is only for
+     * TalkBack); the home screen swaps in a still from the camera once it has one (CameraThumb).
+     */
+    static Item camera(String name, String url) {
+        Item it = new Item();
+        it.kind = CAMERA;
+        it.key = "cctv";
+        it.label = name;
+        it.uri = url;
+        int w = 480, h = 270;
+        Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setShader(new LinearGradient(0, 0, 0, h, 0xFF34404F, 0xFF161B23, Shader.TileMode.CLAMP));
+        c.drawRect(0, 0, w, h, p);
+        p.setShader(null);
+        // A camera: body, lens and the little mount
+        p.setStyle(Paint.Style.STROKE);
+        p.setStrokeWidth(9);
+        p.setStrokeCap(Paint.Cap.ROUND);
+        p.setStrokeJoin(Paint.Join.ROUND);
+        p.setColor(0xE6FFFFFF);
+        c.drawRoundRect(new RectF(176, 92, 290, 160), 16, 16, p);
+        Path wing = new Path();
+        wing.moveTo(290, 112);
+        wing.lineTo(322, 96);
+        wing.lineTo(322, 156);
+        wing.lineTo(290, 140);
+        c.drawPath(wing, p);
+        c.drawCircle(214, 126, 15, p);
+        // LIVE
+        p.setStyle(Paint.Style.FILL);
+        p.setColor(0xFFC5221F);
+        c.drawRoundRect(new RectF(26, 24, 136, 66), 10, 10, p);
+        p.setColor(0xFFFFFFFF);
+        c.drawCircle(46, 45, 7, p);
+        Paint t = Ui.text(Ui.displaySemibold, 26, 0xFFFFFFFF);
+        c.drawText("LIVE", 60, 45 + Ui.halfCap(t), t);
+        it.tile = b;
+        return it;
+    }
+
+    /**
+     * Opens a camera's stream in VLC: as a plain address first (VLC's player takes rtsp:// that way; a "video/*" type
+     * makes Android skip it), then with the type, then VLC's player by name; any other player last. False if nothing
+     * can play it.
+     */
+    static boolean openCamera(Activity a, Item it) {
+        android.net.Uri uri = android.net.Uri.parse(it.uri);
+        Intent[] tries = {
+            new Intent(Intent.ACTION_VIEW, uri).setPackage(VLC),
+            new Intent(Intent.ACTION_VIEW).setDataAndType(uri, "video/*").setPackage(VLC),
+            new Intent(Intent.ACTION_VIEW, uri).setComponent(new ComponentName(VLC, "org.videolan.vlc.gui.video.VideoPlayerActivity")),
+            new Intent(Intent.ACTION_VIEW, uri).setComponent(new ComponentName(VLC, "org.videolan.vlc.StartActivity")),
+            new Intent(Intent.ACTION_VIEW, uri),
+        };
+        for (Intent i : tries) {
+            i.putExtra("title", it.label);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                a.startActivity(i);
+                AppLog.w("camera opened with " + i.getComponent() + " " + i.getPackage());
+                return true;
+            } catch (ActivityNotFoundException | SecurityException e) {
+                AppLog.w("camera: no player for " + i.getComponent() + " " + i.getPackage() + ": " + e.getMessage());
+            }
+        }
+        return false;
+    }
     /** Image size of each card (16:9; on screen it shows up to ~330 px wide). */
     static final int TILE_W = 384, TILE_H = 216;
 
@@ -185,51 +259,14 @@ final class HomeApps {
         return out;
     }
 
-    // MARK: - Top buttons (the round ones at the top right)
-
-    static final String TOP_LIVE = "live", TOP_INPUTS = "inputs", TOP_SETTINGS = "settings";
-    static final List<String> TOP_DEFAULT = Collections.unmodifiableList(java.util.Arrays.asList(TOP_LIVE, TOP_INPUTS, TOP_SETTINGS));
-    static final int MAX_TOP = TOP_DEFAULT.size();
-
-    /** The keys of the top buttons, in order (Settings > Top Buttons; by default Live TV, HDMI Inputs, Settings). */
-    static List<String> topButtonKeys() {
-        List<String> saved = Prefs.topButtons();
-        if (saved == null) return TOP_DEFAULT;
-        List<String> keys = new ArrayList<>();
-        for (String key : saved) if (TOP_DEFAULT.contains(key) && !keys.contains(key)) keys.add(key);
-        return keys;
-    }
-
-    /** The top buttons, ready to draw (0 to 3 of them). */
-    static List<Item> topButtons() {
-        List<Item> items = new ArrayList<>();
-        for (String key : topButtonKeys()) items.add(topButton(key));
-        return items;
-    }
-
-    private static Item topButton(String key) {
-        switch (key) {
-            case TOP_LIVE: return action(LIVE_TV, TOP_LIVE, Ui.tr("light|Live TV"), "live_tv");
-            case TOP_INPUTS: return action(INPUTS, TOP_INPUTS, Ui.tr("HDMI Inputs"), "hdmi");
-            default: return action(SETTINGS, TOP_SETTINGS, Ui.tr("light|Settings"), "settings");
-        }
-    }
-
-    /** What can go in the top buttons, as {key, name}. */
-    static List<String[]> topCandidates() {
-        List<String[]> out = new ArrayList<>();
-        for (String key : TOP_DEFAULT) out.add(new String[] {key, topButton(key).label});
-        return out;
-    }
-
     /** Live TV, the HDMI inputs with a device sending a signal, and All Apps. */
     static List<Item> shortcuts(Context c) {
         List<Item> items = new ArrayList<>();
         if (liveTv(c) != null) {
-            items.add(shortcut(LIVE_TV, "live", Ui.tr("Live TV"), "tv"));
+            items.add(shortcut(LIVE_TV, "live", Ui.tr("TV ao Vivo", "Live TV"), "tv"));
         }
         items.addAll(inputs(c));
-        items.add(shortcut(ALL_APPS, "all", Ui.tr("All Apps"), "apps"));
+        items.add(shortcut(ALL_APPS, "all", Ui.tr("Todos os Apps", "All Apps"), "apps"));
         return items;
     }
 
@@ -249,15 +286,15 @@ final class HomeApps {
 
     /** Free My TV settings, in the corner of the home screen. */
     static Item settings() {
-        return shortcut(SETTINGS, "settings", Ui.tr("Settings"), "settings");
+        return shortcut(SETTINGS, "settings", Ui.tr("Ajustes", "Settings"), "settings");
     }
 
     /** Shortcuts in the bottom drawer. */
     static List<Item> drawerShortcuts() {
         List<Item> items = new ArrayList<>();
-        items.add(shortcut(ALL_APPS, "all", Ui.tr("All Apps"), "apps"));
-        items.add(shortcut(SETTINGS, "settings", Ui.tr("Home Settings"), "settings"));
-        items.add(shortcut(ANDROID_SETTINGS, "tv-settings", Ui.tr("TV Settings"), "tv_settings"));
+        items.add(shortcut(ALL_APPS, "all", Ui.tr("Todos os Apps", "All Apps"), "apps"));
+        items.add(shortcut(SETTINGS, "settings", Ui.tr("Ajustes do Início", "Home Settings"), "settings"));
+        items.add(shortcut(ANDROID_SETTINGS, "tv-settings", Ui.tr("Ajustes da TV", "TV Settings"), "tv_settings"));
         return items;
     }
 
@@ -280,7 +317,7 @@ final class HomeApps {
     /** For the bottom drawer: live TV and every HDMI input (the ones with no device are shown dimmed). */
     static List<Item> allInputs(Context c) {
         List<Item> items = new ArrayList<>();
-        if (liveTv(c) != null) items.add(shortcut(LIVE_TV, "live", Ui.tr("Live TV"), "tv"));
+        if (liveTv(c) != null) items.add(shortcut(LIVE_TV, "live", Ui.tr("TV ao Vivo", "Live TV"), "tv"));
         items.addAll(inputs(c, true));
         return items;
     }
@@ -393,7 +430,7 @@ final class HomeApps {
         synchronized (HomeApps.class) {
             TILES.keySet().removeIf(k -> k.contains(".") && !seen.contains(k));
         }
-        items.add(special(c, SETTINGS, "freemytv-settings", "Free My TV", "sparkles"));
+        items.add(special(c, SETTINGS, "freemytv-settings", "Weatherglass TV", "sparkles"));
         return items;
     }
 
@@ -433,7 +470,10 @@ final class HomeApps {
         if (intent == null) return false;
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
-            a.startActivity(intent, ActivityOptions.makeScaleUpAnimation(from, x, y, Math.max(w, 1), Math.max(h, 1)).toBundle());
+            // Settings slide in as a drawer over the home screen (their own animation): no zoom from the tile.
+            ActivityOptions options = it.kind == SETTINGS ? ActivityOptions.makeCustomAnimation(a, 0, 0)
+                    : ActivityOptions.makeScaleUpAnimation(from, x, y, Math.max(w, 1), Math.max(h, 1));
+            a.startActivity(intent, options.toBundle());
             return true;
         } catch (ActivityNotFoundException | SecurityException e) {
             AppLog.w("couldn't open " + it.label + ": " + e.getMessage());

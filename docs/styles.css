@@ -385,6 +385,17 @@ h2 {
   margin-top: 36px;
 }
 
+.built {
+  margin-top: 22px;
+  font-size: 14px;
+  color: var(--faint);
+}
+
+.built b {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
 .hero-stage {
   position: relative;
   perspective: 1800px;

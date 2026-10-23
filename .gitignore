@@ -12,4 +12,12 @@ __pycache__/
 
 # macOS
 .DS_Store
-tools/.i18n-cache.json
+
+# CCTV still from tools/camera_still.py
+camera-still.jpg
+
+# Update zips, settings backups, local tests
+*.zip
+*.bak
+prototype/
+onvif_watch.py

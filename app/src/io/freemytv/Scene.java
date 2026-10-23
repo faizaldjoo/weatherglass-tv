@@ -4,6 +4,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.RuntimeShader;
@@ -50,7 +51,7 @@ final class Scene {
             auroraPaint.setShader(aurora);
             glassPaint.setShader(glass);
             liquidPaint.setShader(liquid);
-        } catch (RuntimeException | LinkageError e) {   // Android 8 to 12: no AGSL, flat look instead
+        } catch (RuntimeException | LinkageError e) {   // Android 9 to 12: no AGSL, flat look instead
             AppLog.w("shader unavailable, using gradient: " + e.getMessage());
             aurora = null;
             glass = null;
@@ -87,7 +88,7 @@ final class Scene {
     /** Call after changing `palette`. Bright palettes are dimmed a little so white text stays readable. */
     void applyPalette() {
         push();
-        if (aurora == null) fallback.setShader(Ui.gradient(h, palette.color(1), palette.color(0)));
+        fallback.setShader(new LinearGradient(0, 0, 0, h, palette.color(1), palette.color(0), Shader.TileMode.CLAMP));
     }
 
     private void push() {
@@ -125,9 +126,9 @@ final class Scene {
     /** Photo transition: both photos in the glass, blended by setGlassMix (0 = the first one). */
     void setGlassImages(int[] from, int[] to) {
         imageGlass = true;
-        if (liquid == null) return;     // no AGSL (Android 8 to 12): the glass is a flat fill, nothing reads the images
         glassA = fill(glassA, from);
         if (to != null) glassB = fill(glassB, to);
+        if (liquid == null) return;
         glassShaderA = linear(glassA);
         liquid.setInputShader("imageA", glassShaderA);
         liquid.setInputShader("imageB", to != null ? linear(glassB) : glassShaderA);
@@ -184,10 +185,10 @@ final class Scene {
 
     /** The glass now reads the blurred background image (Backdrop.FW × FH, ARGB). */
     void setFrost(int[] pixels) {
-        imageFrost = true;
-        if (glass == null) return;      // as above: no shader reads the frosted image
         if (frostImage == null) frostImage = Bitmap.createBitmap(Backdrop.FW, Backdrop.FH, Bitmap.Config.ARGB_8888);
         frostImage.setPixels(pixels, 0, Backdrop.FW, 0, 0, Backdrop.FW, Backdrop.FH);
+        imageFrost = true;
+        if (glass == null) return;
         BitmapShader s = new BitmapShader(frostImage, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
         s.setFilterMode(BitmapShader.FILTER_MODE_LINEAR);
         glass.setInputShader("frost", s);

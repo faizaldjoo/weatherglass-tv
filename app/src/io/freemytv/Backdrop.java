@@ -155,7 +155,7 @@ final class Backdrop {
     }
 
     /** The center of the photo at the card's aspect ratio, filtered down (halving while possible) to the exact size. */
-    private static Bitmap card(Bitmap full, int w, int h) {
+    static Bitmap card(Bitmap full, int w, int h) {
         float ratio = (float) w / h;
         int cw = Math.min(full.getWidth(), Math.round(full.getHeight() * ratio));
         int ch = Math.min(full.getHeight(), Math.round(cw / ratio));
@@ -203,7 +203,7 @@ final class Backdrop {
     }
 
     /** Halved at each step (a true average, no aliasing), then blurred (box passes of radius r). */
-    private static int[] reduce(Bitmap full, int w, int h, int radius, int passes) {
+    static int[] reduce(Bitmap full, int w, int h, int radius, int passes) {
         Bitmap b = full;
         while (b.getWidth() / 2 >= w * 1.5f) {
             Bitmap half = Bitmap.createScaledBitmap(b, b.getWidth() / 2, b.getHeight() / 2, true);

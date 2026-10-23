@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="remote_key_service">Кнопки приложений на пульте (Netflix, YouTube, Prime Video, TCL Channel) открывают приложения, выбранные в Free My TV, поверх любого приложения. Служба считывает только эти кнопки.</string>
+    <string name="remote_key_service">Кнопки приложений на пульте (Netflix, YouTube, Prime Video, TCL Channel) открывают приложения, выбранные в Weatherglass TV, поверх любого приложения. Служба считывает только эти кнопки.</string>
 </resources>
