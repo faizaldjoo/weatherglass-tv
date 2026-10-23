@@ -272,6 +272,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private final Paint frostPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Paint frostVeil = new Paint(Paint.ANTI_ALIAS_FLAG), frostRim = new Paint(Paint.ANTI_ALIAS_FLAG),
             frostSheen = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private LinearGradient sheenShader;
+    private final Matrix sheenMatrix = new Matrix();
     private long frostAt = -1;
     private String frostFor = "";
     private boolean frostFailed;
@@ -3277,7 +3279,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         long up = SystemClock.uptimeMillis();
         if (glass.equals(frostFor) && frostAt >= 0 && up - frostAt < 30_000 && frostImage != null) return true;
         try {
-            // The settings drawer's recipe: 240 × 135 at 1080p, three box passes of radius 3 (strong: 5), more color
+            // The settings drawer's recipe: 240 × 135 at 1080p, three box passes of radius 3, more color
             int fw = Math.max(1, w / FROST_DIV), fh = Math.max(1, h / FROST_DIV);
             if (frostImage == null || frostImage.getWidth() != fw || frostImage.getHeight() != fh) {
                 frostSmall = Bitmap.createBitmap(fw * 2, fh * 2, Bitmap.Config.ARGB_8888);
@@ -3289,8 +3291,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             frostCanvas.scale(frostSmall.getWidth() / (float) w, frostSmall.getHeight() / (float) h);
             drawLightSky(frostCanvas);
             frostCanvas.restore();
-            boolean strong = glass.equals("strong");
-            int[] px = Backdrop.reduce(frostSmall, fw, fh, strong ? 5 : 3, 3);
+            int[] px = Backdrop.reduce(frostSmall, fw, fh, 3, 3);
             SettingsActivity.saturate(px);
             frostImage.setPixels(px, 0, fw, 0, 0, fw, fh);
             frostMatrix.setScale(w / (float) fw, h / (float) fh);
@@ -3317,18 +3318,20 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             if (glass.equals("clear")) frostAt = -1;   // nothing to refresh
             return false;
         }
-        boolean strong = glass.equals("strong");
         c.drawRoundRect(r, radius, radius, frostPaint);
-        // The drawer's tint: 0x9E0B0B0D at night, 0x8A48484E by day (a little lighter here: the cards are small)
-        frostVeil.setColor(tone(Ui.alpha(0xFF48484E, strong ? 0.6f : 0.5f), Ui.alpha(0xFF0B0B0D, strong ? 0.66f : 0.56f)));
+        // The drawer's tint: 0x9E0B0B0D at night, 0x8A48484E by day (a little lighter here, so the blur shows)
+        frostVeil.setColor(tone(Ui.alpha(0xFF48484E, 0.5f), Ui.alpha(0xFF0B0B0D, 0.5f)));
         c.drawRoundRect(r, radius, radius, frostVeil);
-        // The sheen: light on the top edge, fading down a third of the way
-        frostSheen.setShader(null);
-        frostSheen.setColor(tone(0x29FFFFFF, 0x1FFFFFFF));
-        c.save();
-        c.clipRect(r.left, r.top, r.right, r.top + r.height() * 0.35f);
+        // The sheen: light along the top edge, fading out smoothly over the top half (one gradient, moved to the card)
+        if (sheenShader == null) {
+            sheenShader = new LinearGradient(0, 0, 0, 1, 0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
+            frostSheen.setShader(sheenShader);
+        }
+        sheenMatrix.setScale(1, Math.min(r.height() * 0.5f, 120 * k));
+        sheenMatrix.postTranslate(0, r.top);
+        sheenShader.setLocalMatrix(sheenMatrix);
+        frostSheen.setAlpha(Math.round(255 * tone(0.16f, 0.12f)));
         c.drawRoundRect(r, radius, radius, frostSheen);
-        c.restore();
         frostRim.setStyle(Paint.Style.STROKE);
         frostRim.setStrokeWidth(Math.max(1, 1.5f * k));
         frostRim.setColor(tone(0x66FFFFFF, 0x3DFFFFFF));

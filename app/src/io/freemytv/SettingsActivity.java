@@ -1095,7 +1095,7 @@ public class SettingsActivity extends Activity {
         private static boolean isTyped(int row) {
             return row == CITY_ROW || row == NAME_ROW || row == CAMERA_URL_ROW;
         }
-        private static final String[] TEXT_SIZES = {"small", "medium", "large"}, GLASSES = {"clear", "frosted", "strong"};
+        private static final String[] TEXT_SIZES = {"small", "medium", "large"}, GLASSES = {"frosted", "clear"};
 
         private boolean dollar() {
             return "BRL".equalsIgnoreCase(Config.CURRENCY.trim());
@@ -1118,7 +1118,7 @@ public class SettingsActivity extends Activity {
             l.add(Ui.tr("Seu nome", "Your name"));
             l.add(Ui.tr("Câmera de segurança", "CCTV camera"));
             l.add(Ui.tr("Endereço da câmera", "Camera address"));
-            l.add(Ui.tr("Vidro do relógio", "Clock glass"));
+            l.add(Ui.tr("Vidro", "Glass"));
             if (HomeData.RATES) {
                 for (int i = 0; i < HomeData.RATE_CODES.length; i++) l.add(HomeData.coinName(i));
             } else {
@@ -1155,7 +1155,7 @@ public class SettingsActivity extends Activity {
             v[QUOTES_ROW] = onOff(Prefs.quotes());
             String size = Prefs.textSize();
             String glass = Prefs.glass();
-            v[GLASS_ROW] = glass.equals("clear") ? Ui.tr("Transparente", "Transparent") : glass.equals("strong") ? Ui.tr("Bem fosco", "Strong frost") : Ui.tr("Fosco", "Frosted");
+            v[GLASS_ROW] = glass.equals("clear") ? Ui.tr("Transparente", "Transparent") : Ui.tr("Fosco", "Frosted");
             v[TEXT_ROW] = size.equals("small") ? Ui.tr("Pequeno", "Small") : size.equals("large") ? Ui.tr("Grande", "Large") : Ui.tr("Médio", "Medium");
             v[NAME_ROW] = Prefs.greetingName().isEmpty() ? Ui.tr("Nenhum", "None") : Prefs.greetingName();
             v[CAMERA_ROW] = onOff(Prefs.camera());
