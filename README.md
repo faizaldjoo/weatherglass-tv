@@ -19,10 +19,10 @@ Modified by xACTDx · English and Bahasa Indonesia
 
 Weatherglass TV starts from Free My TV and adds or changes:
 
-- **A CCTV camera on the shelf.** Set `cctv_url` (an RTSP address) and the camera gets its own tile with a still picture that refreshes every 2 minutes. OK opens it live in a popup over the home screen; OK again goes full screen in VLC. It speaks RTSP itself (Digest or Basic login, H.264 or H.265), so cameras Android's player can't log in to still work.
+- **A CCTV camera on the shelf (optional).** Type the camera's RTSP address in *Settings → Widgets → Camera address* (or set `cctv_url`) and the camera gets its own tile with a still picture that refreshes every 2 minutes. OK opens it live in a popup over the home screen; OK again goes full screen in VLC. It speaks RTSP itself (Digest or Basic login, H.264 or H.265), so cameras Android's player can't log in to still work. No camera? Leave it empty, or turn *CCTV camera* off, and the shelf has no camera tile. See [Connecting a CCTV camera](#connecting-a-cctv-camera).
 - **Settings as a frosted-glass drawer.** Settings slide in from the right over the home screen, which stays where it is behind the glass: grey by day, black at night. → opens a section, ← goes back. Sections: Home Screen, Screensaver, Appearance, Wallpaper, Widgets, Shelf, Remote Buttons, About and TV Settings.
 - **English and Bahasa Indonesia.** The language is English, Bahasa Indonesia, or automatic from the TV's own setting; prayer times use the Indonesian names (Subuh, Dzuhur, Ashar, Maghrib, Isya).
-- **A greeting.** "Good Evening, Haikal" (or "Selamat Malam") before the date, on the home screen and the screensaver, following the TV's clock. The name is `greeting_name` in `config.properties`.
+- **A greeting.** "Good Evening, Haikal 👋" (or "Selamat Malam") before the date, on the home screen and the screensaver, following the TV's clock; the hand waves when the home screen appears and once a minute. Each TV keeps its own name: *Settings → Appearance → Your name* (`greeting_name` in `config.properties` fills it in the first time).
 - **Softer clouds at sunrise and sunset.** On the ink mountains, the clouds take the sky's own warm colour while the sun is low, instead of standing out white.
 - **Posters on the cards, and a clear ink sky.** The two tall cards show the title's poster. Over the ink mountains, the picks are hidden and ↑ from the shelf goes straight to the corner buttons.
 - **Exchange rates.** Up to four currencies (e.g. USD, AUD, JPY, EUR) priced in yours.
@@ -153,11 +153,27 @@ The first values come from `config.properties`, created by the first build (Goog
 | `currency` | Crypto prices in `USD`, `EUR`, `BRL`… | `USD` |
 | `temperature` | `C`, `F` or `auto` | `auto` |
 | `disable_assistant` | Also turn off Google Assistant | `false` |
-| `cctv_url` | A CCTV camera's RTSP address (`rtsp://user:password@ip:port/path`): a live tile at the end of the shelf | empty |
+| `cctv_url` | A CCTV camera's RTSP address (`rtsp://user:password@ip:port/path`): a live tile at the end of the shelf. Also *Widgets → Camera address* on the TV | empty: no camera |
 | `cctv_name` | The camera's name, read by TalkBack | `CCTV` |
-| `greeting_name` | The name in the greeting before the date ("Good Evening, Haikal") | empty: just the greeting |
+| `greeting_name` | The name in the greeting before the date ("Good Evening, Haikal"). Also *Appearance → Your name* on the TV | empty: just the greeting |
 
 Changed something? Run `./build.sh` and install again. Keep `freemytv.keystore`: updates are signed with it.
+
+### Connecting a CCTV camera
+
+Optional: without a camera, there's simply no camera tile. Any camera that streams RTSP on your home network works; it was made and tested with an **Eyesec** Wi-Fi camera.
+
+1. **Find the camera's address on your network**, for example `192.168.1.20`: in the camera's app (device info), or in your router's list of connected devices. It helps to reserve that address in the router, so it doesn't change.
+2. **Know its username and password**: the camera's own login, set in its app (often `admin` and the password you chose), not your account in the app.
+3. **Write its RTSP address.** For an Eyesec camera:
+   ```
+   rtsp://admin:yourpassword@192.168.1.20:554/stream0
+   ```
+   `stream0` is the full picture, `stream1` the small one (the tile's still uses `stream1` by itself). Other brands use other paths: look up "RTSP URL" for your model. Check the address first in VLC on a phone or computer (*Open Network Stream*): if VLC shows the picture, the TV will too.
+4. **Put it in**, either on the TV (*Settings → Widgets → Camera address*, typed with the remote or the Google TV app's keyboard on your phone) or in `config.properties` (`cctv_url=`) before building. *CCTV camera* turns the tile on and off without forgetting the address.
+5. **Install VLC** on the TV (Play Store) to watch it full screen: OK on the tile opens the live popup, OK again opens VLC.
+
+The address, password included, stays on the TV (and in your `config.properties`, which stays out of git). Settings shows only the camera's IP.
 
 ### The TMDB key
 

@@ -50,6 +50,7 @@ final class CameraThumb {
     private final Handler main = new Handler(Looper.getMainLooper());
     private long lastAt;
     private boolean busy;
+    private volatile boolean gone;
 
     CameraThumb(Context c, String rtspUrl) {
         context = c.getApplicationContext();
@@ -72,7 +73,8 @@ final class CameraThumb {
         lastAt = now;
         new Grab(frame -> {
             Bitmap tile = null;
-            if (frame != null) {
+            if (frame != null && gone) frame.recycle();
+            else if (frame != null) {
                 try (OutputStream os = new FileOutputStream(file())) {
                     frame.compress(Bitmap.CompressFormat.JPEG, 85, os);
                 } catch (Exception e) {
@@ -84,7 +86,7 @@ final class CameraThumb {
             Bitmap result = tile;
             main.post(() -> {
                 busy = false;
-                if (result != null) done.accept(result);
+                if (result != null && !gone) done.accept(result);
             });
         }).start();
     }
@@ -98,6 +100,13 @@ final class CameraThumb {
             AppLog.w("camera still: " + e);
         }
         return tile(frame);
+    }
+
+    /** The camera was turned off or changed: its picture goes, and a grab still running is dropped. */
+    void forget() {
+        gone = true;
+        //noinspection ResultOfMethodCallIgnored
+        file().delete();
     }
 
     private File file() {

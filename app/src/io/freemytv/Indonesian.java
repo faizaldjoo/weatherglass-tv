@@ -194,6 +194,14 @@ final class Indonesian {
             case "Small": return "Kecil";
             case "Medium": return "Sedang";
             case "Large": return "Besar";
+            case "Your name": return "Nama Anda";
+            case "CCTV camera": return "Kamera CCTV";
+            case "Camera address": return "Alamat kamera";
+            case "None": return "Tidak ada";
+            case "Set up": return "Atur";
+            case "Set": return "Sudah diatur";
+            case "Save": return "Simpan";
+            case "Empty: just the greeting": return "Kosong: hanya salam";
             default: return pattern(english);
         }
     }

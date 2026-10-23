@@ -104,6 +104,20 @@ final class Prefs {
         return v.equals("small") ? 0.7f : v.equals("large") ? 1f : 0.85f;
     }
 
+    // MARK: - Greeting and camera
+
+    /** The name in the greeting ("Good Evening, Haikal"), typed on the TV; config greeting_name until then. */
+    static String greetingName() { return (app == null ? Config.GREETING_NAME : sp().getString("greeting_name", Config.GREETING_NAME)).trim(); }
+    static void setGreetingName(String v) { put("greeting_name", v.trim()); }
+
+    /** The CCTV camera's RTSP address, typed on the TV; config cctv_url until then. */
+    static String cameraUrl() { return sp().getString("camera_url", Config.CCTV_URL).trim(); }
+    static void setCameraUrl(String v) { put("camera_url", v.trim()); }
+
+    /** Whether the camera tile shows (on by default once there is an address). */
+    static boolean camera() { return sp().getBoolean("camera", true) && !cameraUrl().isEmpty(); }
+    static void setCamera(boolean on) { put("camera", on); }
+
     // MARK: - City
 
     static String city() { return sp().getString("city", Config.CITY).trim(); }

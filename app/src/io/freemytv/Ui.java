@@ -197,15 +197,26 @@ final class Ui {
     }
 
     /** "domingo, 18 de outubro" (lowercase, like the iPhone in Portuguese); "Sunday, October 18" in English; "Sonntag, 18. Oktober". */
-    /** "Good Evening, Haikal" (config greeting_name; without a name, just the greeting), by the TV's clock. */
+    /** "Good Evening, Haikal" (the name from Settings; without one, just the greeting), by the TV's clock. */
     static String greeting(long now) {
         java.util.Calendar cal = java.util.Calendar.getInstance();
         cal.setTimeInMillis(now);
         int h = cal.get(java.util.Calendar.HOUR_OF_DAY);
         String hello = indo ? (h >= 4 && h < 11 ? "Selamat Pagi" : h < 15 && h >= 11 ? "Selamat Siang" : h >= 15 && h < 18 ? "Selamat Sore" : "Selamat Malam")
                 : h >= 5 && h < 12 ? "Good Morning" : h >= 12 && h < 18 ? "Good Afternoon" : "Good Evening";
-        String name = Config.GREETING_NAME.trim();
+        String name = Prefs.greetingName();
         return name.isEmpty() ? hello : hello + ", " + name;
+    }
+
+    /** The waving hand after the greeting. */
+    static final String WAVE = "\uD83D\uDC4B";
+    static final long WAVE_MS = 1600;
+
+    /** The hand's tilt in degrees, `ms` into a wave (0 outside it): a few quick waves that settle. */
+    static float waveAngle(long ms) {
+        if (ms <= 0 || ms >= WAVE_MS) return 0;
+        float t = ms / (float) WAVE_MS;
+        return (float) (16 * Math.sin(t * 2 * Math.PI * 2.5) * (1 - t) + 4 * Math.sin(t * Math.PI));
     }
 
     static String date(long now) {

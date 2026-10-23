@@ -280,14 +280,16 @@ public class SettingsActivity extends Activity {
 
         /** Appearance, Wallpaper and Widgets: which Home Settings rows each one shows, in its order. */
         private int[] sectionRows() {
-            if (section == S_APPEARANCE) return new int[] {0, 2, TEXT_ROW, 1, 3};
+            if (section == S_APPEARANCE) return new int[] {NAME_ROW, 0, 2, TEXT_ROW, 1, 3};
             if (section == S_WALLPAPER) return new int[] {WALLPAPER_ROW, MOTION_ROW, SKY_WEATHER_ROW, SKY_TIME_ROW};
             int coins = settingLabels().length - COIN_ROWS;
-            int[] r = new int[3 + coins];
+            int[] r = new int[5 + coins];
             r[0] = 4;
             r[1] = CITY_ROW;
             r[2] = QUOTES_ROW;
             for (int i = 0; i < coins; i++) r[3 + i] = COIN_ROWS + i;
+            r[3 + coins] = CAMERA_ROW;
+            r[4 + coins] = CAMERA_URL_ROW;
             return r;
         }
 
@@ -296,11 +298,12 @@ public class SettingsActivity extends Activity {
             if (section == S_WALLPAPER && local == 2) return Ui.tr("PRÉVIA DO CÉU", "SKY PREVIEW");
             if (section == S_WIDGETS && local == 0) return Ui.tr("CLIMA", "WEATHER");
             if (section == S_WIDGETS && local == 2) return HomeData.RATES ? Ui.tr("CÂMBIO", "EXCHANGE RATES") : Ui.tr("COTAÇÕES", "QUOTES");
+            if (section == S_WIDGETS && local == 3 + settingLabels().length - COIN_ROWS) return Ui.tr("CÂMERA", "CCTV");
             return null;
         }
 
         private static boolean isSwitch(int row) {
-            return row == 3 || row == 4 || row == MOTION_ROW || row == QUOTES_ROW || row >= COIN_ROWS;
+            return row == 3 || row == 4 || row == MOTION_ROW || row == QUOTES_ROW || row == CAMERA_ROW || row >= COIN_ROWS;
         }
 
         private static boolean isOn(int row) {
@@ -309,6 +312,7 @@ public class SettingsActivity extends Activity {
                 case 4: return Prefs.weather();
                 case MOTION_ROW: return Prefs.wallpaperMotion();
                 case QUOTES_ROW: return Prefs.quotes();
+                case CAMERA_ROW: return Prefs.camera();
                 default: return Prefs.quotes() && Prefs.coin(row - COIN_ROWS);
             }
         }
@@ -753,7 +757,7 @@ public class SettingsActivity extends Activity {
                 c.drawText(labels[row], rowRect.left + INSET * k, base, rowLabel);
                 if (isSwitch(row)) {
                     drawSwitch(c, right, cy, isOn(row), f, locked);
-                } else if (row == CITY_ROW) {
+                } else if (isTyped(row)) {
                     float cw = Symbols.width(getContext(), "chevron_right", 20 * k);
                     Symbols.draw(getContext(), c, "chevron_right", right - cw / 2, cy, 20 * k, blend(0x66FFFFFF, 0x801C1C1E, f));
                     rowValue.setColor(blend(0x9EFFFFFF, 0x991C1C1E, f));
@@ -764,6 +768,7 @@ public class SettingsActivity extends Activity {
                 }
             }
             float y = (rowTop(rows.length - 1) + LIST_H + 40) * k;
+            if (y > (DB - 30) * k) return;   // no room for the hint under a long list
             String text = section == S_WIDGETS ? Ui.tr("Com o widget de cotações desligado, as moedas ficam desligadas.",
                     "With the quotes widget off, the coins stay off too.")
                     : section == S_WALLPAPER ? Ui.tr("“Ao vivo” segue o céu de verdade.", "Live follows the real sky.")
@@ -1042,7 +1047,7 @@ public class SettingsActivity extends Activity {
             if (screen == REMOTE_KEYS) return true;
             if (screen == HOME_SETTINGS) {
                 int[] rows = sectionRows();
-                return focus < rows.length && rows[focus] != CITY_ROW;
+                return focus < rows.length && !isTyped(rows[focus]);
             }
             if (screen == SHELF_EDIT) {
                 int at = pickScroll + focus;
@@ -1080,7 +1085,12 @@ public class SettingsActivity extends Activity {
          * weather, wallpaper, its motion, the sky preview (weather, time of day), city, quotes, then one row per coin.
          */
         private static final int WALLPAPER_ROW = 5, MOTION_ROW = 6, SKY_WEATHER_ROW = 7, SKY_TIME_ROW = 8,
-                CITY_ROW = 9, QUOTES_ROW = 10, TEXT_ROW = 11, COIN_ROWS = 12;
+                CITY_ROW = 9, QUOTES_ROW = 10, TEXT_ROW = 11, NAME_ROW = 12, CAMERA_ROW = 13, CAMERA_URL_ROW = 14, COIN_ROWS = 15;
+
+        /** Rows whose value is typed (OK opens the keyboard): the city, the name, the camera's address. */
+        private static boolean isTyped(int row) {
+            return row == CITY_ROW || row == NAME_ROW || row == CAMERA_URL_ROW;
+        }
         private static final String[] TEXT_SIZES = {"small", "medium", "large"};
 
         private boolean dollar() {
@@ -1101,6 +1111,9 @@ public class SettingsActivity extends Activity {
             l.add(Ui.tr("Cidade", "City"));
             l.add(HomeData.RATES ? Ui.tr("Widget de câmbio", "Exchange rates widget") : Ui.tr("Widget de cotações", "Quotes widget"));
             l.add(Ui.tr("Tamanho do texto", "Text size"));
+            l.add(Ui.tr("Seu nome", "Your name"));
+            l.add(Ui.tr("Câmera de segurança", "CCTV camera"));
+            l.add(Ui.tr("Endereço da câmera", "Camera address"));
             if (HomeData.RATES) {
                 for (int i = 0; i < HomeData.RATE_CODES.length; i++) l.add(HomeData.coinName(i));
             } else {
@@ -1137,6 +1150,9 @@ public class SettingsActivity extends Activity {
             v[QUOTES_ROW] = onOff(Prefs.quotes());
             String size = Prefs.textSize();
             v[TEXT_ROW] = size.equals("small") ? Ui.tr("Pequeno", "Small") : size.equals("large") ? Ui.tr("Grande", "Large") : Ui.tr("Médio", "Medium");
+            v[NAME_ROW] = Prefs.greetingName().isEmpty() ? Ui.tr("Nenhum", "None") : Prefs.greetingName();
+            v[CAMERA_ROW] = onOff(Prefs.camera());
+            v[CAMERA_URL_ROW] = cameraHost(Prefs.cameraUrl());
             // No quotes widget, nowhere to show prices: the coins read as off (and stay locked) until it is back on.
             for (int i = COIN_ROWS; i < v.length; i++) v[i] = onOff(Prefs.quotes() && Prefs.coin(i - COIN_ROWS));
             return v;
@@ -1233,7 +1249,11 @@ public class SettingsActivity extends Activity {
                     Prefs.setSkyTime(Prefs.SKY_TIMES[(Math.max(0, at) + dir + n) % n]);
                     break;
                 }
-                case CITY_ROW: return;
+                case CITY_ROW: case NAME_ROW: case CAMERA_URL_ROW: return;
+                case CAMERA_ROW:
+                    if (Prefs.cameraUrl().isEmpty()) askCameraUrl();   // nothing to show yet: ask for the address first
+                    else Prefs.setCamera(!Prefs.camera());
+                    break;
                 case QUOTES_ROW: Prefs.setQuotes(!Prefs.quotes()); break;
                 case TEXT_ROW: {
                     int at = java.util.Arrays.asList(TEXT_SIZES).indexOf(Prefs.textSize());
@@ -1246,6 +1266,59 @@ public class SettingsActivity extends Activity {
                     break;
             }
             HomeData.get(getContext()).settingsChanged();
+        }
+
+        /** The camera's address as the row shows it: just its host (never the password), or "Set up". */
+        private static String cameraHost(String url) {
+            if (url.isEmpty()) return Ui.tr("Configurar", "Set up");
+            try {
+                String host = android.net.Uri.parse(url).getHost();
+                if (host != null && !host.isEmpty()) return host;
+            } catch (Exception ignored) {
+            }
+            return Ui.tr("Definido", "Set");
+        }
+
+        /** A one-line text dialog with the TV's keyboard; `done` gets what was typed. */
+        private void askText(String title, String hint, String value, int input, java.util.function.Consumer<String> done) {
+            EditText field = new EditText(activity);
+            field.setSingleLine(true);
+            field.setInputType(input);
+            field.setHint(hint);
+            field.setText(value);
+            field.setSelection(field.getText().length());
+            field.setImeOptions(EditorInfo.IME_ACTION_DONE);
+            AlertDialog dialog = new AlertDialog.Builder(activity, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle(title)
+                    .setView(field)
+                    .setPositiveButton(Ui.tr("Salvar", "Save"), (d, which) -> done.accept(field.getText().toString()))
+                    .setNegativeButton(Ui.tr("Cancelar", "Cancel"), null)
+                    .create();
+            field.setOnEditorActionListener((v, action, event) -> {
+                dialog.dismiss();
+                done.accept(field.getText().toString());
+                return true;
+            });
+            dialog.show();
+        }
+
+        private void askName() {
+            askText(Ui.tr("Seu nome", "Your name"), Ui.tr("Vazio: só a saudação", "Empty: just the greeting"), Prefs.greetingName(),
+                    android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS, name -> {
+                        Prefs.setGreetingName(name);
+                        invalidate();
+                    });
+        }
+
+        private void askCameraUrl() {
+            askText(Ui.tr("Endereço da câmera", "Camera address"), "rtsp://user:password@192.168.1.20:554/stream0", Prefs.cameraUrl(),
+                    android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI, url -> {
+                        url = url.trim();
+                        if (!url.isEmpty() && !url.contains("://")) url = "rtsp://" + url;
+                        Prefs.setCameraUrl(url);
+                        Prefs.setCamera(!url.isEmpty());
+                        invalidate();
+                    });
         }
 
         private void askCity() {
@@ -1510,7 +1583,10 @@ public class SettingsActivity extends Activity {
                 openPicker(focus + 1);
             } else if (screen == HOME_SETTINGS) {
                 int[] rows = sectionRows();
-                if (focus < rows.length && rows[focus] == CITY_ROW) askCity();
+                int row = focus < rows.length ? rows[focus] : -1;
+                if (row == CITY_ROW) askCity();
+                else if (row == NAME_ROW) askName();
+                else if (row == CAMERA_URL_ROW) askCameraUrl();
                 else adjust(1);
                 invalidate();
                 return;

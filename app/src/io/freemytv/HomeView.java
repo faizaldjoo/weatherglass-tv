@@ -153,7 +153,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private final Spring[] cardFocus = new Spring[3];
     private final RectF[] cardRects = new RectF[3];
     private final List<HomeApps.Item> lightButtons = new ArrayList<>();
-    private Paint lTitle, lTab, lTabOn, lCardTitle, lCardMeta, lQuote, lTip, lDate, lClock, lWeather, lClockQuote;
+    private Paint lTitle, lTab, lTabOn, lCardTitle, lCardMeta, lQuote, lTip, lDate, lClock, lWeather, lClockQuote, lWave;
     private Shader lightGradient;
 
     // Shelf
@@ -250,6 +250,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private int w, h;
     private float k = 1;
     private String clockText = "", dateText = "", weatherLine = "", amPmText = "";
+    // The greeting line, split around the waving hand: "Good Evening, Faizal" 👋 "  ·  Friday, October 23"
+    private String greetText = "", dateRest = "";
+    private float greetW = -1, waveW, restW;
+    private long waveAt = -1;   // uptime when the hand last started waving
     private Paint lAmPm;
     private long weatherLineAt = -1;
     private int weatherLinePrefs = -1;
@@ -437,6 +441,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (tvInputs != null) tvInputs.registerCallback(inputCallback, handler);
         handler.postDelayed(tick, 15_000);
         checkNotices();
+        clockMinute = -1;   // the greeting again (its name may have changed in Settings), and a wave hello
         reload();
         updatePalette();
         updatePicks();
@@ -690,7 +695,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         lQuote = Ui.numbers(Ui.regular, 21 * k, L_FAINT);
         lTip = Ui.text(Ui.semibold, 25 * k, L_INK);
         lTip.setTextAlign(Paint.Align.CENTER);
-        lDate = Ui.text(Ui.semibold, 34 * k, L_DIM);
+        lDate = Ui.text(Ui.semibold, 28 * k, L_DIM);   // the size of the rates
+        lWave = Ui.text(Ui.medium, 30 * k, 0xFFFFFFFF);
         lClock = Ui.numbers(Ui.light, 200 * k, L_INK);
         lClock.setLetterSpacing(-0.01f);
         lWeather = Ui.text(Ui.medium, 34 * k, L_DIM);
@@ -814,8 +820,12 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             if (!picksOn()) heroLayer.invalidate();
         }
 
+        // The hand waving after the greeting (clock layout)
+        boolean waving = !picksOn() && waveAt >= 0 && up - waveAt < Ui.WAVE_MS + 100;
+        if (waving) heroLayer.invalidate();
+
         // Busy: something is moving, or the sheet or the drawer is open.
-        boolean busy = tilesMoving || statusMoving || heroMoving || drawerItemsMoving || gridMoving || drawerMoving
+        boolean busy = waving || tilesMoving || statusMoving || heroMoving || drawerItemsMoving || gridMoving || drawerMoving
                 || sheetMoving || toastFading || heroFading || bgFading || nightMoving || sheetOpen || sheet.value > 0.001f
                 || drawerOpen || drawer.value > 0.001f || toast != null || !toasts.isEmpty() || skyBusy;
         idle = !busy;
@@ -871,6 +881,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         clockMinute = minute;
         clockText = Ui.clock(now);
         dateText = Ui.greeting(now) + "  ·  " + Ui.date(now);
+        greetText = Ui.greeting(now);
+        dateRest = "  ·  " + Ui.date(now);
+        greetW = -1;
+        waveAt = SystemClock.uptimeMillis();   // a wave each minute, with the new time
         return true;
     }
 
@@ -1252,11 +1266,19 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     // MARK: - Quotes and shelf
 
     private void setShelf(List<HomeApps.Item> list) {
-        // The camera, if one is set up: always last, in its own glass
-        if (!Config.CCTV_URL.isEmpty()) {
+        // The camera, if one is set up and on (Settings → Widgets): always last, in its own glass
+        String cameraUrl = Prefs.camera() ? Prefs.cameraUrl() : "";
+        if (camera != null && !camera.uri.equals(cameraUrl)) {
+            // Turned off, or a new address: the old camera's still doesn't belong to the new one
+            if (cameraPopup != null) cameraPopup.dismiss();
+            if (cameraThumb != null) cameraThumb.forget();
+            camera = null;
+            cameraThumb = null;
+        }
+        if (!cameraUrl.isEmpty()) {
             if (camera == null) {
-                camera = HomeApps.camera(Config.CCTV_NAME.isEmpty() ? "CCTV" : Config.CCTV_NAME, Config.CCTV_URL);
-                cameraThumb = new CameraThumb(getContext(), Config.CCTV_URL);
+                camera = HomeApps.camera(Config.CCTV_NAME.isEmpty() ? "CCTV" : Config.CCTV_NAME, cameraUrl);
+                cameraThumb = new CameraThumb(getContext(), cameraUrl);
                 Bitmap last = cameraThumb.cached();
                 if (last != null) camera.tile = last;
                 refreshCameraStill();
@@ -1374,9 +1396,20 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private Quotes quotes;
 
     /** Coin logo + price in the configured currency, in a row at the right end of the tab bar. */
+    /** The quotes' right edge: the end of the shelf's glass (the camera's, if there is one). */
+    private float quotesRight() {
+        return platterRect.isEmpty() ? CONTENT_R * k : (cameraRect.isEmpty() ? platterRect : cameraRect).right - SHELF_PAD * k;
+    }
+
+    /** The clock layout's quotes: their baseline, a little above the shelf's glass. */
+    private float quotesBase() {
+        float top = platterRect.isEmpty() ? L_PLATTER_TOP * k : Math.min(platterRect.top, cameraRect.isEmpty() ? platterRect.top : cameraRect.top);
+        return top - 30 * k;
+    }
+
     private void drawQuotes(Canvas c) {
         boolean clock = !picksOn();
-        float right = platterRect.isEmpty() ? CONTENT_R * k : (cameraRect.isEmpty() ? platterRect : cameraRect).right - SHELF_PAD * k;
+        float right = quotesRight();
         applyTone();
         Paint text = clock ? lClockQuote : lQuote;
         // The corner buttons' names appear in this row: the quotes fade out while one of them has focus.
@@ -1395,11 +1428,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             q = quotes = new Quotes(coins, data.prices, text);
         }
         // On the tab row, at the right.
-        float base = clock ? (Config.PRAYER_TIMES ? L_QUOTES_BASE + 62 : L_QUOTES_BASE) * k : (L_TABBAR_TOP + L_TABBAR_H / 2) * k + q.halfCap;
+        float base = clock ? quotesBase() : (L_TABBAR_TOP + L_TABBAR_H / 2) * k + q.halfCap;
         float cap = q.cap, gap = (clock ? 8 : 6) * k, spacing = (clock ? 32 : 24) * k;
         float total = spacing * (n - 1);
         for (int i = 0; i < n; i++) total += q.glyphs[i] + gap + q.widths[i];
-        float x = clock ? MARGIN * k : right - total;
+        float x = right - total;
         int coinColor = clock ? text.getColor() : Ui.alpha(tone(0xB38E8E93, 0x8CFFFFFF), fade);
         for (int i = 0; i < n; i++) {
             Glyphs.coin(getContext(), c, HomeData.COINS[coins[i]], x + q.glyphs[i] / 2, base - cap / 2, cap, coinColor);
@@ -1410,8 +1443,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         text.setColor(textColor);
         String stale = HomeData.staleness(data.pricesAt, HomeData.pricesEvery());
         if (stale.isEmpty()) return;
-        if (clock) c.drawText(stale, x - spacing + 24 * k + staleQuote.measureText(stale), base, staleQuote);
-        else c.drawText(stale, right - total - 24 * k, base, staleQuote);
+        c.drawText(stale, right - total - 24 * k, base, staleQuote);
     }
 
     private void drawTiles(Canvas c) {
@@ -2995,14 +3027,21 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (!picksOn()) {
             // Top left, level with the corner buttons, at the text size from Settings → Appearance (it scales from
             // that corner): the sky stays open above the shelf.
-            float s = Prefs.textScale(), blockTop = L_DATE_BASE - 30, screenTop = L_BUTTON_CY - L_BUTTON / 2;
+            float s = Prefs.textScale(), blockTop = L_DATE_BASE - 26, screenTop = L_BUTTON_CY - L_BUTTON / 2;
             c.save();
             c.translate(0, screenTop * k);
             c.scale(s, s, MARGIN * k, 0);
             c.translate(0, -blockTop * k);
             drawClock(c);
-            if (HomeData.coinCount() > 0) drawQuotes(c);
             c.restore();
+            // The rates: bottom right, just above the apps, at the same text size (it scales from that corner)
+            if (HomeData.coinCount() > 0) {
+                float right = quotesRight(), base = quotesBase();
+                c.save();
+                c.scale(s, s, right, base);
+                drawQuotes(c);
+                c.restore();
+            }
             return;
         }
         String hello = Ui.tr("Para você", "For You");
@@ -3045,7 +3084,19 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     private void drawClock(Canvas c) {
         float x = MARGIN * k;
-        c.drawText(dateText, x - Ui.leftBearing(lDate, dateText), L_DATE_BASE * k, lDate);
+        if (greetW < 0) {
+            greetW = lDate.measureText(greetText);
+            waveW = lWave.measureText(Ui.WAVE);
+            restW = lDate.measureText(dateRest);
+        }
+        float dateBase = L_DATE_BASE * k, gx = x - Ui.leftBearing(lDate, greetText), hx = gx + greetW + 10 * k;
+        c.drawText(greetText, gx, dateBase, lDate);
+        // The hand turns about its wrist (bottom right of the glyph)
+        c.save();
+        c.rotate(Ui.waveAngle(SystemClock.uptimeMillis() - waveAt), hx + waveW * 0.7f, dateBase);
+        c.drawText(Ui.WAVE, hx, dateBase + 2 * k, lWave);
+        c.restore();
+        c.drawText(dateRest, hx + waveW, dateBase, lDate);
         c.drawText(clockText, x - Ui.leftBearing(lClock, clockText), L_CLOCK_BASE * k, lClock);
         // English: 12-hour time, with a smaller AM / PM after it.
         if (!amPmText.isEmpty()) {

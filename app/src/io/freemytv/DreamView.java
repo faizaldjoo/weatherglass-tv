@@ -103,7 +103,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
     // The Ink mountains screensaver
     private final WeatherSky inkHelper = new WeatherSky();
     private final InkSky ink = new InkSky(inkHelper);
-    private Paint iDate, iClock, iLine, iSmall, iLabel, iName, iPName, iPNameOn, iPTime, iPTimeOn, iScrim, iBox;
+    private Paint iWave, iDate, iClock, iLine, iSmall, iLabel, iName, iPName, iPNameOn, iPTime, iPTimeOn, iScrim, iBox;
     private RadialGradient[] scrimDark, scrimLight;
     private final long[] prayerAt = new long[5];
     private final String[] prayerText = new String[5];
@@ -136,6 +136,8 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
     private float k = 1;
     private long minute = -1;
     private String clock = "", date = "";
+    private String greet = "", dateRest = "";   // the ink layout's greeting line, split around the waving hand
+    private long waveAt = -1;
     private Paint datePaint, clockPaint, weatherPaint, weatherDim, quotePaint, stalePaint;
     private Paint cornerDate, cornerQuote, cornerStale, cornerClock, labelPaint, metaPaint;
     private TextPaint titlePaint;
@@ -238,7 +240,8 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         k = w / 1920f;
         inkHelper.setSize(w, h);
         ink.setSize(w, h);
-        iDate = Ui.text(Ui.semibold, 32 * k, 0xFFFFFFFF);
+        iDate = Ui.text(Ui.semibold, 26 * k, 0xFFFFFFFF);   // the size of the rates
+        iWave = Ui.text(Ui.medium, 28 * k, 0xFFFFFFFF);
         iClock = Ui.numbers(Ui.light, 230 * k, 0xFFFFFFFF);
         iLine = Ui.numbers(Ui.medium, 32 * k, 0xFFFFFFFF);
         iSmall = Ui.numbers(Ui.medium, 26 * k, 0xFFFFFFFF);
@@ -441,6 +444,11 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
             int kind = WeatherSky.kind(inkCode());
             every = kind == WeatherSky.RAIN || kind == WeatherSky.STORM ? 50_000_000L : 83_000_000L;
         }
+        // While the hand waves (ink layout), 30 frames a second
+        if (inkMode() && waveAt >= 0) {
+            long since = SystemClock.uptimeMillis() - waveAt;
+            if (since >= 0 && since < Ui.WAVE_MS + 100) every = 33_000_000L;
+        }
         if (frameTimeNanos - lastFrame >= every) {
             lastFrame = frameTimeNanos;
             invalidate();
@@ -462,6 +470,9 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
             minute = now / 60_000;
             clock = Ui.clock(now);
             date = Ui.greeting(now) + "  ·  " + Ui.date(now);   // "Good Evening, Haikal · Friday, 23 October"
+            greet = Ui.greeting(now);
+            dateRest = "  ·  " + Ui.date(now);
+            waveAt = up + (waveAt < 0 ? 1500 : 0);   // a wave each minute (the first once the screensaver has faded in)
             dirty = true;
             chromeDirty = true;
             if (inkMode()) refreshPrayers(now);
@@ -930,7 +941,14 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         String condition = weather ? HomeData.condition(wx.code, wx.isDay) : "";
         // Top left: greeting and date, the clock, the next prayer, the rates (the weather is at the bottom right)
         iDate.setColor(dim);
-        c.drawText(date, 80 * k, 110 * k, iDate);
+        c.drawText(greet, 80 * k, 110 * k, iDate);
+        float hx = 80 * k + iDate.measureText(greet) + 10 * k, ww = iWave.measureText(Ui.WAVE);
+        c.save();
+        c.rotate(Ui.waveAngle(up - waveAt), hx + ww * 0.7f, 110 * k);
+        iWave.setAlpha(dark ? 255 : 235);
+        c.drawText(Ui.WAVE, hx, 112 * k, iWave);
+        c.restore();
+        c.drawText(dateRest, hx + ww, 110 * k, iDate);
         iClock.setColor(fg);
         c.drawText(clock, 80 * k - Ui.leftBearing(iClock, clock), 330 * k, iClock);
         iLine.setColor(dim);
