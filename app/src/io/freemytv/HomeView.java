@@ -1358,6 +1358,15 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             scene.liquid(c, cameraRect, radius, tone(0xFFFFFFFF, SMOKE), tone(0.42f, 0.12f), tone(0.03f, 0.08f),
                     tone(30, 34) * k, tone(22, 28) * k, tone(0.65f, 0.95f), 1);
         }
+        // Clock layout: the rates just above the shelf, at the right, at the text size from Settings (scaled from
+        // that corner)
+        if (!picksOn() && HomeData.coinCount() > 0) {
+            float s = Prefs.textScale(), right = quotesRight(), base = quotesBase();
+            c.save();
+            c.scale(s, s, right, base);
+            drawQuotes(c);
+            c.restore();
+        }
     }
 
     /** The quotes row's text and sizes, for one set of coins, prices and text size. */
@@ -3034,15 +3043,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             c.translate(0, -blockTop * k);
             drawClock(c);
             c.restore();
-            // The rates: bottom right, just above the apps, at the same text size (it scales from that corner)
-            if (HomeData.coinCount() > 0) {
-                float right = quotesRight(), base = quotesBase();
-                c.save();
-                c.scale(s, s, right, base);
-                drawQuotes(c);
-                c.restore();
-            }
-            return;
+            return;   // the rates are drawn with the shelf (drawPlatter): this layer ends above it
         }
         String hello = Ui.tr("Para você", "For You");
         c.drawText(hello, MARGIN * k - Ui.leftBearing(lTitle, hello), L_TITLE_BASE * k, lTitle);
