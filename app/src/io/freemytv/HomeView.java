@@ -2993,10 +2993,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void drawLightTop(Canvas c) {
         applyTone();
         if (!picksOn()) {
-            // Text size (Settings → Appearance): the whole block scales from its bottom left, so it stays above the shelf
-            float s = Prefs.textScale();
+            // Top left, level with the corner buttons, at the text size from Settings → Appearance (it scales from
+            // that corner): the sky stays open above the shelf.
+            float s = Prefs.textScale(), blockTop = L_DATE_BASE - 30, screenTop = L_BUTTON_CY - L_BUTTON / 2;
             c.save();
-            c.scale(s, s, MARGIN * k, ((Config.PRAYER_TIMES ? L_QUOTES_BASE + 62 : L_QUOTES_BASE) + 12) * k);
+            c.translate(0, screenTop * k);
+            c.scale(s, s, MARGIN * k, 0);
+            c.translate(0, -blockTop * k);
             drawClock(c);
             if (HomeData.coinCount() > 0) drawQuotes(c);
             c.restore();
