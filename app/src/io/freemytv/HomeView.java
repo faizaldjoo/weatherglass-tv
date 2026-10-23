@@ -273,6 +273,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             frostSheen = new Paint(Paint.ANTI_ALIAS_FLAG), chipRim = new Paint(Paint.ANTI_ALIAS_FLAG);
     private LinearGradient sheenShader, rimShader;
     private final Matrix rimMatrix = new Matrix();
+    private final float[] lightAt = new float[2];
     private final Matrix sheenMatrix = new Matrix();
     private long frostAt = -1;
     private float frostShift;      // the layer being drawn is moved this far down on screen (drawer animation)
@@ -3364,8 +3365,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             sheenShader = new LinearGradient(0, 0, 0, 1, 0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
             frostSheen.setShader(sheenShader);
         }
-        sheenMatrix.setScale(1, Math.min(r.height() * 0.5f, 120 * k));
-        sheenMatrix.postTranslate(0, r.top);
+        lightFrom(r, sheenMatrix, 0.5f, 120 * k);
         sheenShader.setLocalMatrix(sheenMatrix);
         frostSheen.setAlpha(Math.round(255 * tone(0.16f, 0.12f)));
         c.drawRoundRect(r, radius, radius, frostSheen);
@@ -3385,8 +3385,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             sheenShader = new LinearGradient(0, 0, 0, 1, 0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
             frostSheen.setShader(sheenShader);
         }
-        sheenMatrix.setScale(1, Math.min(r.height() * 0.5f, 120 * k));
-        sheenMatrix.postTranslate(0, r.top);
+        lightFrom(r, sheenMatrix, 0.5f, 120 * k);
         sheenShader.setLocalMatrix(sheenMatrix);
         frostSheen.setAlpha(Math.round(255 * tone(0.16f, 0.12f)));
         c.drawRoundRect(r, radius, radius, frostSheen);
@@ -3398,6 +3397,27 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      * The edge of the glass, as light catches it: bright along the top, fading to almost nothing down the sides, and a
      * faint line again at the bottom (one gradient for every card, moved to each). Thin: 1 px at 1080p.
      */
+    /**
+     * Turns a 0 → 1 gradient (bright → dim, along y) across `r` so its bright end faces the sun or the moon of the ink
+     * mountains (from above when there is none): the glass catches the light on the side the light comes from.
+     * `part` of the card's depth along that line (at most `max` px).
+     */
+    private void lightFrom(RectF r, Matrix m, float part, float max) {
+        float cx = r.centerX(), cy = r.centerY();
+        float lx = cx, ly = -h;   // from straight above
+        if (inkOn() && inkSky.light(lightAt)) {
+            lx = lightAt[0];
+            ly = lightAt[1];
+        }
+        float dx = lx - cx, dy = ly - cy, len = (float) Math.hypot(dx, dy);
+        if (len < 1) { dx = 0; dy = -1; } else { dx /= len; dy /= len; }
+        float depth = Math.abs(r.width() * dx) + Math.abs(r.height() * dy);   // the card's size along the light
+        float l = Math.min(depth * part, max);
+        m.setScale(1, l);
+        m.postRotate((float) Math.toDegrees(Math.atan2(dx, -dy)));
+        m.postTranslate(cx + dx * depth / 2, cy + dy * depth / 2);
+    }
+
     private void glassRim(Canvas c, RectF r, float radius) {
         if (rimShader == null) {
             rimShader = new LinearGradient(0, 0, 0, 1, new int[] {0xFFFFFFFF, 0x26FFFFFF, 0x0FFFFFFF, 0x40FFFFFF},
@@ -3405,8 +3425,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             frostRim.setShader(rimShader);
             frostRim.setStyle(Paint.Style.STROKE);
         }
-        rimMatrix.setScale(1, r.height());
-        rimMatrix.postTranslate(0, r.top);
+        lightFrom(r, rimMatrix, 1, Float.MAX_VALUE);
         rimShader.setLocalMatrix(rimMatrix);
         frostRim.setStrokeWidth(Math.max(1, k));
         frostRim.setAlpha(Math.round(255 * tone(0.75f, 0.45f)));

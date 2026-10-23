@@ -286,6 +286,17 @@ final class InkSky {
     // MARK: - Drawing
 
     /** Draws the wallpaper for a weather code at an hour of the fixed day; `parallax` -1..1; without `motion`, still. */
+    /**
+     * Where the sun or the moon is in the last drawn sky (px), for the glass's light; false without one (cloudy days
+     * keep a faint sun, which still counts).
+     */
+    boolean light(float[] out) {
+        if (look.sun0 == 0 || look.sunA <= 0.02f) return false;
+        out[0] = look.sx * k;
+        out[1] = look.sy * k;
+        return true;
+    }
+
     void draw(Canvas c, int code, float hour, long ms, float parallax, boolean motion) {
         if (w == 0) return;
         // Drizzle: the cloudy sky, with just a sprinkle of small drops on the glass (no rain falling outside)
