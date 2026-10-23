@@ -190,6 +190,10 @@ final class Indonesian {
             case "In About, press the build number 7 times; then turn on USB debugging in Developer options.": return "Di Tentang, tekan nomor build 7 kali; lalu nyalakan USB debugging di Opsi developer.";
             case "debugging is off on the TV. Turn on Settings → System → Developer options → USB debugging (no Developer options? Settings → System → About → press the build number 7 times). TVs with only Wireless debugging can't switch yet":
                 return "debugging di TV mati. Nyalakan Setelan → Sistem → Opsi developer → USB debugging (belum ada Opsi developer? Setelan → Sistem → Tentang → tekan nomor build 7 kali). TV yang hanya punya Wireless debugging belum bisa beralih";
+            case "Text size": return "Ukuran teks";
+            case "Small": return "Kecil";
+            case "Medium": return "Sedang";
+            case "Large": return "Besar";
             default: return pattern(english);
         }
     }

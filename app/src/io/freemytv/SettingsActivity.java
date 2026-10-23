@@ -280,7 +280,7 @@ public class SettingsActivity extends Activity {
 
         /** Appearance, Wallpaper and Widgets: which Home Settings rows each one shows, in its order. */
         private int[] sectionRows() {
-            if (section == S_APPEARANCE) return new int[] {0, 2, 1, 3};
+            if (section == S_APPEARANCE) return new int[] {0, 2, TEXT_ROW, 1, 3};
             if (section == S_WALLPAPER) return new int[] {WALLPAPER_ROW, MOTION_ROW, SKY_WEATHER_ROW, SKY_TIME_ROW};
             int coins = settingLabels().length - COIN_ROWS;
             int[] r = new int[3 + coins];
@@ -1080,7 +1080,8 @@ public class SettingsActivity extends Activity {
          * weather, wallpaper, its motion, the sky preview (weather, time of day), city, quotes, then one row per coin.
          */
         private static final int WALLPAPER_ROW = 5, MOTION_ROW = 6, SKY_WEATHER_ROW = 7, SKY_TIME_ROW = 8,
-                CITY_ROW = 9, QUOTES_ROW = 10, COIN_ROWS = 11;
+                CITY_ROW = 9, QUOTES_ROW = 10, TEXT_ROW = 11, COIN_ROWS = 12;
+        private static final String[] TEXT_SIZES = {"small", "medium", "large"};
 
         private boolean dollar() {
             return "BRL".equalsIgnoreCase(Config.CURRENCY.trim());
@@ -1099,6 +1100,7 @@ public class SettingsActivity extends Activity {
             l.add(Ui.tr("Hora do dia", "Time of day"));
             l.add(Ui.tr("Cidade", "City"));
             l.add(HomeData.RATES ? Ui.tr("Widget de câmbio", "Exchange rates widget") : Ui.tr("Widget de cotações", "Quotes widget"));
+            l.add(Ui.tr("Tamanho do texto", "Text size"));
             if (HomeData.RATES) {
                 for (int i = 0; i < HomeData.RATE_CODES.length; i++) l.add(HomeData.coinName(i));
             } else {
@@ -1133,6 +1135,8 @@ public class SettingsActivity extends Activity {
                 Ui.tr("Tarde", "Afternoon"), Ui.tr("Hora dourada", "Golden hour"), Ui.tr("Pôr do sol", "Sunset"), Ui.tr("Crepúsculo", "Dusk"), Ui.tr("Noite", "Night")};
             v[SKY_TIME_ROW] = times[Math.max(0, java.util.Arrays.asList(Prefs.SKY_TIMES).indexOf(Prefs.skyTime()))];
             v[QUOTES_ROW] = onOff(Prefs.quotes());
+            String size = Prefs.textSize();
+            v[TEXT_ROW] = size.equals("small") ? Ui.tr("Pequeno", "Small") : size.equals("large") ? Ui.tr("Grande", "Large") : Ui.tr("Médio", "Medium");
             // No quotes widget, nowhere to show prices: the coins read as off (and stay locked) until it is back on.
             for (int i = COIN_ROWS; i < v.length; i++) v[i] = onOff(Prefs.quotes() && Prefs.coin(i - COIN_ROWS));
             return v;
@@ -1231,6 +1235,11 @@ public class SettingsActivity extends Activity {
                 }
                 case CITY_ROW: return;
                 case QUOTES_ROW: Prefs.setQuotes(!Prefs.quotes()); break;
+                case TEXT_ROW: {
+                    int at = java.util.Arrays.asList(TEXT_SIZES).indexOf(Prefs.textSize());
+                    Prefs.setTextSize(TEXT_SIZES[(at + dir + TEXT_SIZES.length) % TEXT_SIZES.length]);
+                    break;
+                }
                 default:
                     if (!Prefs.quotes()) return;
                     Prefs.setCoin(row - COIN_ROWS, !Prefs.coin(row - COIN_ROWS));

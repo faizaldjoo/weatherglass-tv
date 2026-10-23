@@ -69,7 +69,7 @@ final class Prefs {
         String v = app == null ? Config.LANGUAGE : sp().getString("language", Config.LANGUAGE);
         v = v.trim().toLowerCase(Locale.ROOT);
         return v.startsWith("ru") ? "ru" : v.startsWith("pt") ? "pt" : v.startsWith("es") ? "es" : v.startsWith("de") ? "de"
-                : v.startsWith("en") ? "en" : "auto";
+                : v.startsWith("en") ? "en" : v.startsWith("id") || v.startsWith("in") ? "id" : "auto";
     }
 
     static void setLanguage(String v) { put("language", v); Ui.applyLanguage(); }
@@ -89,6 +89,20 @@ final class Prefs {
     }
 
     static void setTheme(String v) { put("theme", v); }
+
+    /** The size of the clock, date, weather and prices on the clock layout: "small", "medium" or "large". */
+    static String textSize() {
+        String v = sp().getString("text_size", "medium");
+        return v.equals("small") || v.equals("large") ? v : "medium";
+    }
+
+    static void setTextSize(String v) { put("text_size", v); }
+
+    /** textSize() as a scale of the original (large) layout. */
+    static float textScale() {
+        String v = textSize();
+        return v.equals("small") ? 0.7f : v.equals("large") ? 1f : 0.85f;
+    }
 
     // MARK: - City
 

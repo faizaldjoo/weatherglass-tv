@@ -2993,8 +2993,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void drawLightTop(Canvas c) {
         applyTone();
         if (!picksOn()) {
+            // Text size (Settings → Appearance): the whole block scales from its bottom left, so it stays above the shelf
+            float s = Prefs.textScale();
+            c.save();
+            c.scale(s, s, MARGIN * k, ((Config.PRAYER_TIMES ? L_QUOTES_BASE + 62 : L_QUOTES_BASE) + 12) * k);
             drawClock(c);
             if (HomeData.coinCount() > 0) drawQuotes(c);
+            c.restore();
             return;
         }
         String hello = Ui.tr("Para você", "For You");
