@@ -36,13 +36,13 @@ import java.util.function.Consumer;
  * A still picture from the CCTV camera for its shelf tile. The camera's own snapshot doesn't work (HTTP 500) and
  * Android's player can't log in to it, so this reads one key frame from its small video stream itself (RtspKeyFrame;
  * cctv_url with /stream0 → /stream1, 640×360), has the TV's decoder draw it onto an off-screen GL surface, copies the
- * pixels and hangs up. A few seconds of network at most every 2 minutes while
+ * pixels and hangs up. A few seconds of network at most every 5 minutes while
  * the home screen is up; the last picture is kept on disk so it shows right away after a restart. If the stream can't be
  * read, the tile keeps its drawn camera.
  */
 final class CameraThumb {
     static final int W = 480, H = 270;
-    private static final long EVERY_MS = 120_000, GIVE_UP_MS = 25_000;
+    private static final long EVERY_MS = 300_000, GIVE_UP_MS = 25_000;
     private static final int FW = 640, FH = 360;   // the frame copied (the tile is smaller)
 
     private final Context context;
@@ -65,7 +65,7 @@ final class CameraThumb {
         return b == null ? null : tile(b);
     }
 
-    /** Grabs a new picture if the last try is over 2 minutes old; `done` gets the tile on the main thread. */
+    /** Grabs a new picture if the last try is over 5 minutes old; `done` gets the tile on the main thread. */
     void refresh(Consumer<Bitmap> done) {
         long now = System.currentTimeMillis();
         if (busy || url.isEmpty() || now - lastAt < EVERY_MS) return;

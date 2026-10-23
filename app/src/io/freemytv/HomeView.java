@@ -441,7 +441,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (tvInputs != null) tvInputs.registerCallback(inputCallback, handler);
         handler.postDelayed(tick, 15_000);
         checkNotices();
-        clockMinute = -1;   // the greeting again (its name may have changed in Settings), and a wave hello
+        clockMinute = -1;   // the greeting again (its name may have changed in Settings)
+        waveAt = SystemClock.uptimeMillis() + 300;   // a wave hello, once, as the home screen appears
         reload();
         updatePalette();
         updatePicks();
@@ -515,7 +516,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         cameraPopup.show();
     }
 
-    /** A new still for the camera tile (CameraThumb asks the camera at most every 2 minutes). */
+    /** A new still for the camera tile (CameraThumb asks the camera at most every 5 minutes). */
     private void refreshCameraStill() {
         if (cameraThumb == null || !running) return;
         cameraThumb.refresh(b -> {
@@ -770,6 +771,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         boolean nightMoving = tickNight(up);
 
         boolean skyBusy = false;
+        long skyWait = -1;   // only the sky drifting: ms until its next frame (the loop sleeps until then)
         if (skyOn()) {
             // Parallax: the sky slides the other way as the focus moves along the shelf, and eases into place.
             if (zone == Z_SHELF && shelf.size() > 1) skyParallaxTarget = shelfIndex / (float) (shelf.size() - 1) * 2 - 1;
@@ -794,7 +796,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 sky.invalidate();
                 skyDrawnAt = up;
             }
-            skyBusy = sliding || animating;
+            // Sliding or fading needs every frame; a drift alone needs one every 83 ms (50 for rain): no need to wake
+            // up 60 times a second for it.
+            skyBusy = sliding;
+            if (!sliding && animating) skyWait = Math.max(1, frame - (up - skyDrawnAt));
         }
         if (drawerMoving || sheetMoving || motionDirty) updateMotion();
         // Opening and closing the drawer only moves the cached layers: redrawing the glass on every frame made the TV
@@ -830,7 +835,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 || drawerOpen || drawer.value > 0.001f || toast != null || !toasts.isEmpty() || skyBusy;
         idle = !busy;
         if (busy) Choreographer.getInstance().postFrameCallback(this);
-        else Choreographer.getInstance().postFrameCallbackDelayed(this, 1000);
+        else Choreographer.getInstance().postFrameCallbackDelayed(this, skyWait >= 0 ? skyWait : 1000);
     }
 
     private void wake() {
@@ -884,7 +889,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         greetText = Ui.greeting(now);
         dateRest = "  ·  " + Ui.date(now);
         greetW = -1;
-        waveAt = SystemClock.uptimeMillis();   // a wave each minute, with the new time
         return true;
     }
 

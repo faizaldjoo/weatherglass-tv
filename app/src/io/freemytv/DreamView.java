@@ -472,7 +472,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
             date = Ui.greeting(now) + "  ·  " + Ui.date(now);   // "Good Evening, Haikal · Friday, 23 October"
             greet = Ui.greeting(now);
             dateRest = "  ·  " + Ui.date(now);
-            waveAt = up + (waveAt < 0 ? 1500 : 0);   // a wave each minute (the first once the screensaver has faded in)
+            if (waveAt < 0) waveAt = up + 1500;   // one wave, once the screensaver has faded in
             dirty = true;
             chromeDirty = true;
             if (inkMode()) refreshPrayers(now);
