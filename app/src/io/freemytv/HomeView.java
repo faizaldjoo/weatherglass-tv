@@ -271,7 +271,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private final Paint frostPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Paint frostVeil = new Paint(Paint.ANTI_ALIAS_FLAG), frostRim = new Paint(Paint.ANTI_ALIAS_FLAG),
             frostSheen = new Paint(Paint.ANTI_ALIAS_FLAG), chipRim = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private LinearGradient sheenShader;
+    private LinearGradient sheenShader, rimShader;
+    private final Matrix rimMatrix = new Matrix();
     private final Matrix sheenMatrix = new Matrix();
     private long frostAt = -1;
     private float frostShift;      // the layer being drawn is moved this far down on screen (drawer animation)
@@ -1856,10 +1857,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         fill.setShader(null);
         fill.setColor(tone(0x8CFFFFFF, 0x24FFFFFF));
         c.drawRoundRect(r, radius, radius, fill);
-        chipRim.setStyle(Paint.Style.STROKE);
-        chipRim.setStrokeWidth(Math.max(1, 1.5f * k));
-        chipRim.setColor(tone(0xE6FFFFFF, 0x4DFFFFFF));
-        c.drawRoundRect(r, radius, radius, chipRim);
+        glassRim(c, r, radius);
     }
 
     /** Square drawer button: symbol and name; an input with no device is dimmed. Focused: white, with dark text. */
@@ -3371,10 +3369,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         sheenShader.setLocalMatrix(sheenMatrix);
         frostSheen.setAlpha(Math.round(255 * tone(0.16f, 0.12f)));
         c.drawRoundRect(r, radius, radius, frostSheen);
-        frostRim.setStyle(Paint.Style.STROKE);
-        frostRim.setStrokeWidth(Math.max(1, 1.5f * k));
-        frostRim.setColor(tone(0x66FFFFFF, 0x3DFFFFFF));
-        c.drawRoundRect(r, radius, radius, frostRim);
+        glassRim(c, r, radius);
         return true;
     }
 
@@ -3395,11 +3390,27 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         sheenShader.setLocalMatrix(sheenMatrix);
         frostSheen.setAlpha(Math.round(255 * tone(0.16f, 0.12f)));
         c.drawRoundRect(r, radius, radius, frostSheen);
-        frostRim.setStyle(Paint.Style.STROKE);
-        frostRim.setStrokeWidth(Math.max(1, 1.5f * k));
-        frostRim.setColor(tone(0x99FFFFFF, 0x47FFFFFF));
-        c.drawRoundRect(r, radius, radius, frostRim);
+        glassRim(c, r, radius);
         return true;
+    }
+
+    /**
+     * The edge of the glass, as light catches it: bright along the top, fading to almost nothing down the sides, and a
+     * faint line again at the bottom (one gradient for every card, moved to each). Thin: 1 px at 1080p.
+     */
+    private void glassRim(Canvas c, RectF r, float radius) {
+        if (rimShader == null) {
+            rimShader = new LinearGradient(0, 0, 0, 1, new int[] {0xFFFFFFFF, 0x26FFFFFF, 0x0FFFFFFF, 0x40FFFFFF},
+                    new float[] {0, 0.3f, 0.75f, 1}, Shader.TileMode.CLAMP);
+            frostRim.setShader(rimShader);
+            frostRim.setStyle(Paint.Style.STROKE);
+        }
+        rimMatrix.setScale(1, r.height());
+        rimMatrix.postTranslate(0, r.top);
+        rimShader.setLocalMatrix(rimMatrix);
+        frostRim.setStrokeWidth(Math.max(1, k));
+        frostRim.setAlpha(Math.round(255 * tone(0.75f, 0.45f)));
+        c.drawRoundRect(r, radius, radius, frostRim);
     }
 
     /** One card: its soft shadow, then the glass (the shelf's, or frosted: Settings → Appearance → Clock glass). */
