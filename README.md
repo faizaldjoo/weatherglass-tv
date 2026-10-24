@@ -53,7 +53,7 @@ Everything else is Free My TV's work.
 
 ## Screenshots
 
-<sub>Screen captures from a TCL Google TV, as it looks on the TV.</sub>
+<sub>On a TCL Google TV, as it looks on the TV.</sub>
 
 <p align="center"><img src=".github/screens/live-golden-hour.webp" width="760" alt="Weatherglass TV, Live wallpaper in the late afternoon: a low orange sun over ink mountains, glass clock, weather and date widgets, rates and the shelf"><br><sub><b>Live wallpaper,</b> late afternoon: the sun low over the ink mountains, your apps on the glass shelf.</sub></p>
 
@@ -79,6 +79,8 @@ Everything else is Free My TV's work.
 <td width="50%"><img src=".github/screens/settings-lite.webp" alt="The settings drawer over Lite: Home Screen, Screensaver, Appearance, Theme, Widgets, Shelf, Remote Buttons, TV Status, About, TV Settings"><br><sub><b>Settings,</b> in a drawer over the home screen. TV Status shows memory, storage, network and CPU.</sub></td>
 </tr>
 </table>
+
+<p align="center"><img src=".github/screens/tv-status.webp" width="760" alt="TV Status in the settings drawer: memory 68% with Weatherglass's share, storage, up for 3 days, network Wired, CPU 12%, and the care actions Free memory, Clear caches, Restart home screen, Reboot TV"><br><sub><b>TV Status.</b> How the TV is doing, and what to do when it feels slow.</sub></p>
 
 ## Install
 
@@ -183,6 +185,27 @@ The first values come from `config.properties`, created by the first build (Goog
 | `greeting_name` | The name in the greeting before the date ("Good Evening, Haikal"). Also *Appearance → Your name* on the TV | empty: just the greeting |
 
 Changed something? Run `./build.sh` and install again. Keep `freemytv.keystore`: updates are signed with it.
+
+### TV Status
+
+*Settings → TV Status* shows how the TV is doing, read live while the screen is open:
+
+- **Memory:** how much is in use of the total, with Weatherglass's own share, and a bar that turns amber from 85%.
+- **Storage:** how full it is and what's free.
+- **Up for:** how long since the TV last started.
+- **Network:** the signal as bars and a word (Strong, Good, Fair, Weak, or Wired).
+- **CPU:** how busy the whole TV is, measured over 15 seconds.
+
+And four actions for when the TV feels slow:
+
+| Action | What it does |
+|---|---|
+| **Free memory** | Stops apps left running in the background (nothing is closed that you're using, and nothing is uninstalled) |
+| **Clear caches** | Clears the apps' temporary files; your sign-ins and settings stay |
+| **Restart home screen** | Restarts Weatherglass TV itself, in a second or two |
+| **Reboot TV** | Restarts the TV (OK twice, so it can't happen by accident); about 40 seconds |
+
+The same readings and actions are on the [control page](#the-control-page) on your phone.
 
 ### The control page
 
