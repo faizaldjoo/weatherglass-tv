@@ -4110,6 +4110,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             liteViolet = new RadialGradient(0.96f * w, 0.6f * h, 0.57f * w, new int[] {0x806040AA, 0x006040AA}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
             liteWarm = new RadialGradient(0.55f * w, 1.08f * h, 0.36f * w, new int[] {0x38BE6E46, 0x00BE6E46}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
         }
+        // The paint's color sets the alpha of a shader too: opaque for the gradients (the drawer's veil below leaves
+        // its transparency on the paint otherwise, and the next frame went black)
+        fill.setColor(0xFFFFFFFF);
         for (Shader s : new Shader[] {liteBase, liteTeal, liteViolet, liteWarm}) {
             fill.setShader(s);
             c.drawRect(screen, fill);
@@ -4120,6 +4123,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             fill.setColor(Ui.alpha(0xFF000000, veil));
             c.drawRect(screen, fill);
         }
+        fill.setColor(0xFFFFFFFF);
     }
 
     private void makeLitePaints() {

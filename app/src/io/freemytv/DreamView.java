@@ -886,6 +886,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
             liteTeal = new RadialGradient(0.08f * w, 1.08f * h, 0.47f * w, new int[] {0x4D1A7884, 0x001A7884}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
             liteViolet = new RadialGradient(0.96f * w, 0.6f * h, 0.57f * w, new int[] {0x476040AA, 0x006040AA}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
         }
+        iBox.setColor(0xFFFFFFFF);   // opaque: the paint's alpha applies to a shader too
         for (Shader s : new Shader[] {liteBase, liteTeal, liteViolet}) {
             iBox.setShader(s);
             c.drawRect(0, 0, w, h, iBox);
