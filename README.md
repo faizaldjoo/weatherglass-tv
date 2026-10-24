@@ -24,10 +24,11 @@ Weatherglass TV starts from Free My TV and adds or changes:
 - **English and Bahasa Indonesia.** The language is English, Bahasa Indonesia, or automatic from the TV's own setting; prayer times use the Indonesian names (Subuh, Dzuhur, Ashar, Maghrib, Isya).
 - **A greeting.** "Good Evening, Haikal" (or "Selamat Malam") with a waving hand, on the home screen and the screensaver, following the TV's clock; the hand waves when the home screen appears. Each TV keeps its own name: *Settings → Appearance → Your name* (`greeting_name` in `config.properties` fills it in the first time).
 - **A glass clock.** Over the sky wallpapers, the home screen's greeting, clock, weather and date sit on frosted glass cards, like the settings drawer; the shelf and the bottom drawer match. The glass catches the light from the side of the ink mountains' sun or moon. *Settings → Appearance → Glass* picks Frosted or Transparent; *Clock widget* sets its size.
-- **For You on the Movie wallpaper.** With a [TMDB key](#the-tmdb-key), *Settings → Theme → Movie* turns the top of the home screen into a film billboard: TMDB's Popular, Now Playing, Upcoming and Top Rated movies in one glass pill, the selected film's artwork filling the top right (it breathes slowly with *Motion* on), and the film's card on a deck at the left, with its service, title, details and story; → and ← move through the films. On this theme the screensaver shows the same films, labeled by category. OK opens the film in its streaming app, or plays its YouTube trailer when it isn't streaming yet. The clock, weather, city and the next prayer sit at the top right.
-- **A control page on your Wi‑Fi.** The TV serves its own dashboard at `http://<the TV's address>:8765` (the address and a four-digit pairing code are in *Settings → About*): a remote shaped like the TV's, with haptic taps on Android phones; the app in front, memory, storage and uptime; one-tap app launches; and care actions for when the TV feels slow: free memory, clear caches, restart the home screen, a sleep timer, a reboot. It works only inside your network; nothing goes through the internet.
+- **Two themes.** *Settings → Theme* picks the **ink mountains**, a painted landscape whose sky follows the real weather and the time of day (with a Sky preview to see any weather or hour), or **Movie**, below. Over the mountains the home screen is the glass clock, and ↑ from the shelf goes straight to the corner buttons.
+- **The Movie theme: For You.** With a [TMDB key](#the-tmdb-key), the home screen becomes a film billboard. TMDB's Popular, Now Playing, Upcoming and Top Rated movies sit in one glass pill at the top; the selected film's artwork fills the screen (it breathes slowly with *Motion* on) and its card sits on a deck at the left, with its service, title, details and story. ← → move through the films: the next card fades in and lands on the deck, the one before sinks behind it. Each card shows the streaming app the film is on, among the TV's own; OK opens it there, or plays the film's trailer on YouTube when it isn't streaming yet. The clock, weather, city and the next prayer sit at the top right. On this theme the screensaver shows the same films, labeled by category.
+- **A control page on your Wi‑Fi.** The TV serves its own dashboard at `http://<the TV's address>:8765`: a remote shaped like the TV's, the TV's status, one-tap app launches and the care actions. See [The control page](#the-control-page).
+- **TV Status in the settings.** *Settings → TV Status* shows memory (with Weatherglass's own share), storage and how long the TV has been on, and runs the care actions from the remote: free memory, clear caches, restart the home screen, reboot (OK twice).
 - **Softer clouds at sunrise and sunset.** On the ink mountains, the clouds take the sky's own warm colour while the sun is low, instead of standing out white.
-- **Posters on the cards, and a clear ink sky.** The two tall cards show the title's poster. Over the ink mountains, the picks are hidden and ↑ from the shelf goes straight to the corner buttons.
 - **Exchange rates.** Up to four currencies (e.g. USD, AUD, JPY, EUR) priced in yours.
 - **A new name and logo, and no ambient sound.**
 
@@ -42,12 +43,12 @@ Everything else is Free My TV's work.
 
 - **No ads.** No sponsored rows, banners or autoplaying promos. Not one.
 - **Your apps, front and center.** The streaming apps you actually use, on a glass shelf. Pick them and their order right on the TV.
-- **Trending, not sponsored.** Three fresh picks every hour from what's trending this week and the latest releases, only from apps you already have. Movies and Shows get their own tabs.
+- **Films, not sponsored.** On the Movie theme, TMDB's Popular, Now Playing, Upcoming and Top Rated films, each with the app it streams on among yours, or its trailer. Nothing is paid to be there.
 - **Weather and markets, one press away.** The hour-by-hour forecast, sunrise and sunset, and live crypto prices.
 - **Light by day, dark by night.** It follows your city's real sunset, the way your phone does.
-- **A screensaver to match.** Full-screen photos of the picks with a big glass clock.
+- **A screensaver to match.** On the Movie theme, the films' artwork full screen with a big glass clock; on the ink mountains, the mountains at night with the clock and the greeting.
 - **Fast.** 60 fps, every frame in 16.6 ms, on the TV's own chip. The home screen uses 96 MB of memory instead of 242 MB (−60%).<br><sub>Measured on a 98″ TCL Google TV running Android 14.</sub>
-- **Set up on the TV.** Language, your city, temperature, theme, the weather and prices cards, which coins, and the apps on the shelf, in its own settings.
+- **Set up on the TV.** Language, your city, temperature, light or dark, the theme, the weather and prices cards, which coins, the camera and the apps on the shelf, in its own settings drawer.
 - **Safe.** No root. Nothing is uninstalled. One button brings back the factory home screen.
 
 ## Install
@@ -145,7 +146,7 @@ The first values come from `config.properties`, created by the first build (Goog
 
 | Key | What it does | Default |
 |---|---|---|
-| `tmdb_key` | Your free TMDB key, for the picks | empty |
+| `tmdb_key` | Your free TMDB key, for the Movie theme's films and the screensaver's photos | empty |
 | `tmdb_region` | Your country (two letters): which titles are on which app | `US` |
 | `watchmode_key` | Optional, free [Watchmode](https://api.watchmode.com/) key: a pick opens the title's page in its app | empty |
 | `latitude`, `longitude` | Your city, for the weather and the sunset | New York |
@@ -156,11 +157,32 @@ The first values come from `config.properties`, created by the first build (Goog
 | `currency` | Crypto prices in `USD`, `EUR`, `BRL`… | `USD` |
 | `temperature` | `C`, `F` or `auto` | `auto` |
 | `disable_assistant` | Also turn off Google Assistant | `false` |
+| `rates` | Exchange rates on the home screen: up to four currencies priced in yours, e.g. `USD,AUD,JPY,EUR` | empty: none |
+| `prayer_times` | The next prayer on the home screen and in the drawer, from your coordinates | `false` |
+| `weather_wallpaper` | The theme the TV starts with: `true` the ink mountains, `false` Movie. Also *Settings → Theme* | `false` |
+| `weather_motion` | The sky's clouds and rain move, and the film's artwork breathes. Also *Theme → Motion* | `true` |
 | `cctv_url` | A CCTV camera's RTSP address (`rtsp://user:password@ip:port/path`): a live tile at the end of the shelf. Also *Widgets → Camera address* on the TV | empty: no camera |
 | `cctv_name` | The camera's name, read by TalkBack | `CCTV` |
 | `greeting_name` | The name in the greeting before the date ("Good Evening, Haikal"). Also *Appearance → Your name* on the TV | empty: just the greeting |
 
 Changed something? Run `./build.sh` and install again. Keep `freemytv.keystore`: updates are signed with it.
+
+### The control page
+
+The TV serves a page for your phone or laptop, on your own Wi‑Fi only.
+
+1. **On the TV**, open *Settings → About*. Under DASHBOARD it shows the address, like `http://192.168.1.105:8765`, and a four-digit code.
+2. **On the phone or computer**, on the same Wi‑Fi, open that address in the browser and type the code once. The phone stays paired. From the browser's share menu, *Add to Home Screen* makes it open like an app.
+
+What it shows and does:
+
+- **The remote,** shaped like the TV's: the ring with OK, Back, Home, play, volume and channel, mute, a sleep key, rewind and forward, and the Netflix, YouTube and Prime keys. Holding a key repeats it. On a laptop the arrow keys, Enter and Escape work. On Android phones each key gives a short haptic tap (iPhones don't let a web page vibrate).
+- **Type to the TV:** a search, a Wi‑Fi password.
+- **Status:** the app in front, memory with Weatherglass's own share, storage, uptime and the Wi‑Fi signal, refreshed every few seconds.
+- **Open:** your shelf apps, Live TV, the HDMI inputs, the camera and the TV's settings, one tap each.
+- **Care,** for when the TV feels slow: *Free memory* stops the apps in the background (Android keeps recent apps loaded so they reopen fast; this lets them go, and they start cold next time), *Clear caches* trims every app's cache, *Restart home screen*, a sleep timer, and *Reboot TV*, which asks first.
+
+It works through the TV's own debugging, like the home-screen switch: only the keys and the commands above can ever be sent, and typed text is reduced to plain characters before it reaches the TV. Nothing goes through the internet, and a wrong pairing code waits a second before answering.
 
 ### Connecting a CCTV camera
 
@@ -236,18 +258,19 @@ It's your code, and Claude Code finds its way around it. Try:
 ## How it works
 
 - **A plain Android app, no Gradle, no libraries.** [`build.sh`](build.sh) runs aapt2 → javac → d8 → zipalign → apksigner and makes a 2 MB APK.
-- **It uses the TV's own ADB, from inside the TV.** The app connects to `127.0.0.1:5555` with its own key (that's the *Allow USB debugging?* prompt) and runs the same commands you would: `cmd package set-home-activity`, `settings put secure screensaver_components`, `pm disable-user`. Nothing listens to the network.
+- **It uses the TV's own ADB, from inside the TV.** The app connects to `127.0.0.1:5555` with its own key (that's the *Allow USB debugging?* prompt) and runs the same commands you would: `cmd package set-home-activity`, `settings put secure screensaver_components`, `pm disable-user`. The only thing that listens on the network is the control page, on port 8765 of your own Wi‑Fi, and it takes nothing but its fixed list of keys and actions from a paired phone.
 - **Drawn by hand on one Canvas**, with Android 13 shaders for the frosted glass and the sky (plain fills on Android 9 to 12, with lighter shadows and no GPU layers on 9 to 11 for their older GPUs).
 - **A safety net.** A watchdog in a separate process brings back the stock home screen after three crashes in five minutes, and a boot check keeps your choice after TV updates.
 - **On LG and Samsung, the same design in plain HTML, CSS and JavaScript** ([`web/`](web)), written for the Chromium of older TVs, with no frameworks. [`webos/build.py`](webos/build.py) packs it with `config.properties` into an `.ipk` without LG's tools, and [`webos/install.py`](webos/install.py) installs it through Developer Mode; on LG it lists and opens apps through the TV's own service bus (Luna), as LG's launcher does. [`tizen/build.py`](tizen/build.py) packs the same app into a Samsung `.wgt`, which uses Tizen's web APIs for the apps and the inputs. To preview it on a computer: `python3 webos/build.py --preview`, then open `out/webos/index.html` (a stand-in lists sample apps).
-- **Data** from TMDB (trending titles, new releases and which app streams what in your country), Open-Meteo (forecast, sunrise and sunset), and optionally Binance (24-hour prices when `show_crypto=true`).
+- **Data** from TMDB (the film lists, which app streams what in your country, trailers), Open-Meteo (forecast, sunrise and sunset), optionally Binance (24-hour prices when `show_crypto=true`) and the exchange rates' source.
 
 | File | What it is |
 |---|---|
 | [`HomeView.java`](app/src/io/freemytv/HomeView.java) | The home screen |
 | [`HomeMode.java`](app/src/io/freemytv/HomeMode.java) | Switching between Free My TV and Original |
 | [`Adb.java`](app/src/io/freemytv/Adb.java) | The TV's own ADB, from inside the TV |
-| [`Recs.java`](app/src/io/freemytv/Recs.java) | The picks (TMDB) |
+| [`Recs.java`](app/src/io/freemytv/Recs.java) | The films (TMDB) |
+| [`Dashboard.java`](app/src/io/freemytv/Dashboard.java), [`app/assets/dashboard/`](app/assets/dashboard) | The control page on the home network |
 | [`HomeData.java`](app/src/io/freemytv/HomeData.java) | Weather and prices |
 | [`HomeApps.java`](app/src/io/freemytv/HomeApps.java) | The shelf, inputs and All Apps |
 | [`DreamView.java`](app/src/io/freemytv/DreamView.java) | The screensaver |
@@ -264,7 +287,7 @@ The website ([freemytv.io](https://freemytv.io)) is in [`docs/`](docs): plain HT
 
 ## Privacy
 
-No accounts, no analytics, no tracking. The app talks to TMDB, Open-Meteo (with the coordinates you set, or your time zone's main city), and Binance only when `show_crypto=true`, and Watchmode only when you set a `watchmode_key`. Your settings stay on your computer and your TV.
+No accounts, no analytics, no tracking. The app talks to TMDB, Open-Meteo (with the coordinates you set, or your time zone's main city), and Binance only when `show_crypto=true`, and Watchmode only when you set a `watchmode_key`. The control page is served on your own Wi‑Fi only and reaches no server. Your settings stay on your computer and your TV.
 
 ## Credits
 
@@ -275,7 +298,7 @@ No accounts, no analytics, no tracking. The app talks to TMDB, Open-Meteo (with 
 - This product uses the TMDB API but is not endorsed or certified by [TMDB](https://www.themoviedb.org/).
 - Links to the titles in the streaming apps by [Watchmode](https://api.watchmode.com/).
 - Weather data by [Open-Meteo.com](https://open-meteo.com/) (CC BY 4.0). Prices from the [Binance](https://www.binance.com/) public API.
-- Icons: [Material Symbols](https://fonts.google.com/icons) (Apache 2.0). Font: [Inter](https://rsms.me/inter/) (SIL OFL 1.1). Coin logos: [cryptocurrency-icons](https://github.com/spothq/cryptocurrency-icons) (CC0). Samsung app logos: [Simple Icons](https://simpleicons.org) (CC0).
+- Icons: [Material Symbols](https://fonts.google.com/icons) (Apache 2.0) and [Phosphor](https://phosphoricons.com) (MIT). Font: [Inter](https://rsms.me/inter/) (SIL OFL 1.1). Coin logos: [cryptocurrency-icons](https://github.com/spothq/cryptocurrency-icons) (CC0). Streaming-service logos on the film cards and Samsung app logos: [Simple Icons](https://simpleicons.org) (CC0).
 - Not affiliated with Google, TCL, LG, Samsung or any streaming service. App names and logos belong to their owners.
 
 ## License
