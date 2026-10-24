@@ -216,6 +216,30 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private List<HomeApps.Item> reorderOrigin;
     private final Runnable holdStart = () -> { if (this.okDown && this.holdArmed) startReorder(); };
 
+    /** Movie: left alone, the deck deals the next film every 12 s (back to the first after the last). */
+    private static final long DECK_IDLE_MS = 12_000;
+    private final Runnable deckNext = new Runnable() {
+        @Override public void run() {
+            if (!running) return;
+            if (picksOn() && cards.size() > 1 && !drawerOpen && !sheetOpen && !reordering && (cameraPopup == null || !cameraPopup.isShowing())) {
+                if (cardIndex + 1 >= cards.size()) {
+                    cardIndex = 0;
+                    deckTab = -1;   // a fresh deal, not every card sweeping back
+                } else {
+                    cardIndex++;
+                }
+                retarget(false);
+                wake();
+            }
+            handler.postDelayed(this, DECK_IDLE_MS);
+        }
+    };
+
+    private void deckIdleAgain() {
+        handler.removeCallbacks(deckNext);
+        if (running) handler.postDelayed(deckNext, DECK_IDLE_MS);
+    }
+
     // Corner capsule
     private List<HomeApps.Item> statusItems = new ArrayList<>();
     private Spring[] statusFocus = new Spring[0];
@@ -499,6 +523,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         recs.refreshIfStale();
         if (tvInputs != null) tvInputs.registerCallback(inputCallback, handler);
         handler.postDelayed(tick, 15_000);
+        deckIdleAgain();
         checkNotices();
         clockMinute = -1;   // the greeting again (its name may have changed in Settings)
         waveAt = SystemClock.uptimeMillis() + 300;   // a wave hello, once, as the home screen appears
@@ -537,6 +562,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         inkSky.release();   // the mountains' memory (the screensaver draws its own)
         handler.removeCallbacks(tick);
         handler.removeCallbacks(reloadSoon);
+        handler.removeCallbacks(deckNext);
         data.removeListener(this);
         recs.removeListener(this);
         if (tvInputs != null) tvInputs.unregisterCallback(inputCallback);
@@ -2400,6 +2426,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     boolean onKey(KeyEvent e) {
         wake();
+        deckIdleAgain();
         boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
         if (reordering) return reorderKey(e, down);
         int code = e.getKeyCode();
