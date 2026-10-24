@@ -950,9 +950,9 @@ final class Recs {
     private long stampValue, stampAt;
 
     /** sourceStamp() asks the package manager about every service: at most once a minute (this runs on every notice). */
-    /** The lists' stamp: the sources, and how the lists are made (2: Netflix in Popular), so a change fetches them again. */
+    /** The lists' stamp: the sources, and how the lists are made (3: Netflix in Popular and Now Playing), so a change fetches them again. */
     private long movieStamp() {
-        return stamp() * 31L + 2;
+        return stamp() * 31L + 3;
     }
 
     private long stamp() {
@@ -1031,12 +1031,14 @@ final class Recs {
         });
     }
 
-    /** TMDB's ids for Netflix (and its plan with ads), for Popular. */
+    /** TMDB's ids for Netflix (and its plan with ads), for Popular and Now Playing. */
     private static final String NETFLIX = "8|1796";
 
     private List<Pick> fetchMovieList(String list) throws Exception {
         JSONArray results = get("/movie/" + list + "?language=" + lang() + "&region=" + REGION + "&page=1").getJSONArray("results");
-        if (list.equals("popular")) results = withNetflix(results);
+        // Popular gets what's popular on Netflix; Now Playing, what's new on it (out in the past 4 months)
+        if (list.equals("popular")) results = withNetflix(results, "&vote_count.gte=20");
+        if (list.equals("now_playing")) results = withNetflix(results, "&primary_release_date.gte=" + day(-120) + "&primary_release_date.lte=" + day(0));
         List<Pick> out = new ArrayList<>();
         for (int i = 0; i < results.length() && out.size() < LIST_MAX; i++) {
             JSONObject o = results.getJSONObject(i);
@@ -1054,16 +1056,16 @@ final class Recs {
         return out;
     }
 
-    /** Popular, with what's popular on Netflix where you live mixed in, one and one, without repeats. */
-    private JSONArray withNetflix(JSONArray popular) {
+    /** A list with Netflix's films where you live (most popular first, narrowed by "filter") mixed in, one and one, without repeats. */
+    private JSONArray withNetflix(JSONArray popular, String filter) {
         JSONArray netflix;
         try {
             netflix = get("/discover/movie?language=" + lang() + "&watch_region=" + REGION + "&with_watch_monetization_types=flatrate"
-                    + "&with_watch_providers=" + URLEncoder.encode(NETFLIX, "UTF-8") + "&sort_by=popularity.desc&vote_count.gte=20"
+                    + "&with_watch_providers=" + URLEncoder.encode(NETFLIX, "UTF-8") + "&sort_by=popularity.desc" + filter
                     + "&include_adult=false&page=1").getJSONArray("results");
         } catch (Exception e) {
             AppLog.w("netflix: " + e.getMessage());
-            return popular;   // Popular alone, as before
+            return popular;   // the list alone, as before
         }
         JSONArray out = new JSONArray();
         java.util.Set<Integer> seen = new java.util.HashSet<>();
