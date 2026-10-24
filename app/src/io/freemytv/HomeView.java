@@ -1837,7 +1837,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         float dk = dark();
         // Frosted, like the shelf and the clock cards (Settings → Appearance → Glass)
         // (or, without the Liquid Glass shader, the same light transparent glass as theirs)
-        if ((!Prefs.glass().equals("clear") && (skyOn() || picksOn())) || !scene.hasLiquid()) {
+        if ((!Prefs.glass().equals("clear") && skyOn()) || !scene.hasLiquid()) {
             tmp.set(r);
             tmp.offset(0, drop);
             shadow.setColor(Ui.alpha(shadowColor, 1 - dk * 0.5f));
@@ -3384,7 +3384,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     /** The frosted sky behind the cards, made again if it is older than 30 s or the glass changed. False: not available. */
     private boolean frost(String glass) {
-        if (frostFailed || (!skyOn() && !picksOn()) || w == 0) return false;   // photo backgrounds live on the GPU: no frost from them
+        if (frostFailed || !skyOn() || w == 0) return false;   // photo backgrounds live on the GPU: no frost from them   // photo backgrounds live on the GPU: no frost from them
         long up = SystemClock.uptimeMillis();
         if (glass.equals(frostFor) && frostAt >= 0 && up - frostAt < 30_000 && frostImage != null && !frostStale) return true;
         frostStale = false;
@@ -3424,7 +3424,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      * sheen along the top and its rim. False when the glass is set to Transparent (or there is no sky to frost).
      */
     private boolean frostedGlass(Canvas c, RectF r, float radius) {
-        String glass = Prefs.glass();
+        // The Movie wallpaper is always transparent: frosting the artwork again after every card change costs more
+        // than this glass is worth on a small TV
+        String glass = picksOn() ? "clear" : Prefs.glass();
         if (glass.equals("clear") || !frost(glass)) {
             if (glass.equals("clear")) frostAt = -1;   // nothing to refresh
             return false;

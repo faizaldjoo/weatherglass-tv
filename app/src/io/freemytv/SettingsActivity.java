@@ -284,7 +284,9 @@ public class SettingsActivity extends Activity {
 
         /** Appearance, Wallpaper and Widgets: which Home Settings rows each one shows, in its order. */
         private int[] sectionRows() {
-            if (section == S_APPEARANCE) return new int[] {NAME_ROW, 0, 2, TEXT_ROW, GLASS_ROW, 1, 3};
+            // The Movie wallpaper's glass is always transparent (frosting its artwork is too much for a small TV)
+            if (section == S_APPEARANCE) return Prefs.wallpaper().equals("photos") ? new int[] {NAME_ROW, 0, 2, TEXT_ROW, 1, 3}
+                    : new int[] {NAME_ROW, 0, 2, TEXT_ROW, GLASS_ROW, 1, 3};
             // Movie (the For You billboard) has no sky to preview: only its motion (the artwork's slow breathing)
             if (section == S_WALLPAPER) return Prefs.wallpaper().equals("photos") ? new int[] {WALLPAPER_ROW, MOTION_ROW}
                     : new int[] {WALLPAPER_ROW, MOTION_ROW, SKY_WEATHER_ROW, SKY_TIME_ROW};
@@ -777,6 +779,8 @@ public class SettingsActivity extends Activity {
             if (y > (DB - 30) * k) return;   // no room for the hint under a long list
             String text = section == S_WIDGETS ? Ui.tr("Com o widget de cotações desligado, as moedas ficam desligadas.",
                     "With the quotes widget off, the coins stay off too.")
+                    : section == S_APPEARANCE && Prefs.wallpaper().equals("photos")
+                    ? Ui.tr("No fundo Filme o vidro é sempre transparente: é mais leve para a TV.", "On the Movie wallpaper the glass is always transparent: lighter for the TV.")
                     : section == S_WALLPAPER && Prefs.wallpaper().equals("photos")
                     ? Ui.tr("Com o movimento ligado, a imagem do filme se move devagar.", "With Motion on, the film's artwork drifts slowly.")
                     : section == S_WALLPAPER ? Ui.tr("“Ao vivo” segue o céu de verdade.", "Live follows the real sky.")
