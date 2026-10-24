@@ -149,12 +149,16 @@ final class Prefs {
      * The home screen's background: "ink" (ink mountains, following the time of day and the weather) or "photos" (the
      * picks' photos, as before). The default comes from config.properties (weather_wallpaper).
      */
-    static final String[] WALLPAPERS = {"ink", "photos"};
+    static final String[] WALLPAPERS = {"ink", "photos", "lite"};
 
     static String wallpaper() {
         String v = sp().getString("wallpaper", Config.WEATHER_SKY ? "ink" : "photos");
-        return v.equals("photos") ? "photos" : "ink";   // the weather sky (and the earlier rain-on-glass) became the ink mountains
+        // "lite": the theme for TVs with little memory (an aurora drawn once, text, the shelf; no sky, no films)
+        return v.equals("photos") ? "photos" : v.equals("lite") ? "lite" : "ink";   // the weather sky became the ink mountains
     }
+
+    /** The Lite theme is on: nothing that costs memory (no sky, no films, no frost) is made. */
+    static boolean lite() { return wallpaper().equals("lite"); }
     static void setWallpaper(String v) { put("wallpaper", v); }
 
     /** The weather sky moves (clouds, rain, stars); off keeps it still for slower TVs. */

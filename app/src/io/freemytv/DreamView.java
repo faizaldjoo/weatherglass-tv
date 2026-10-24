@@ -186,7 +186,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
         recs.addListener(this);
         data.refreshIfStale();
         recs.refreshIfStale();
-        if (!inkMode()) {
+        if (!inkMode() && !liteMode()) {
             recs.prefetchAll();
             prepareNext();
         }
@@ -438,14 +438,16 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
 
     @Override public void doFrame(long frameTimeNanos) {
         if (!running) return;
-        // The ink mountains drift slowly: 12 frames a second (rain falls: 20); the photos keep their 22.
+        // The ink mountains drift slowly: 12 frames a second (rain falls: 20); the photos keep their 22. Lite draws
+        // once a minute (onDraw redraws on the minute), and 30 frames a second only while the hand waves.
         long every = 45_000_000L;
+        if (liteMode()) every = 60_000_000_000L;
         if (inkMode()) {
             int kind = WeatherSky.kind(inkCode());
             every = kind == WeatherSky.RAIN || kind == WeatherSky.STORM ? 50_000_000L : 83_000_000L;
         }
         // While the hand waves (ink layout), 30 frames a second
-        if (inkMode() && waveAt >= 0) {
+        if ((inkMode() || liteMode()) && waveAt >= 0) {
             long since = SystemClock.uptimeMillis() - waveAt;
             if (since >= 0 && since < Ui.WAVE_MS + 100) every = 33_000_000L;
         }
@@ -475,7 +477,13 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
             if (waveAt < 0) waveAt = up + 1500;   // one wave, once the screensaver has faded in
             dirty = true;
             chromeDirty = true;
-            if (inkMode()) refreshPrayers(now);
+            if (inkMode() || liteMode()) refreshPrayers(now);
+            liteStep++;
+            if (liteMode()) invalidate();   // the new minute, drawn once
+        }
+        if (liteMode()) {
+            drawLite(canvas, up);
+            return;
         }
         if (inkMode()) {
             drawInk(canvas, now, up);
@@ -859,6 +867,62 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
 
     private static boolean inkMode() {
         return Prefs.wallpaper().equals("ink");
+    }
+
+    // MARK: - Lite: the home screen's aurora dimmed, the clock, the date, the weather and the next prayer, once a minute
+
+    private static boolean liteMode() {
+        return Prefs.lite();
+    }
+
+    private int liteStep;
+    private Shader liteBase, liteTeal, liteViolet;
+    private float liteK = -1;
+
+    private void drawLite(Canvas c, long up) {
+        if (liteK != k) {
+            liteK = k;
+            liteBase = new LinearGradient(0, 0, w * 0.6f, h, new int[] {0xFF04060C, 0xFF06091A, 0xFF070A1C}, new float[] {0, 0.5f, 1}, Shader.TileMode.CLAMP);
+            liteTeal = new RadialGradient(0.08f * w, 1.08f * h, 0.47f * w, new int[] {0x4D1A7884, 0x001A7884}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
+            liteViolet = new RadialGradient(0.96f * w, 0.6f * h, 0.57f * w, new int[] {0x476040AA, 0x006040AA}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
+        }
+        for (Shader s : new Shader[] {liteBase, liteTeal, liteViolet}) {
+            iBox.setShader(s);
+            c.drawRect(0, 0, w, h, iBox);
+        }
+        iBox.setShader(null);
+        // The block drifts inside a 120 px box, a step each minute, so the clock never sits on the same pixels for long
+        float dx = (liteStep * 37 % 120) * k, dy = (liteStep * 53 % 120) * k;
+        c.save();
+        c.translate(160 * k + dx, 300 * k + dy);
+        int fg = 0xFFFFFFFF, dim = 0x8CFFFFFF, soft = 0xCCFFFFFF;
+        iDate.setColor(dim);
+        iDate.setTextSize(30 * k);
+        c.drawText(greet, 0, 0, iDate);
+        float hs = 28 * k, hx = iDate.measureText(greet) + 12 * k, hcy = -Ui.halfCap(iDate);
+        c.save();
+        c.rotate(Ui.waveAngle(up - waveAt), hx + hs * 0.35f, hcy + hs * 0.35f);
+        WeatherIcons.wave(getContext(), c, hx + hs / 2, hcy, hs, dim);
+        c.restore();
+        iDate.setTextSize(26 * k);
+        iClock.setColor(fg);
+        iClock.setTextSize(300 * k);
+        c.drawText(clock, -Ui.leftBearing(iClock, clock), 300 * k, iClock);
+        iClock.setTextSize(230 * k);
+        iLine.setColor(soft);
+        iLine.setTextSize(36 * k);
+        c.drawText(Ui.date(System.currentTimeMillis()), 0, 365 * k, iLine);
+        iLine.setTextSize(32 * k);
+        HomeData.Weather wx = data.weather;
+        boolean weather = Prefs.weather() && !Double.isNaN(wx.temp);
+        StringBuilder line = new StringBuilder();
+        if (weather) line.append(HomeData.degrees(wx.temp)).append(' ').append(HomeData.condition(wx.code, wx.isDay));
+        if (!prayerLine.isEmpty()) line.append(line.length() > 0 ? "    ·    " : "").append(prayerLine);
+        iSmall.setColor(dim);
+        iSmall.setTextSize(28 * k);
+        if (line.length() > 0) c.drawText(line.toString(), 0, 418 * k, iSmall);
+        iSmall.setTextSize(26 * k);
+        c.restore();
     }
 
     /** The weather the sky shows: the real one, or the one picked in Home Settings (Sky preview). */

@@ -432,6 +432,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 if (!Prefs.wallpaperMotion()) sky.invalidate();
             }
             updatePicks();      // three new ones every hour
+            if (Prefs.lite()) status.invalidate();   // the stats capsule
             handler.postDelayed(this, 15_000);
         }
     };
@@ -506,7 +507,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         updatePalette();
         updatePicks();
         // Back from Home Settings: the background follows the Wallpaper setting (the sky, or the pick's photo again).
-        if (skyOn()) {
+        if (skyOn() || liteOn()) {
             if (bgTo != null) showBackdrop(null);
             skyNight = skyIsNight() ? 1 : 0;   // a Sky preview picked in Settings shows straight away
             neutralGlass();
@@ -549,7 +550,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     /** The weather sky is the background (any Wallpaper setting but the picks' photos). */
     private boolean skyOn() {
-        return !Prefs.wallpaper().equals("photos");
+        return !Prefs.wallpaper().equals("photos") && !Prefs.lite();
     }
 
     /** The weather the sky shows: the real one, or the one picked in Settings (Sky preview). */
@@ -764,6 +765,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         lClockQuote = Ui.numbers(Ui.medium, 28 * k, L_DIM);
         lAmPm = Ui.text(Ui.medium, 56 * k, L_INK);
         makeForYouPaints();
+        makeLitePaints();
         lightGradient = null;
         buttonPaint = Ui.text(Ui.semibold, 29 * k, INK);
         capsuleText = Ui.numbers(Ui.medium, 29 * k, 0xF2FFFFFF);
@@ -919,6 +921,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
         // The hand waving after the greeting (clock layout)
         boolean waving = !picksOn() && waveAt >= 0 && up - waveAt < Ui.WAVE_MS + 100;
+        if (liteOn() && waving) heroLayer.invalidate();
         if (waving) heroLayer.invalidate();
         // The frosted cards show the sky as it was; every 30 s they take it again
         if (frostAt >= 0 && up - frostAt >= 30_000) {
@@ -1103,7 +1106,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     /** No photo: the glass reads the background's own gray (not Scene's default aurora, which isn't on screen). */
     private void neutralGlass() {
-        int color = inkOn() ? inkSky.glassColor(skyCode(), inkHour())
+        int color = liteOn() ? 0xFF0B1020 : inkOn() ? inkSky.glassColor(skyCode(), inkHour())
                 : skyOn() ? weatherSky.glassColor(skyCode(), Math.max(0, skyNight))
                 : blend(0xFFEBEBF0, 0xFF141416, night);
         inkGlass = color;
@@ -1130,7 +1133,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         // Rain and storms darken the weather sky enough for white text; on the ink mountains only storms do.
         boolean dark = inkOn() ? WeatherSky.kind(skyCode()) == WeatherSky.STORM : WeatherSky.dark(skyCode());
         // The Movie wallpaper is a dark billboard at any hour: white text, smoked glass
-        boolean want = picksOn() || skyIsNight() || skyOn() && Prefs.theme().equals("auto") && dark;
+        boolean want = picksOn() || liteOn() || skyIsNight() || skyOn() && Prefs.theme().equals("auto") && dark;
         if (want == nightTarget) return;
         nightTarget = want;
         if (animate && running) {
@@ -1471,7 +1474,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         }
         // Clock layout: the rates just above the shelf, at the right, at the text size from Settings (scaled from
         // that corner)
-        if (!picksOn() && HomeData.coinCount() > 0) {
+        if (!picksOn() && !liteOn() && HomeData.coinCount() > 0) {
             float s = Prefs.textScale(), right = quotesRight(), base = quotesBase();
             c.save();
             c.scale(s, s, right, base);
@@ -1854,7 +1857,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         float dk = dark();
         // Frosted, like the shelf and the clock cards (Settings → Appearance → Glass)
         // (or, without the Liquid Glass shader, the same light transparent glass as theirs)
-        if ((!Prefs.glass().equals("clear") && skyOn()) || !scene.hasLiquid()) {
+        if ((!Prefs.glass().equals("clear") && skyOn()) || !scene.hasLiquid() || liteOn()) {
             tmp.set(r);
             tmp.offset(0, drop);
             shadow.setColor(Ui.alpha(shadowColor, 1 - dk * 0.5f));
@@ -3178,6 +3181,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      */
     private void drawLightSky(Canvas c) {
         long up = SystemClock.uptimeMillis();
+        if (liteOn()) {
+            drawAurora(c);
+            return;
+        }
         if (picksOn()) {
             drawBillboard(c, up);
             return;
@@ -3230,6 +3237,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     private void drawLightTop(Canvas c) {
         applyTone();
+        if (liteOn()) {
+            drawLiteClock(c);
+            return;
+        }
         if (!picksOn()) {
             // Top left, level with the corner buttons, at the text size from Settings → Appearance (it scales from
             // that corner): the sky stays open above the shelf.
@@ -3481,7 +3492,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      * at night, white by day) instead of the half-dark fill, the sheen and the rim. False where the shader runs.
      */
     private boolean clearGlass(Canvas c, RectF r, float radius) {
-        if (scene.hasLiquid()) return false;
+        if (scene.hasLiquid() && !liteOn()) return false;   // Lite never runs the shader
         frostVeil.setColor(tone(Ui.alpha(0xFFFFFFFF, 0.42f), Ui.alpha(0xFF0B0B0D, 0.24f)));
         c.drawRoundRect(r, radius, radius, frostVeil);
         if (sheenShader == null) {
@@ -4080,6 +4091,171 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         c.restore();
     }
 
+    // MARK: - Lite: the theme for TVs with little memory. An aurora drawn once, the clock as text, a stats capsule,
+    // the shelf as flat glass. Nothing here holds a bitmap but the shelf logos and the camera still.
+
+    private boolean liteOn() {
+        return Prefs.lite();
+    }
+
+    private Shader liteBase, liteTeal, liteViolet, liteWarm;
+    private float liteK = -1;
+    private Paint ltGreet, ltTime, ltDate, ltLine, ltStat, ltStatDim;
+    private Dashboard.Stats liteStats;
+    private long liteStatsAt;
+    private int liteRssi = Integer.MIN_VALUE;   // the Wi-Fi signal (dBm), or MIN_VALUE: none / wired
+    private boolean liteWired;
+
+    /** A near-black navy with three soft colour fields: teal low at the left, violet at the right, a warm touch by the shelf. */
+    private void drawAurora(Canvas c) {
+        if (liteK != k) {
+            liteK = k;
+            liteBase = new LinearGradient(0, 0, w * 0.6f, h, new int[] {0xFF070A14, 0xFF0B1020, 0xFF0D1226}, new float[] {0, 0.5f, 1}, Shader.TileMode.CLAMP);
+            liteTeal = new RadialGradient(0.08f * w, 1.08f * h, 0.47f * w, new int[] {0x8C1A7884, 0x001A7884}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
+            liteViolet = new RadialGradient(0.96f * w, 0.6f * h, 0.57f * w, new int[] {0x806040AA, 0x006040AA}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
+            liteWarm = new RadialGradient(0.55f * w, 1.08f * h, 0.36f * w, new int[] {0x38BE6E46, 0x00BE6E46}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
+        }
+        for (Shader s : new Shader[] {liteBase, liteTeal, liteViolet, liteWarm}) {
+            fill.setShader(s);
+            c.drawRect(screen, fill);
+        }
+        fill.setShader(null);
+        float veil = skyVeilOff ? 0 : skyVeil();
+        if (veil > 0.002f) {
+            fill.setColor(Ui.alpha(0xFF000000, veil));
+            c.drawRect(screen, fill);
+        }
+    }
+
+    private void makeLitePaints() {
+        ltGreet = Ui.text(Ui.medium, 30 * k, 0xBFFFFFFF);
+        ltTime = Ui.numbers(Ui.light, 200 * k, 0xFFFFFFFF);
+        ltTime.setLetterSpacing(-0.03f);
+        ltDate = Ui.text(Ui.medium, 32 * k, 0xD9FFFFFF);
+        ltLine = Ui.text(Ui.medium, 26 * k, 0x9EFFFFFF);
+        ltStat = Ui.numbers(Ui.semibold, 22 * k, 0xFFFFFFFF);
+        ltStatDim = Ui.text(Ui.medium, 22 * k, 0xCCFFFFFF);
+    }
+
+    /** The clock block, top left: the greeting with the waving hand, the time, the date, weather and city, the next prayer. */
+    private void drawLiteClock(Canvas c) {
+        float x = MARGIN * k, up = SystemClock.uptimeMillis();
+        float base = (L_BUTTON_CY + 10) * k;
+        c.drawText(greetText, x, base, ltGreet);
+        float hs = 30 * k, hx = x + ltGreet.measureText(greetText) + 12 * k, hcy = base - Ui.halfCap(ltGreet);
+        c.save();
+        c.rotate(Ui.waveAngle((long) (up - waveAt)), hx + hs * 0.35f, hcy + hs * 0.35f);
+        WeatherIcons.wave(getContext(), c, hx + hs / 2, hcy, hs, ltGreet.getColor());
+        c.restore();
+        c.drawText(clockText, x - Ui.leftBearing(ltTime, clockText), 300 * k, ltTime);
+        c.drawText(Ui.date(System.currentTimeMillis()), x, 350 * k, ltDate);
+        // Weather and city on one line; the next prayer under them
+        HomeData.Weather wx = data.weather;
+        boolean weather = Prefs.weather() && !Double.isNaN(wx.temp);
+        float y = 396 * k, lx = x;
+        if (weather) {
+            String symbol = Symbols.weather(wx.code, wx.isDay);
+            float ih = 26 * k, iw = ih * WeatherIcons.ASPECT;
+            if (!WeatherIcons.draw(getContext(), c, symbol, lx + iw / 2, y - Ui.halfCap(ltLine), ih)) Symbols.draw(getContext(), c, symbol, lx + iw / 2, y - Ui.halfCap(ltLine), 24 * k, ltLine.getColor());
+            lx += iw + 10 * k;
+            String t = HomeData.degrees(wx.temp) + " " + HomeData.condition(wx.code, wx.isDay);
+            c.drawText(t, lx, y, ltLine);
+            lx += ltLine.measureText(t) + 24 * k;
+        }
+        String city = Prefs.city().isEmpty() ? Config.CITY : Prefs.city();
+        if (!city.isEmpty()) {
+            if (weather) {
+                fill.setShader(null);
+                fill.setColor(0x40FFFFFF);
+                c.drawRect(lx, y - 22 * k, lx + Math.max(1, k), y + 2 * k, fill);
+                lx += 24 * k;
+            }
+            WeatherIcons.pin(getContext(), c, lx + 11 * k, y - Ui.halfCap(ltLine), 22 * k, ltLine.getColor());
+            c.drawText(city, lx + 30 * k, y, ltLine);
+        }
+        if (Config.PRAYER_TIMES && refreshPrayers()) {
+            y += 42 * k;
+            Symbols.draw(getContext(), c, "bedtime", x + 11 * k, y - Ui.halfCap(ltLine), 22 * k, ltLine.getColor());
+            c.drawText(prayerLine, x + 30 * k, y, ltLine);
+        }
+    }
+
+    /** The readings for the capsule, at most every 5 s (they're cheap, but the layer redraws more often than that). */
+    private Dashboard.Stats liteStats() {
+        long now = SystemClock.uptimeMillis();
+        if (liteStats == null || now - liteStatsAt > 5000) {
+            liteStats = Dashboard.stats(getContext());
+            liteStatsAt = now;
+            liteRssi = Integer.MIN_VALUE;
+            liteWired = false;
+            try {
+                android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+                android.net.Network net = cm == null ? null : cm.getActiveNetwork();
+                android.net.NetworkCapabilities caps = net == null ? null : cm.getNetworkCapabilities(net);
+                if (caps != null && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) liteWired = true;
+                else if (caps != null && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) {
+                    android.net.wifi.WifiManager wifi = (android.net.wifi.WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                    if (wifi != null && wifi.getConnectionInfo() != null) liteRssi = wifi.getConnectionInfo().getRssi();
+                }
+            } catch (RuntimeException ignored) {
+            }
+        }
+        return liteStats;
+    }
+
+    /** A pill before the corner buttons: the signal as bars and a word, free memory, free storage, how long the TV has been on. */
+    private void drawLiteStats(Canvas c) {
+        Dashboard.Stats st = liteStats();
+        float pad = 24 * k, gap = 18 * k, cy = L_BUTTON_CY * k, ch = 68 * k;
+        long freeMem = st.memTotal - st.memUsed;
+        boolean low = freeMem < 150L * 1024 * 1024;
+        int bars = liteWired ? 4 : liteRssi == Integer.MIN_VALUE ? 0 : liteRssi >= -55 ? 4 : liteRssi >= -65 ? 3 : liteRssi >= -75 ? 2 : 1;
+        String signal = liteWired ? Ui.tr("Cabo", "Wired") : bars == 0 ? Ui.tr("Sem rede", "No network")
+                : bars == 4 ? Ui.tr("Forte", "Strong") : bars == 3 ? Ui.tr("Bom", "Good") : bars == 2 ? Ui.tr("Razoável", "Fair") : Ui.tr("Fraco", "Weak");
+        String mem = Math.round(freeMem / 1048576f) + " MB", memWord = Ui.tr("livres", "free");
+        String disk = Dashboard.gb(st.diskFree), up = Dashboard.upFor(st.uptime);
+        float barsW = 4 * 5 * k + 3 * 3 * k;
+        float width = pad + barsW + 8 * k + ltStat.measureText(signal) + gap * 2 + Math.max(1, k)
+                + ltStat.measureText(mem) + 6 * k + ltStatDim.measureText(memWord) + gap * 2 + Math.max(1, k)
+                + ltStat.measureText(disk) + gap * 2 + Math.max(1, k) + ltStat.measureText(up) + pad;
+        float right = topRects[CATS].left - L_BUTTON_GAP * k;
+        capsule.set(right - width, cy - ch / 2, right, cy + ch / 2);
+        fyGlass(c, capsule, ch / 2);
+        float x = capsule.left + pad;
+        // The bars, lit by strength; amber when weak
+        int lit = low || (bars > 0 && bars < 2) ? 0xFFFFB340 : 0xFFFFFFFF;
+        for (int i = 0; i < 4; i++) {
+            float bh = (8 + 4 * i) * k, bx = x + i * 8 * k;
+            fill.setShader(null);
+            fill.setColor(i < bars ? lit : 0x40FFFFFF);
+            tmp.set(bx, cy + 10 * k - bh, bx + 5 * k, cy + 10 * k);
+            c.drawRoundRect(tmp, 2 * k, 2 * k, fill);
+        }
+        x += barsW + 8 * k;
+        ltStat.setColor(lit);
+        c.drawText(signal, x, cy + Ui.halfCap(ltStat), ltStat);
+        x += ltStat.measureText(signal);
+        x = liteSep(c, x, cy, gap);
+        ltStat.setColor(low ? 0xFFFFB340 : 0xFFFFFFFF);
+        c.drawText(mem, x, cy + Ui.halfCap(ltStat), ltStat);
+        x += ltStat.measureText(mem) + 6 * k;
+        c.drawText(memWord, x, cy + Ui.halfCap(ltStatDim), ltStatDim);
+        x += ltStatDim.measureText(memWord);
+        x = liteSep(c, x, cy, gap);
+        ltStat.setColor(0xFFFFFFFF);
+        c.drawText(disk, x, cy + Ui.halfCap(ltStat), ltStat);
+        x += ltStat.measureText(disk);
+        x = liteSep(c, x, cy, gap);
+        c.drawText(up, x, cy + Ui.halfCap(ltStat), ltStat);
+    }
+
+    private float liteSep(Canvas c, float x, float cy, float gap) {
+        fill.setShader(null);
+        fill.setColor(0x38FFFFFF);
+        c.drawRect(x + gap, cy - 12 * k, x + gap + Math.max(1, k), cy + 12 * k, fill);
+        return x + 2 * gap + Math.max(1, k);
+    }
+
     /** `image` covering `r` (cropped to its shape, centered), with rounded corners: a shader, no clip. */
     private void coverImage(Canvas c, Bitmap image, RectF r, float radius, float alpha) {
         if (alpha <= 0.004f) return;
@@ -4177,6 +4353,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void drawLightButtons(Canvas c) {
         applyTone();
         if (picksOn()) drawTopRight(c);
+        if (liteOn()) drawLiteStats(c);
         for (int i = 0; i < Math.min(4, lightButtons.size()); i++) {
             RectF r = topRects[CATS + i];
             float f = Ui.clamp(topFocus[CATS + i].value), s = 1 + 0.1f * f, rad = r.width() / 2 * s;
@@ -4185,7 +4362,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             tmp.offset(0, (6 + 8 * f) * k);
             shadow.setColor(Ui.alpha(0xFF000000, tone(0.1f, 0.3f) + tone(0.14f, 0.2f) * f));
             shadows.draw(c, tmp, rad, SHADOW_BLUR * k, shadow);
-            if (picksOn()) fyGlassFill(c, cell, rad);   // the same glass as the categories and the clock capsule
+            if (picksOn() || liteOn()) fyGlassFill(c, cell, rad);   // the same glass as the categories and the clock capsule
             else scene.liquid(c, cell, rad, tone(0xFFFFFFFF, SMOKE), tone(0.55f, 0.5f), tone(0.02f, 0.01f), 12 * k, 8 * k,
                     tone(0.6f, 0.45f), 1 - f);
             if (f > 0.01f) {

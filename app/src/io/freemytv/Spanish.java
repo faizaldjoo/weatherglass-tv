@@ -6,6 +6,14 @@ final class Spanish {
 
     static String text(String english) {
         switch (english) {
+            case "Wired": return "Por cable";
+            case "No network": return "Sin red";
+            case "Strong": return "Fuerte";
+            case "Good": return "Buena";
+            case "Fair": return "Regular";
+            case "Weak": return "Débil";
+            case "On the Lite theme the glass is always transparent: the lightest for the TV.": return "Con el tema Lite el cristal es siempre transparente: lo más ligero para el televisor.";
+            case "Lite: for TVs with little memory. A background drawn once, text and the shelf; no sky, no films, nothing moves on its own.": return "Lite: para televisores con poca memoria. Un fondo dibujado una vez, texto y el estante; sin cielo, sin películas, nada se mueve solo.";
             case "TV Status": return "Estado del TV";
             case "memory": return "de memoria";
             case "MEMORY": return "MEMORIA";

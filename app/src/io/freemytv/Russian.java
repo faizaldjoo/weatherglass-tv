@@ -13,6 +13,14 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "Wired": return "Кабель";
+            case "No network": return "Нет сети";
+            case "Strong": return "Сильный";
+            case "Good": return "Хороший";
+            case "Fair": return "Средний";
+            case "Weak": return "Слабый";
+            case "On the Lite theme the glass is always transparent: the lightest for the TV.": return "В теме Lite стекло всегда прозрачное: так телевизору легче всего.";
+            case "Lite: for TVs with little memory. A background drawn once, text and the shelf; no sky, no films, nothing moves on its own.": return "Lite: для телевизоров с малой памятью. Фон рисуется один раз, текст и полка; без неба, без фильмов, ничего не движется само.";
             case "TV Status": return "Состояние ТВ";
             case "memory": return "памяти";
             case "MEMORY": return "ПАМЯТЬ";

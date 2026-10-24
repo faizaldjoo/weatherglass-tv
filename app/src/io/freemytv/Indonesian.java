@@ -9,6 +9,14 @@ final class Indonesian {
 
     static String text(String english) {
         switch (english) {
+            case "Wired": return "Kabel";
+            case "No network": return "Tidak ada jaringan";
+            case "Strong": return "Kuat";
+            case "Good": return "Baik";
+            case "Fair": return "Cukup";
+            case "Weak": return "Lemah";
+            case "On the Lite theme the glass is always transparent: the lightest for the TV.": return "Di tema Lite kacanya selalu transparan: yang paling ringan untuk TV.";
+            case "Lite: for TVs with little memory. A background drawn once, text and the shelf; no sky, no films, nothing moves on its own.": return "Lite: untuk TV dengan memori kecil. Latar digambar sekali, teks dan rak; tanpa langit, tanpa film, tidak ada yang bergerak sendiri.";
             case "TV Status": return "Status TV";
             case "memory": return "memori";
             case "MEMORY": return "MEMORI";
@@ -53,7 +61,7 @@ final class Indonesian {
             case "Wrong code": return "Kode salah";
             case "No connection to the TV": return "Tidak terhubung ke TV";
             case "used": return "terpakai";
-            case "free": return "kosong";
+            case "free": return "tersedia";
             case "of": return "dari";
             case "DASHBOARD": return "DASBOR";
             case "No Wi‑Fi network": return "Tidak ada jaringan Wi‑Fi";
