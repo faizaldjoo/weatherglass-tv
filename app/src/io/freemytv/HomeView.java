@@ -157,8 +157,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private final List<HomeApps.Item> lightButtons = new ArrayList<>();
     // For You on the Movie wallpaper (the prototype's layout at 1920 × 1080): the category pill level with the buttons,
     // the film's text on the left, the row over the shelf, the artwork on the right
-    private static final float FY_PILL_H = 72, FY_CAT_H = 56, FY_CAT_PAD = 26, FY_INFO_TOP = 176, FY_INFO_W = 780,
-            FY_STORY_W = 640, FY_ROW_TOP = 546, FY_POSTER_W = 152, FY_CARD_H = 228, FY_LAND_W = 406, FY_GAP = 22,
+    private static final float FY_PILL_H = 72, FY_CAT_H = 56, FY_CAT_PAD = 26, FY_INFO_TOP = 168, FY_INFO_W = 760,
+            FY_STORY_W = 640, FY_ROW_TOP = 584, FY_POSTER_W = 124, FY_CARD_H = 186, FY_LAND_W = 331, FY_GAP = 20,
             FY_ART_X = 540, FY_ART_W = 1380, FY_ART_H = 860, FY_PRAYER_CY = 176;
     private static final int FY_BASE = 0xFF0D0F15, FY_SOFT = 0xBDFFFFFF;
     private static final long ART_FADE_MS = 900, RISE_MS = 700, RISE_STEP = 70, BREATHE_MS = 22_000;
@@ -175,7 +175,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private StaticLayout billTitle, billStory;
     private String billBadge = "", billMeta = "";
     private float billServiceY, billTitleY, billMetaY, billStoryY;   // where each line starts
-    private LinearGradient fyMaskShader, fyFadeShader;
+    private LinearGradient fyMaskShader, fyFadeShader, fyRimShader, fySheenShader;
     private RadialGradient fyWashShader;
     private final Matrix fyMatrix = new Matrix(), artMatrix = new Matrix();
     private final Paint fyPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
@@ -3649,7 +3649,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     /** Paints, gradients and the layout's text for For You (made with the other paints, for the UI's size). */
     private void makeForYouPaints() {
         fyCat = Ui.text(Ui.medium, 26 * k, 0xFFFFFFFF);
-        fyTitle = new TextPaint(Ui.text(Ui.displaySemibold, 70 * k, 0xFFFFFFFF));
+        fyTitle = new TextPaint(Ui.text(Ui.displaySemibold, 56 * k, 0xFFFFFFFF));
         fyTitle.setLetterSpacing(-0.02f);
         fyTitle.setShadowLayer(24 * k, 0, 2 * k, 0x59000000);
         fyMeta = Ui.numbers(Ui.medium, 24 * k, FY_SOFT);
@@ -3795,16 +3795,16 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (p.info != null && !p.info.isEmpty()) meta.append(meta.length() > 0 ? "  ·  " : "").append(p.info);
         billMeta = meta.toString();
         String story = p.story == null ? "" : p.story;
-        int lines = billTitle.getLineCount() > 1 ? 2 : 3;
+        int lines = 2;   // the row keeps a clear gap below
         billStory = StaticLayout.Builder.obtain(story, 0, story.length(), fyStory, Math.max(1, Math.round(FY_STORY_W * k)))
                 .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 1.2f).setIncludePad(false).build();
         float y = FY_INFO_TOP * k;
         billServiceY = y;
-        if (mark(p) != null) y += (52 + 14) * k;
+        if (mark(p) != null) y += (44 + 18) * k;
         billTitleY = y;
-        y += billTitle.getHeight() + 16 * k;
+        y += billTitle.getHeight() + 22 * k;
         billMetaY = y;
-        y += (34 + 16) * k;
+        y += (34 + 20) * k;
         billStoryY = y;
     }
 
@@ -3947,7 +3947,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         String mark = mark(p);
         if (mark != null) {
             float e = rise(since, RISE_STEP * line++);
-            drawMark(c, mark, MARGIN * k, billServiceY + (26 + lift * (1 - e) / k) * k, mark.equals("trailer") ? 40 * k : 44 * k,
+            drawMark(c, mark, MARGIN * k, billServiceY + (22 + lift * (1 - e) / k) * k, mark.equals("trailer") ? 34 * k : 38 * k,
                     fyService, e, true);
         }
         float e = rise(since, RISE_STEP * line++);
@@ -4046,14 +4046,34 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             c.drawText(t, cell.left + 12 * k, cell.bottom - 16 * k, fyChip);
             fyChip.setAlpha(255);
         }
-        // The ring: white and wide while the row has the focus, faint otherwise
+        // The selected card's edge, like the glass pills: light along the top, fading down the sides, a faint line at
+        // the bottom, and a sheen over the top; brighter while the row has the focus
         if (f > 0.01f) {
-            float ringW = (2 + 2 * zf) * k;
+            if (fyRimShader == null) {
+                fyRimShader = new LinearGradient(0, 0, 0, 1, new int[] {0xFFFFFFFF, 0x66FFFFFF, 0x2EFFFFFF, 0x8CFFFFFF},
+                        new float[] {0, 0.3f, 0.75f, 1}, Shader.TileMode.CLAMP);
+                fySheenShader = new LinearGradient(0, 0, 0, 1, 0x40FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
+            }
+            fyMatrix.setScale(1, cell.height() * 0.5f);
+            fyMatrix.postTranslate(0, cell.top);
+            fySheenShader.setLocalMatrix(fyMatrix);
+            fyShade.setShader(fySheenShader);
+            fyShade.setAlpha(Math.round(255 * f * zf * in));
+            c.drawRoundRect(cell, r, r, fyShade);
+            fyShade.setAlpha(255);
+            fyShade.setShader(null);
+            fyMatrix.setScale(1, cell.height());
+            fyMatrix.postTranslate(0, cell.top);
+            fyRimShader.setLocalMatrix(fyMatrix);
+            float ringW = (1.5f + 1 * zf) * k;
+            fyRing.setShader(fyRimShader);
             fyRing.setStrokeWidth(ringW);
-            fyRing.setColor(Ui.alpha(0xFFFFFFFF, f * in * (0.4f + 0.55f * zf)));
+            fyRing.setColor(0xFFFFFFFF);
+            fyRing.setAlpha(Math.round(255 * f * in * (0.45f + 0.5f * zf)));
             tmp.set(cell);
-            tmp.inset(-ringW / 2, -ringW / 2);
-            c.drawRoundRect(tmp, r + ringW / 2, r + ringW / 2, fyRing);
+            tmp.inset(ringW / 2, ringW / 2);
+            c.drawRoundRect(tmp, r - ringW / 2, r - ringW / 2, fyRing);
+            fyRing.setShader(null);
         }
         String mark = mark(p);
         if (mark != null) {
