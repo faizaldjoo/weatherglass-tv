@@ -296,8 +296,9 @@ public class SettingsActivity extends Activity {
 
         /** Appearance, Wallpaper and Widgets: which Home Settings rows each one shows, in its order. */
         private int[] sectionRows() {
-            // The Movie wallpaper's glass is always transparent (frosting its artwork is too much for a small TV)
-            if (section == S_APPEARANCE) return Prefs.wallpaper().equals("photos") || Prefs.lite() ? new int[] {NAME_ROW, 0, 2, TEXT_ROW, 1, 3}
+            // Light or dark, the clock widget's size and the glass belong to the live wallpaper: Movie and Lite are
+            // always dark, draw their own clock and keep the glass transparent, so those rows hide with them
+            if (section == S_APPEARANCE) return Prefs.wallpaper().equals("photos") || Prefs.lite() ? new int[] {NAME_ROW, 0, 1, 3}
                     : new int[] {NAME_ROW, 0, 2, TEXT_ROW, GLASS_ROW, 1, 3};
             // Movie (the For You billboard) has no sky to preview: only its motion (the artwork's slow breathing)
             if (section == S_WALLPAPER) return Prefs.lite() ? new int[] {WALLPAPER_ROW}
@@ -799,10 +800,9 @@ public class SettingsActivity extends Activity {
             if (y > (DB - 30) * k) return;   // no room for the hint under a long list
             String text = section == S_WIDGETS ? Ui.tr("Com o widget de cotações desligado, as moedas ficam desligadas.",
                     "With the quotes widget off, the coins stay off too.")
-                    : section == S_APPEARANCE && Prefs.lite()
-                    ? Ui.tr("No tema Lite o vidro é sempre transparente: é o mais leve para a TV.", "On the Lite theme the glass is always transparent: the lightest for the TV.")
-                    : section == S_APPEARANCE && Prefs.wallpaper().equals("photos")
-                    ? Ui.tr("No fundo Filme o vidro é sempre transparente: é mais leve para a TV.", "On the Movie wallpaper the glass is always transparent: lighter for the TV.")
+                    : section == S_APPEARANCE && (Prefs.lite() || Prefs.wallpaper().equals("photos"))
+                    ? Ui.tr("Claro ou escuro, o widget do relógio e o vidro são do papel de parede vivo: este tema é sempre escuro, com vidro transparente.",
+                            "Light or dark, the clock widget and the glass belong to the live wallpaper: this theme is always dark, with transparent glass.")
                     : section == S_WALLPAPER && Prefs.lite()
                     ? Ui.tr("Lite: para TVs com pouca memória. Um fundo desenhado uma vez, texto e a prateleira; sem céu, sem filmes, nada se move sozinho.",
                             "Lite: for TVs with little memory. A background drawn once, text and the shelf; no sky, no films, nothing moves on its own.")

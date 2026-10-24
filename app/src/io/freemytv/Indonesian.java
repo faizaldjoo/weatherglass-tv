@@ -9,6 +9,7 @@ final class Indonesian {
 
     static String text(String english) {
         switch (english) {
+            case "Light or dark, the clock widget and the glass belong to the live wallpaper: this theme is always dark, with transparent glass.": return "Terang atau gelap, widget jam, dan kaca milik wallpaper hidup: tema ini selalu gelap, dengan kaca transparan.";
             case "Live wallpaper": return "Wallpaper hidup";
             case "the whole TV, 15 s": return "seluruh TV, 15 dtk";
             case "NETWORK": return "JARINGAN";
