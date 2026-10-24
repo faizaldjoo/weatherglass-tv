@@ -432,10 +432,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 if (!Prefs.wallpaperMotion()) sky.invalidate();
             }
             updatePicks();      // three new ones every hour
-            if (Prefs.lite()) {   // the stats capsule: a CPU sample now, the reading on the next tick
-                Dashboard.sampleCpu(getContext());
-                status.invalidate();
-            }
             handler.postDelayed(this, 15_000);
         }
     };
@@ -4094,8 +4090,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         c.restore();
     }
 
-    // MARK: - Lite: the theme for TVs with little memory. An aurora drawn once, the clock as text, a stats capsule,
-    // the shelf as flat glass. Nothing here holds a bitmap but the shelf logos and the camera still.
+    // MARK: - Lite: the theme for TVs with little memory. An aurora drawn once, the clock as text, the shelf as flat
+    // glass (the TV's readings are in Settings → TV Status). Nothing here holds a bitmap but the shelf logos and the camera still.
 
     private boolean liteOn() {
         return Prefs.lite();
@@ -4103,12 +4099,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     private Shader liteBase, liteTeal, liteViolet, liteWarm;
     private float liteK = -1;
-    private Paint ltGreet, ltTime, ltDate, ltLine, ltStat, ltStatDim;
-    private Dashboard.Stats liteStats;
-    { if (Prefs.lite()) Dashboard.sampleCpu(getContext()); }   // the first CPU sample, so the capsule has a reading by its second tick
-    private long liteStatsAt;
-    private int liteRssi = Integer.MIN_VALUE;   // the Wi-Fi signal (dBm), or MIN_VALUE: none / wired
-    private boolean liteWired;
+    private Paint ltGreet, ltTime, ltDate, ltLine;
 
     /** A near-black navy with three soft colour fields: teal low at the left, violet at the right, a warm touch by the shelf. */
     private void drawAurora(Canvas c) {
@@ -4137,8 +4128,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         ltTime.setLetterSpacing(-0.03f);
         ltDate = Ui.text(Ui.medium, 32 * k, 0xD9FFFFFF);
         ltLine = Ui.text(Ui.medium, 26 * k, 0x9EFFFFFF);
-        ltStat = Ui.numbers(Ui.semibold, 22 * k, 0xFFFFFFFF);
-        ltStatDim = Ui.text(Ui.medium, 22 * k, 0xCCFFFFFF);
     }
 
     /** The clock block, top left: the greeting with the waving hand, the time, the date, weather and city, the next prayer. */
@@ -4184,93 +4173,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         }
     }
 
-    /** The readings for the capsule, at most every 5 s (they're cheap, but the layer redraws more often than that). */
-    private Dashboard.Stats liteStats() {
-        long now = SystemClock.uptimeMillis();
-        if (liteStats == null || now - liteStatsAt > 5000) {
-            liteStats = Dashboard.stats(getContext());
-            liteStatsAt = now;
-            liteRssi = Integer.MIN_VALUE;
-            liteWired = false;
-            try {
-                android.net.ConnectivityManager cm = (android.net.ConnectivityManager) getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-                android.net.Network net = cm == null ? null : cm.getActiveNetwork();
-                android.net.NetworkCapabilities caps = net == null ? null : cm.getNetworkCapabilities(net);
-                if (caps != null && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) liteWired = true;
-                else if (caps != null && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) {
-                    android.net.wifi.WifiManager wifi = (android.net.wifi.WifiManager) getContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                    if (wifi != null && wifi.getConnectionInfo() != null) liteRssi = wifi.getConnectionInfo().getRssi();
-                }
-            } catch (RuntimeException ignored) {
-            }
-        }
-        return liteStats;
-    }
-
-    /** A pill before the corner buttons: the signal as bars and a word, free memory, free storage (with their icons). */
-    private void drawLiteStats(Canvas c) {
-        Dashboard.Stats st = liteStats();
-        float pad = 24 * k, gap = 18 * k, cy = L_BUTTON_CY * k, ch = 68 * k;
-        long freeMem = st.memTotal - st.memUsed;
-        boolean low = freeMem < 150L * 1024 * 1024;
-        int bars = liteWired ? 4 : liteRssi == Integer.MIN_VALUE ? 0 : liteRssi >= -55 ? 4 : liteRssi >= -65 ? 3 : liteRssi >= -75 ? 2 : 1;
-        String signal = liteWired ? Ui.tr("Cabo", "Wired") : bars == 0 ? Ui.tr("Sem rede", "No network")
-                : bars == 4 ? Ui.tr("Forte", "Strong") : bars == 3 ? Ui.tr("Bom", "Good") : bars == 2 ? Ui.tr("Razoável", "Fair") : Ui.tr("Fraco", "Weak");
-        String mem = Math.round(freeMem / 1048576f) + " MB", memWord = Ui.tr("livres", "free");
-        String disk = Dashboard.gb(st.diskFree);
-        int cpu = Dashboard.cpu();
-        String cpuText = cpu < 0 ? "" : cpu + "%";
-        float barsW = 4 * 5 * k + 3 * 3 * k, icon = 24 * k;
-        float width = pad + barsW + 8 * k + ltStat.measureText(signal) + gap * 2 + Math.max(1, k)
-                + icon + 8 * k + ltStat.measureText(mem) + 6 * k + ltStatDim.measureText(memWord) + gap * 2 + Math.max(1, k)
-                + icon + 8 * k + ltStat.measureText(disk) + pad
-                + (cpu < 0 ? 0 : gap * 2 + Math.max(1, k) + ltStatDim.measureText("CPU") + 6 * k + ltStat.measureText(cpuText));
-        float right = topRects[CATS].left - L_BUTTON_GAP * k;
-        capsule.set(right - width, cy - ch / 2, right, cy + ch / 2);
-        fyGlass(c, capsule, ch / 2);
-        float x = capsule.left + pad;
-        // The bars, lit by strength; amber when weak
-        int lit = low || (bars > 0 && bars < 2) ? 0xFFFFB340 : 0xFFFFFFFF;
-        for (int i = 0; i < 4; i++) {
-            float bh = (8 + 4 * i) * k, bx = x + i * 8 * k;
-            fill.setShader(null);
-            fill.setColor(i < bars ? lit : 0x40FFFFFF);
-            tmp.set(bx, cy + 10 * k - bh, bx + 5 * k, cy + 10 * k);
-            c.drawRoundRect(tmp, 2 * k, 2 * k, fill);
-        }
-        x += barsW + 8 * k;
-        ltStat.setColor(lit);
-        c.drawText(signal, x, cy + Ui.halfCap(ltStat), ltStat);
-        x += ltStat.measureText(signal);
-        x = liteSep(c, x, cy, gap);
-        Symbols.draw(getContext(), c, "memory", x + icon / 2, cy, icon, 0xB3FFFFFF);
-        x += icon + 8 * k;
-        ltStat.setColor(low ? 0xFFFFB340 : 0xFFFFFFFF);
-        c.drawText(mem, x, cy + Ui.halfCap(ltStat), ltStat);
-        x += ltStat.measureText(mem) + 6 * k;
-        c.drawText(memWord, x, cy + Ui.halfCap(ltStatDim), ltStatDim);
-        x += ltStatDim.measureText(memWord);
-        x = liteSep(c, x, cy, gap);
-        Symbols.draw(getContext(), c, "storage", x + icon / 2, cy, icon, 0xB3FFFFFF);
-        x += icon + 8 * k;
-        ltStat.setColor(0xFFFFFFFF);
-        c.drawText(disk, x, cy + Ui.halfCap(ltStat), ltStat);
-        if (cpu >= 0) {
-            x += ltStat.measureText(disk);
-            x = liteSep(c, x, cy, gap);
-            c.drawText("CPU", x, cy + Ui.halfCap(ltStatDim), ltStatDim);
-            x += ltStatDim.measureText("CPU") + 6 * k;
-            ltStat.setColor(cpu >= 80 ? 0xFFFFB340 : 0xFFFFFFFF);
-            c.drawText(cpuText, x, cy + Ui.halfCap(ltStat), ltStat);
-        }
-    }
-
-    private float liteSep(Canvas c, float x, float cy, float gap) {
-        fill.setShader(null);
-        fill.setColor(0x38FFFFFF);
-        c.drawRect(x + gap, cy - 12 * k, x + gap + Math.max(1, k), cy + 12 * k, fill);
-        return x + 2 * gap + Math.max(1, k);
-    }
 
     /** `image` covering `r` (cropped to its shape, centered), with rounded corners: a shader, no clip. */
     private void coverImage(Canvas c, Bitmap image, RectF r, float radius, float alpha) {
@@ -4369,7 +4271,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void drawLightButtons(Canvas c) {
         applyTone();
         if (picksOn()) drawTopRight(c);
-        if (liteOn()) drawLiteStats(c);
         for (int i = 0; i < Math.min(4, lightButtons.size()); i++) {
             RectF r = topRects[CATS + i];
             float f = Ui.clamp(topFocus[CATS + i].value), s = 1 + 0.1f * f, rad = r.width() / 2 * s;

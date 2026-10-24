@@ -6,6 +6,8 @@ final class German {
 
     static String text(String english) {
         switch (english) {
+            case "NETWORK": return "NETZWERK";
+            case "the whole TV, over the last 15 s": return "der ganze Fernseher, letzte 15 s";
             case "Wired": return "Kabel";
             case "No network": return "Kein Netz";
             case "Strong": return "Stark";

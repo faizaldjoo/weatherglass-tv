@@ -163,7 +163,7 @@ public class SettingsActivity extends Activity {
                 S_SHELF = 5, S_REMOTE = 6, S_CARE = 7, S_ABOUT = 8, S_TV = 9, SECTIONS = 10;
         // TV Status: the care rows (the dashboard's), and where they start, under the status block
         private static final String[] CARE_ACTIONS = {"free", "cache", "home", "reboot"};
-        private static final float CARE_TOP = 164 + 300;   // TOP + the status block
+        private static final float CARE_TOP = 164 + 388;   // TOP + the status block
         private final String[] careText = new String[CARE_ACTIONS.length];   // each row's last result
         private boolean careBusy, rebootArmed;
         private Dashboard.Stats stats;
@@ -917,6 +917,25 @@ public class SettingsActivity extends Activity {
             c.drawText(dpct + "%", x, y, rowLabel);
             c.drawText(Dashboard.gb(st.diskFree) + " " + Ui.tr("livres", "free"), x + 90 * k, y, notice);
             c.drawText(Dashboard.upFor(st.uptime), x + width / 2, y, rowLabel);
+            // The network (bars and a word) and the TV's CPU, read through its shell while this screen is open
+            y += 52 * k;
+            c.drawText(Ui.tr("REDE", "NETWORK"), x, y, header);
+            c.drawText("CPU", x + width / 2, y, header);
+            y += 44 * k;
+            int[] sig = Dashboard.signal(getContext());
+            for (int i = 0; i < 4; i++) {
+                float bh = (9 + 5 * i) * k, bx = x + i * 9 * k;
+                fill.setColor(i < sig[0] ? (sig[0] <= 1 ? AMBER : 0xFFFFFFFF) : 0x40FFFFFF);
+                tmp.set(bx, y - bh, bx + 6 * k, y);
+                c.drawRoundRect(tmp, 2 * k, 2 * k, fill);
+            }
+            rowLabel.setColor(0xF2FFFFFF);
+            c.drawText(Dashboard.signalWord(sig), x + 46 * k, y, rowLabel);
+            if (sig[1] == 0 && sig[0] > 0) c.drawText(sig[2] + " dBm", x + 46 * k + rowLabel.measureText(Dashboard.signalWord(sig)) + 16 * k, y, notice);
+            Dashboard.sampleCpu(getContext());
+            int cpu = Dashboard.cpu();
+            c.drawText(cpu < 0 ? "…" : cpu + "%", x + width / 2, y, rowLabel);
+            if (cpu >= 0) c.drawText(Ui.tr("toda a TV, nos últimos 15 s", "the whole TV, over the last 15 s"), x + width / 2 + 90 * k, y, notice);
             y += 44 * k;
             c.drawText(Ui.tr("CUIDADOS", "CARE"), x, y, header);
             // The care rows

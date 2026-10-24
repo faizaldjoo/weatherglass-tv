@@ -357,6 +357,34 @@ final class Dashboard {
         });
     }
 
+    /** The network: {bars 0..4, wired 1/0, rssi} — 4 bars from −55 dBm, 3 from −65, 2 from −75; wired counts as 4. */
+    static int[] signal(Context c) {
+        int bars = 0, wired = 0, rssi = 0;
+        try {
+            android.net.ConnectivityManager cm = (android.net.ConnectivityManager) c.getSystemService(Context.CONNECTIVITY_SERVICE);
+            android.net.Network net = cm == null ? null : cm.getActiveNetwork();
+            android.net.NetworkCapabilities caps = net == null ? null : cm.getNetworkCapabilities(net);
+            if (caps != null && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) {
+                wired = 1;
+                bars = 4;
+            } else if (caps != null && caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) {
+                WifiManager wifi = (WifiManager) c.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                if (wifi != null && wifi.getConnectionInfo() != null) {
+                    rssi = wifi.getConnectionInfo().getRssi();
+                    bars = rssi >= -55 ? 4 : rssi >= -65 ? 3 : rssi >= -75 ? 2 : 1;
+                }
+            }
+        } catch (RuntimeException ignored) {
+        }
+        return new int[] {bars, wired, rssi};
+    }
+
+    /** The signal in a word: Wired, Strong, Good, Fair, Weak, or No network. */
+    static String signalWord(int[] s) {
+        return s[1] == 1 ? Ui.tr("Cabo", "Wired") : s[0] == 0 ? Ui.tr("Sem rede", "No network")
+                : s[0] == 4 ? Ui.tr("Forte", "Strong") : s[0] == 3 ? Ui.tr("Bom", "Good") : s[0] == 2 ? Ui.tr("Razoável", "Fair") : Ui.tr("Fraco", "Weak");
+    }
+
     /** "1.52 GB" */
     static String gb(long bytes) {
         return String.format(Locale.ROOT, "%.2f GB", bytes / 1073741824.0);

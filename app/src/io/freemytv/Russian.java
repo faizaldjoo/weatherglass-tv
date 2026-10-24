@@ -13,6 +13,8 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "NETWORK": return "СЕТЬ";
+            case "the whole TV, over the last 15 s": return "весь телевизор, за последние 15 с";
             case "Wired": return "Кабель";
             case "No network": return "Нет сети";
             case "Strong": return "Сильный";
