@@ -41,15 +41,22 @@ final class Prefs {
     static volatile int version;
 
     private static Context app;
+    /** Not the :home process (the main one, where Android 11 runs the screensaver, and :keys): it must re-read the
+     *  file on each look, since the home screen writes the settings from its own process and Android caches them
+     *  per process. MODE_MULTI_PROCESS is deprecated but does exactly that: reload the file when it changed. */
+    @SuppressWarnings("deprecation")
+    private static int mode = Context.MODE_PRIVATE;
 
     static void init(Context c) {
         app = c.getApplicationContext();
+        String process = android.app.Application.getProcessName();
+        if (process != null && !process.endsWith(":home")) mode = Context.MODE_PRIVATE | Context.MODE_MULTI_PROCESS;
         migrateKeys();   // before anything reads the button choices
         Ui.applyLanguage();   // the language picked on the TV, now that it can be read
     }
 
     private static SharedPreferences sp() {
-        return app.getSharedPreferences("settings", Context.MODE_PRIVATE);
+        return app.getSharedPreferences("settings", mode);
     }
 
     private static void put(String key, String value) {
