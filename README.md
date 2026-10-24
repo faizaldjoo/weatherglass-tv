@@ -58,7 +58,7 @@ Works on Android TV and Google TV 9+ (Sharp, Xiaomi, Polytron, Coocaa, Sony, Phi
 
 ### Without a computer: download the APK
 
-A ready-made build is on the [Releases](https://github.com/faizaldjoo/weatherglass-tv/releases/latest) page: no TMDB key (no trending picks), no camera, the city set to Jakarta until you pick yours, prayer times and exchange rates in rupiah on.
+A ready-made build is on the [Releases](https://github.com/faizaldjoo/weatherglass-tv/releases/latest) page: no TMDB key (so no For You films: the Movie theme needs one), no camera, the city set to Jakarta until you pick yours, prayer times and exchange rates in rupiah on.
 
 1. **On the TV**, turn on developer mode: Settings → System → About → press *Android TV OS build* 7 times. Then Settings → System → Developer options → turn on **USB debugging**. The switch needs it: Weatherglass TV uses the TV's own debugging to change the home screen.
 2. **Install [Downloader](https://play.google.com/store/apps/details?id=com.esaba.downloader)** (by AFTVnews) from Google Play on the TV, and allow it to install apps (Settings → Apps → Security & restrictions → Unknown sources → Downloader).
