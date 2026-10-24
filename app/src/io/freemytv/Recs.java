@@ -950,6 +950,11 @@ final class Recs {
     private long stampValue, stampAt;
 
     /** sourceStamp() asks the package manager about every service: at most once a minute (this runs on every notice). */
+    /** The lists' stamp: the sources, and how the lists are made (2: Netflix in Popular), so a change fetches them again. */
+    private long movieStamp() {
+        return stamp() * 31L + 2;
+    }
+
     private long stamp() {
         long now = System.currentTimeMillis();
         if (stampAt == 0 || now - stampAt > 60_000 || now < stampAt) {
@@ -963,7 +968,7 @@ final class Recs {
         if (moviesLoaded) return;
         moviesLoaded = true;
         try {
-            if (cache.getLong("mStamp", 0) != stamp() || !Ui.language.equals(cache.getString("mLanguage", ""))) return;
+            if (cache.getLong("mStamp", 0) != movieStamp() || !Ui.language.equals(cache.getString("mLanguage", ""))) return;
             moviesAt = cache.getLong("mAt", 0);
             @SuppressWarnings("unchecked") List<Pick>[] l = new List[4];
             for (int i = 0; i < 4; i++) l[i] = parseMovies(new JSONArray(cache.getString("m" + i, "[]")), i);
@@ -978,12 +983,12 @@ final class Recs {
         long sinceFail = now - moviesFailedAt;
         if (moviesFailedAt != 0 && sinceFail >= 0 && sinceFail < 10 * 60_000L) return;
         boolean stale = moviesAt == 0 || now - moviesAt > LIST_EVERY || now < moviesAt
-                || cache.getLong("mStamp", 0) != stamp() || !Ui.language.equals(cache.getString("mLanguage", ""));
+                || cache.getLong("mStamp", 0) != movieStamp() || !Ui.language.equals(cache.getString("mLanguage", ""));
         boolean missing = false;
         for (List<Pick> l : movieLists) for (Pick p : l) missing |= !p.detailed;
         if (!stale && !missing) return;
         moviesFetching = true;
-        final long stamp = stamp();
+        final long stamp = movieStamp();
         final String language = Ui.language;
         movieIo.execute(() -> {
             try {
@@ -1026,8 +1031,12 @@ final class Recs {
         });
     }
 
+    /** TMDB's ids for Netflix (and its plan with ads), for Popular. */
+    private static final String NETFLIX = "8|1796";
+
     private List<Pick> fetchMovieList(String list) throws Exception {
         JSONArray results = get("/movie/" + list + "?language=" + lang() + "&region=" + REGION + "&page=1").getJSONArray("results");
+        if (list.equals("popular")) results = withNetflix(results);
         List<Pick> out = new ArrayList<>();
         for (int i = 0; i < results.length() && out.size() < LIST_MAX; i++) {
             JSONObject o = results.getJSONObject(i);
@@ -1041,6 +1050,28 @@ final class Recs {
             String date = o.optString("release_date", "");
             if (date.length() >= 4) p.year = date.substring(0, 4);
             p.release = parseDay(date);
+        }
+        return out;
+    }
+
+    /** Popular, with what's popular on Netflix where you live mixed in, one and one, without repeats. */
+    private JSONArray withNetflix(JSONArray popular) {
+        JSONArray netflix;
+        try {
+            netflix = get("/discover/movie?language=" + lang() + "&watch_region=" + REGION + "&with_watch_monetization_types=flatrate"
+                    + "&with_watch_providers=" + URLEncoder.encode(NETFLIX, "UTF-8") + "&sort_by=popularity.desc&vote_count.gte=20"
+                    + "&include_adult=false&page=1").getJSONArray("results");
+        } catch (Exception e) {
+            AppLog.w("netflix: " + e.getMessage());
+            return popular;   // Popular alone, as before
+        }
+        JSONArray out = new JSONArray();
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        for (int i = 0; i < Math.max(popular.length(), netflix.length()); i++) {
+            for (JSONArray from : new JSONArray[] {popular, netflix}) {
+                JSONObject o = from.optJSONObject(i);
+                if (o != null && seen.add(o.optInt("id"))) out.put(o);
+            }
         }
         return out;
     }
