@@ -926,8 +926,9 @@ public class SettingsActivity extends Activity {
                 String value = careText[i] == null ? (i == 0 ? Ui.tr("fecha os apps em segundo plano", "stops background apps")
                         : i == 3 ? Ui.tr("uns 40 s", "about 40 s") : "") : careText[i];
                 rowValue.setColor(blend(0x9EFFFFFF, 0x991C1C1E, f));
-                c.drawText(TextUtils.ellipsize(value, new TextPaint(rowValue), 330 * k, TextUtils.TruncateAt.END).toString(),
-                        right - rowValue.measureText(TextUtils.ellipsize(value, new TextPaint(rowValue), 330 * k, TextUtils.TruncateAt.END).toString()), base, rowValue);
+                // rowValue is right-aligned: it ends at the row's right edge, after the label's room
+                float room = rowRect.width() - 2 * INSET * k - rowLabel.measureText(labels[i]) - 24 * k;
+                c.drawText(TextUtils.ellipsize(value, new TextPaint(rowValue), Math.max(60 * k, room), TextUtils.TruncateAt.END).toString(), right, base, rowValue);
             }
             float hy = (rowTop(labels.length - 1) + LIST_H + 40) * k;
             wrap(c, Ui.tr("O mesmo painel abre no celular: o endereço e o código estão em Sobre.",

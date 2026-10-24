@@ -330,7 +330,8 @@ final class Dashboard {
     static String upFor(long ms) {
         long minutes = ms / 60_000, d = minutes / 1440, h = minutes % 1440 / 60, m = minutes % 60;
         String day = Ui.indo ? " hr " : " d ", hour = Ui.indo ? " jam" : " h", min = Ui.indo ? " mnt" : " min";
-        return d > 0 ? d + day + String.format(Locale.ROOT, "%02d", h) + hour : h + hour + " " + String.format(Locale.ROOT, "%02d", m) + min;
+        if (d > 0) return d + day + String.format(Locale.ROOT, "%02d", h) + hour;
+        return h > 0 ? h + hour + " " + String.format(Locale.ROOT, "%02d", m) + min : m + min;
     }
 
     /**
