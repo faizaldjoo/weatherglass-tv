@@ -84,7 +84,7 @@ Everything else is Free My TV's work.
 
 About ten minutes. You need a Google TV or Android TV (Android 9 or newer) and a computer on the same Wi-Fi.
 
-Works on Android TV and Google TV 9+ (Sharp, Xiaomi, Polytron, Coocaa, Sony, Philips…). Tested on TCL (Android 11) and Hisense (Android 12).
+Works on Android TV and Google TV 9+ (Sharp, Xiaomi, Polytron, Coocaa, Sony, Philips…). Tested on **TCL**, **Hisense** and **Toshiba** TVs, from 1 GB to 2 GB of memory.
 
 ### The easy way: an AI assistant
 
