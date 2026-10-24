@@ -45,10 +45,6 @@ Modified by xACTDx · English and Bahasa Indonesia
 - **Light by day, dark by night,** following your city's real sunset.
 - **Safe.** No root. Nothing is uninstalled. One button brings back the factory home screen, and if the new one ever crashes three times in five minutes, it brings itself back.
 
-<p align="center"><img src=".github/weatherglass-drawer.webp" width="760" alt="The settings drawer sliding in over the home screen in black frosted glass: the focus moves down to Appearance, → opens it, a switch flips, ← goes back and the drawer slides out"><br><sub>The settings drawer at night: black frosted glass over the home screen, opened and worked with the arrow keys.</sub></p>
-
-<p align="center"><img src=".github/weatherglass-preview.webp" width="760" alt="Weatherglass TV at night: the ink mountains under the moon, the greeting and date, a big clock, the weather, the next prayer, exchange rates and a glass shelf of apps with the CCTV tile"><br><sub>On a Hisense 43″ TV at night.</sub></p>
-
 Everything else is Free My TV's work.
 
 ## Screenshots
