@@ -9,6 +9,7 @@ final class Indonesian {
 
     static String text(String english) {
         switch (english) {
+            case "Light or dark": return "Terang atau gelap";
             case "On the Movie wallpaper the glass is always transparent: lighter for the TV.": return "Di wallpaper Film, kacanya selalu transparan: lebih ringan untuk TV.";
             case "In cinemas": return "Di bioskop";
             case "Coming soon": return "Segera tayang";

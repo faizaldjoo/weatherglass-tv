@@ -13,6 +13,7 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "Light or dark": return "Светлая или тёмная";
             case "On the Movie wallpaper the glass is always transparent: lighter for the TV.": return "На обоях «Фильм» стекло всегда прозрачное: так телевизору легче.";
             case "In cinemas": return "В кино";
             case "Coming soon": return "Скоро";

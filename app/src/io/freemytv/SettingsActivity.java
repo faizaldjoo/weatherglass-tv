@@ -259,7 +259,7 @@ public class SettingsActivity extends Activity {
                 case S_HOME: return Ui.tr("Início", "Home Screen");
                 case S_SCREENSAVER: return Ui.tr("Tela de Descanso", "Screensaver");
                 case S_APPEARANCE: return Ui.tr("Aparência", "Appearance");
-                case S_WALLPAPER: return Ui.tr("Fundo", "Wallpaper");
+                case S_WALLPAPER: return Ui.tr("Tema", "Theme");
                 case S_WIDGETS: return Ui.tr("Widgets", "Widgets");
                 case S_SHELF: return Ui.tr("Prateleira", "Shelf");
                 case S_REMOTE: return Ui.tr("Botões do Controle", "Remote Buttons");
@@ -1113,10 +1113,10 @@ public class SettingsActivity extends Activity {
             List<String> l = new ArrayList<>();
             l.add(Ui.tr("Idioma", "Language"));
             l.add(Ui.tr("Temperatura", "Temperature"));
-            l.add(Ui.tr("Tema", "Theme"));
+            l.add(Ui.tr("Claro ou escuro", "Light or dark"));
             l.add(Ui.tr("Sons de navegação", "Navigation sounds"));
             l.add(Ui.tr("Widget do clima", "Weather widget"));
-            l.add(Ui.tr("Fundo", "Wallpaper"));
+            l.add(Ui.tr("Tema", "Theme"));
             l.add(Ui.tr("Movimento", "Motion"));
             l.add(Ui.tr("Clima", "Weather"));
             l.add(Ui.tr("Hora do dia", "Time of day"));

@@ -743,12 +743,14 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
                     .setIncludePad(false).build();
             float originY = titleBase - t.getLineBaseline(t.getLineCount() - 1);
             float capTop = originY + t.getLineBaseline(0) - Ui.cap(titlePaint);
-            c.drawText(Recs.periodLabel(), x, capTop - 30 * k, labelPaint);
+            String label = s.pick.list >= 0 ? Recs.listNames()[s.pick.list].toUpperCase(Ui.locale()) : Recs.periodLabel();
+            c.drawText(label, x, capTop - 30 * k, labelPaint);
             c.save();
             c.translate(x - Ui.leftBearing(titlePaint, title), originY);
             t.draw(c);
             c.restore();
-            if (s.pick.meta != null && !s.pick.meta.isEmpty()) c.drawText(s.pick.meta, x, metaBase, metaPaint);
+            String meta = Recs.captionMeta(s.pick);
+            if (!meta.isEmpty()) c.drawText(meta, x, metaBase, metaPaint);
         } finally {
             s.caption.endRecording();
         }

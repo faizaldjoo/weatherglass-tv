@@ -97,13 +97,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private static final float L_PLATTER_TOP = 814, L_TILE_H = 126;
     private static final float L_DATE_BASE = 330, L_CLOCK_BASE = 540, L_WEATHER_BASE = 626, L_QUOTES_BASE = 694;
     private static final int L_INK = 0xFF1D1D1F, L_DIM = 0xFF6E6E73, L_FAINT = 0xFF8E8E93;
-    // For You's categories: TMDB's movie lists (Recs.LISTS)
-    private static final String[] TABS = {"Populares", "Em cartaz", "Em breve", "Mais bem avaliados"};
-    private static final String[] TABS_RU = {"Популярные", "Сейчас в кино", "Скоро", "Лучшие"};
-    private static final String[] TABS_EN = {"Popular", "Now Playing", "Upcoming", "Top Rated"};
-    private static final String[] TABS_ID = {"Populer", "Tayang", "Segera", "Terbaik"};
-    private static final String[] TABS_ES = {"Populares", "En cines", "Próximamente", "Mejor valoradas"};
-    private static final String[] TABS_DE = {"Beliebt", "Im Kino", "Demnächst", "Bestbewertet"};
     /** The categories come first in the top row (0 to 3), then the corner buttons; the row holds up to ROW_MAX films. */
     private static final int CATS = 4, ROW_MAX = 15;
     private static final int Z_TOP = 4, Z_CARDS = 5;
@@ -653,7 +646,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     }
 
     private static String[] tabs() {
-        return Ui.indo ? TABS_ID : Ui.ru ? TABS_RU : Ui.es ? TABS_ES : Ui.de ? TABS_DE : Ui.en ? TABS_EN : TABS;
+        return Recs.listNames();
     }
 
     @Override public void onData() {

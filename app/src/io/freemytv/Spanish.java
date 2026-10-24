@@ -6,6 +6,7 @@ final class Spanish {
 
     static String text(String english) {
         switch (english) {
+            case "Light or dark": return "Claro u oscuro";
             case "On the Movie wallpaper the glass is always transparent: lighter for the TV.": return "Con el fondo Película el cristal es siempre transparente: más ligero para el televisor.";
             case "In cinemas": return "En cines";
             case "Coming soon": return "Próximamente";

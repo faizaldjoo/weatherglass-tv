@@ -53,6 +53,7 @@ final class Recs {
         // genre · runtime line, the YouTube trailer's key and the theatrical release date
         String story = "", year = "", rating = "", info = "", trailer;
         long release;
+        int list = -1;          // which of LISTS it came from (-1: the older picks)
     }
 
     /** The billboard's artwork: big (on screen, GPU), the focused card's landscape (GPU) and a small copy for the frost. */
@@ -230,6 +231,16 @@ final class Recs {
         return (cut > 0 ? t.substring(0, cut) : t).trim();
     }
 
+    /** The line under the title on the screensaver: the older picks' meta, or the film's genre · runtime · service. */
+    static String captionMeta(Pick p) {
+        if (p == null) return "";
+        if (p.meta != null && !p.meta.isEmpty()) return p.meta;
+        StringBuilder s = new StringBuilder(p.info == null ? "" : p.info);
+        String app = serviceName(p);
+        if (app != null && !app.isEmpty()) s.append(s.length() > 0 ? " · " : "").append(app);
+        return s.toString();
+    }
+
     /** Name of the service the pick is on ("Netflix"), or empty. */
     static String serviceName(Pick p) {
         return p == null || p.app == null ? "" : SERVICE_NAME.get(p.app);
@@ -326,8 +337,9 @@ final class Recs {
         return p.backdrop != null && imageFile(p).exists();
     }
 
+    /** Where the title's photo is kept: the movie lists' art folder, or the older picks' (the same w1280 files). */
     private File imageFile(Pick p) {
-        return new File(new File(context.getCacheDir(), "recs"), p.backdrop.replace("/", ""));
+        return new File(new File(context.getCacheDir(), p.list >= 0 ? "movie-art" : "recs"), p.backdrop.replace("/", ""));
     }
 
     /** With a key: fetches the list if stale or the time of day (morning/afternoon/night) changed; then the details. */
@@ -395,6 +407,21 @@ final class Recs {
     List<Pick> showcase() {
         List<Pick> out = new ArrayList<>();
         if (!hasKey(context)) return out;
+        if (movieMode()) {
+            // The four lists in turn (a Popular film, one in cinemas, one coming, one top rated...), the ones whose
+            // artwork is on disk; the home screen's selected film is usually among them
+            loadMovies();
+            List<Pick>[] lists = movieLists;
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            int longest = 0;
+            for (List<Pick> l : lists) longest = Math.max(longest, l.size());
+            for (int i = 0; i < longest; i++) {
+                for (List<Pick> l : lists) {
+                    if (i < l.size() && hasImage(l.get(i)) && seen.add(key(l.get(i)))) out.add(l.get(i));
+                }
+            }
+            return out;
+        }
         java.util.Set<String> seen = new java.util.HashSet<>();
         for (Pick p : wanted()) if (hasImage(p) && seen.add(franchise(p.title))) out.add(p);
         Map<String, Boolean> have = new HashMap<>();
@@ -416,6 +443,10 @@ final class Recs {
      */
     void prefetchAll() {
         if (!hasKey(context) || fetching) return;
+        if (movieMode()) {
+            prefetchMovieArt();
+            return;
+        }
         long sinceFail = System.currentTimeMillis() - failedAt;
         if (failedAt != 0 && sinceFail >= 0 && sinceFail < 10 * 60_000L) return;
         List<Pick> todo = new ArrayList<>();
@@ -872,7 +903,25 @@ final class Recs {
 
     /** TMDB's lists, in the order of the categories: Popular, Now Playing, Upcoming, Top Rated. */
     static final String[] LISTS = {"popular", "now_playing", "upcoming", "top_rated"};
+    private static final String[] LIST_NAMES = {"Populares", "Em cartaz", "Em breve", "Mais bem avaliados"};
+    private static final String[] LIST_NAMES_RU = {"Популярные", "Сейчас в кино", "Скоро", "Лучшие"};
+    private static final String[] LIST_NAMES_EN = {"Popular", "Now Playing", "Upcoming", "Top Rated"};
+    private static final String[] LIST_NAMES_ID = {"Populer", "Tayang", "Segera", "Terbaik"};
+    private static final String[] LIST_NAMES_ES = {"Populares", "En cines", "Próximamente", "Mejor valoradas"};
+    private static final String[] LIST_NAMES_DE = {"Beliebt", "Im Kino", "Demnächst", "Bestbewertet"};
+
+    /** The categories' names (the home screen's pill and the screensaver's label), in the TV's language. */
+    static String[] listNames() {
+        return Ui.indo ? LIST_NAMES_ID : Ui.ru ? LIST_NAMES_RU : Ui.es ? LIST_NAMES_ES : Ui.de ? LIST_NAMES_DE : Ui.en ? LIST_NAMES_EN : LIST_NAMES;
+    }
+
+    /** The Movie wallpaper is on: the screensaver shows the four lists' films, labeled by category. */
+    static boolean movieMode() {
+        return Prefs.wallpaper().equals("photos");
+    }
     private static final int LIST_MAX = 12;
+    /** Artwork files kept on disk: the four lists' films (the screensaver shows them all) and a few more. */
+    private static final int ART_KEEP = 60;
     /** The billboard's size (16:9, the whole screen) and the landscape card's (unused by the deck, kept for the art). */
     static final int ART_W = Backdrop.W, ART_H = Backdrop.H;   // the whole screen, at the UI's size
     static final int LAND_W = Math.round(Backdrop.W * 0.22f), LAND_H = Math.round(Backdrop.H * 0.22f);
@@ -917,7 +966,7 @@ final class Recs {
             if (cache.getLong("mStamp", 0) != stamp() || !Ui.language.equals(cache.getString("mLanguage", ""))) return;
             moviesAt = cache.getLong("mAt", 0);
             @SuppressWarnings("unchecked") List<Pick>[] l = new List[4];
-            for (int i = 0; i < 4; i++) l[i] = parseMovies(new JSONArray(cache.getString("m" + i, "[]")));
+            for (int i = 0; i < 4; i++) l[i] = parseMovies(new JSONArray(cache.getString("m" + i, "[]")), i);
             movieLists = l;
         } catch (Exception ignored) {
         }
@@ -987,6 +1036,7 @@ final class Recs {
             add(out, o, "movie");
             if (out.size() == before) continue;
             Pick p = out.get(out.size() - 1);
+            p.list = java.util.Arrays.asList(LISTS).indexOf(list);
             p.story = o.optString("overview", "");
             String date = o.optString("release_date", "");
             if (date.length() >= 4) p.year = date.substring(0, 4);
@@ -1107,7 +1157,7 @@ final class Recs {
         }
     }
 
-    private static List<Pick> parseMovies(JSONArray a) {
+    private static List<Pick> parseMovies(JSONArray a, int list) {
         List<Pick> out = new ArrayList<>();
         for (int i = 0; i < a.length(); i++) {
             JSONObject o = a.optJSONObject(i);
@@ -1115,6 +1165,7 @@ final class Recs {
             Pick p = new Pick();
             p.id = o.optInt("id");
             p.kind = "movie";
+            p.list = list;
             p.title = o.optString("title");
             p.backdrop = o.optString("backdrop");
             p.poster = o.optString("poster").isEmpty() ? null : o.optString("poster");
@@ -1130,6 +1181,33 @@ final class Recs {
             out.add(p);
         }
         return out;
+    }
+
+    private volatile boolean artFetching;
+
+    /** Screensaver: the artwork files of every film in the four lists, one at a time in the background (the home
+     *  screen only fetches the selected film's and the next one's). Files only: no bitmaps are built here. */
+    private void prefetchMovieArt() {
+        if (artFetching) return;
+        loadMovies();
+        List<Pick> todo = new ArrayList<>();
+        for (List<Pick> l : movieLists) for (Pick p : l) if (!hasImage(p)) todo.add(p);
+        if (todo.isEmpty()) return;
+        artFetching = true;
+        artIo.execute(() -> {
+            try {
+                for (Pick p : todo) {
+                    try {
+                        fetchFile("https://image.tmdb.org/t/p/w1280" + p.backdrop, imageFile(p), ART_KEEP);
+                        notifyListeners();
+                    } catch (IOException e) {
+                        AppLog.w("movie art: " + e.getMessage());
+                    }
+                }
+            } finally {
+                artFetching = false;
+            }
+        });
     }
 
     /** The billboard's artwork for the pick (or null: loads it in the background and notifies when it's ready). */
@@ -1164,7 +1242,7 @@ final class Recs {
     private void loadArt(String path) {
         File f = new File(new File(context.getCacheDir(), "movie-art"), path.replace("/", ""));
         try {
-            fetchFile("https://image.tmdb.org/t/p/w1280" + path, f, 40);
+            fetchFile("https://image.tmdb.org/t/p/w1280" + path, f, ART_KEEP);
             BitmapFactory.Options bounds = new BitmapFactory.Options();
             bounds.inJustDecodeBounds = true;
             BitmapFactory.decodeFile(f.getPath(), bounds);
