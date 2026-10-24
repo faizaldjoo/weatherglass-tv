@@ -157,10 +157,17 @@ public class SettingsActivity extends Activity {
     }
 
     static final class SettingsView extends View implements Choreographer.FrameCallback {
-        private static final int MAIN = 0, HOME_CHOICE = 1, HOME_SETTINGS = 2, REMOTE_KEYS = 3, PICKER = 4, SHELF_EDIT = 5, ABOUT = 6;
+        private static final int MAIN = 0, HOME_CHOICE = 1, HOME_SETTINGS = 2, REMOTE_KEYS = 3, PICKER = 4, SHELF_EDIT = 5, ABOUT = 6, CARE = 7;
         // The sections, in the drawer's order (MAIN's rows).
         private static final int S_HOME = 0, S_SCREENSAVER = 1, S_APPEARANCE = 2, S_WALLPAPER = 3, S_WIDGETS = 4,
-                S_SHELF = 5, S_REMOTE = 6, S_ABOUT = 7, S_TV = 8, SECTIONS = 9;
+                S_SHELF = 5, S_REMOTE = 6, S_CARE = 7, S_ABOUT = 8, S_TV = 9, SECTIONS = 10;
+        // TV Status: the care rows (the dashboard's), and where they start, under the status block
+        private static final String[] CARE_ACTIONS = {"free", "cache", "home", "reboot"};
+        private static final float CARE_TOP = 164 + 300;   // TOP + the status block
+        private final String[] careText = new String[CARE_ACTIONS.length];   // each row's last result
+        private boolean careBusy, rebootArmed;
+        private Dashboard.Stats stats;
+        private long statsAt;
         private static final int PICK_VISIBLE = 9;
         // The drawer, on the 1920 × 1080 grid: its glass, and the content inside it.
         private static final float DX = 1184, DR = 1884, DT = 36, DB = 1044, L = DX + 26, R = DR - 26, TOP = 164;
@@ -263,15 +270,20 @@ public class SettingsActivity extends Activity {
                 case S_WIDGETS: return Ui.tr("Widgets", "Widgets");
                 case S_SHELF: return Ui.tr("Prateleira", "Shelf");
                 case S_REMOTE: return Ui.tr("Botões do Controle", "Remote Buttons");
+                case S_CARE: return Ui.tr("Estado da TV", "TV Status");
                 case S_ABOUT: return Ui.tr("Sobre", "About");
                 default: return Ui.tr("Ajustes da TV", "TV Settings");
             }
         }
 
-        private static final String[] ICONS = {"home", "bedtime", "sparkles", "partly_cloudy_day", "apps", "live_tv", "gamepad", null, "tv_settings"};
+        private static final String[] ICONS = {"home", "bedtime", "sparkles", "partly_cloudy_day", "apps", "live_tv", "gamepad", "tv", null, "tv_settings"};
 
         /** A section's value on the first level (what it is set to now), or "". */
         private String sectionValue(int s) {
+            if (s == S_CARE) {
+                Dashboard.Stats st = stats();
+                return Math.round(st.memUsed * 100f / Math.max(1, st.memTotal)) + "% " + Ui.tr("de memória", "memory");
+            }
             String[] v = settingValues();
             switch (s) {
                 case S_HOME: return freeActive() ? "Weatherglass TV" : Ui.tr("Original", "Original");
@@ -365,6 +377,10 @@ public class SettingsActivity extends Activity {
                     return app[1] + ", " + (place >= 0 ? Ui.tr("na prateleira, posição ", "on the shelf, place ") + (place + 1)
                             : Ui.tr("fora da prateleira", "not on the shelf"));
                 }
+                case CARE: {
+                    String[] labels = careLabels();
+                    return row < labels.length ? labels[row] + (careText[row] == null ? "" : ", " + careText[row]) : "";
+                }
                 default:
                     return "";
             }
@@ -376,6 +392,7 @@ public class SettingsActivity extends Activity {
             switch (screen) {
                 case MAIN: return TOP + i * (MAIN_H + GAP) + (i > S_SCREENSAVER ? DIVIDER : 0) + (i > S_REMOTE ? DIVIDER : 0);
                 case HOME_CHOICE: return TOP + i * (CHOICE_H + 8);
+                case CARE: return CARE_TOP + i * (LIST_H + GAP);
                 case HOME_SETTINGS: {
                     float y = TOP + i * (LIST_H + GAP);
                     for (int j = 0; j <= i; j++) if (groupTitle(j) != null) y += HEADER;
@@ -521,6 +538,7 @@ public class SettingsActivity extends Activity {
                 case HOME_CHOICE: return 2;
                 case HOME_SETTINGS: return sectionRows().length;
                 case ABOUT: return 0;
+                case CARE: return CARE_ACTIONS.length;
                 case PICKER: return Math.min(PICK_VISIBLE, pickLabels.size());
                 case SHELF_EDIT: return Math.min(PICK_VISIBLE, shelfRows.size());
                 default: return Prefs.KEYS.length;
@@ -590,6 +608,7 @@ public class SettingsActivity extends Activity {
                 case REMOTE_KEYS: drawKeys(c); break;
                 case PICKER: drawPicker(c); break;
                 case SHELF_EDIT: drawShelfEditor(c); break;
+                case CARE: drawCare(c); break;
                 default: drawAbout(c); break;
             }
             drawFooter(c);
@@ -616,7 +635,7 @@ public class SettingsActivity extends Activity {
             String title;
             if (screen == PICKER) title = pickFor == PICK_CITY ? Ui.tr("Cidade", "City") : keyLabels()[pickFor - 1];
             else title = sectionName(screen == HOME_CHOICE ? S_HOME : screen == HOME_SETTINGS ? section
-                    : screen == REMOTE_KEYS ? S_REMOTE : screen == SHELF_EDIT ? S_SHELF : S_ABOUT);
+                    : screen == REMOTE_KEYS ? S_REMOTE : screen == SHELF_EDIT ? S_SHELF : screen == CARE ? S_CARE : S_ABOUT);
             c.drawText(TextUtils.ellipsize(title, new TextPaint(heading), (R - L - 100) * k, TextUtils.TruncateAt.END).toString(),
                     (L + 76) * k, cy + Ui.halfCap(heading), heading);
         }
@@ -847,6 +866,97 @@ public class SettingsActivity extends Activity {
                     "Disney and Globoplay: the TV itself controls those buttons.")
                     : Ui.tr("Botões do controle da TCL: nesta TV funcionam como sempre.",
                     "TCL remote buttons: on this TV they work as always."), (L + INSET) * k, y + 12 * k, hint, 3);
+        }
+
+        // MARK: - TV Status: what the TV is doing, and the care actions (the dashboard's, from the drawer)
+
+        private Dashboard.Stats stats() {
+            long now = SystemClock.uptimeMillis();
+            if (stats == null || now - statsAt > 2000) {
+                stats = Dashboard.stats(getContext());
+                statsAt = now;
+            }
+            return stats;
+        }
+
+        private String[] careLabels() {
+            return new String[] {Ui.tr("Liberar memória", "Free memory"), Ui.tr("Limpar caches", "Clear caches"),
+                Ui.tr("Reiniciar o Início", "Restart home screen"), Ui.tr("Reiniciar a TV", "Reboot TV")};
+        }
+
+        private void drawCare(Canvas c) {
+            Dashboard.Stats st = stats();
+            float x = (L + INSET) * k, y = (TOP + 26) * k, width = (R - L - 2 * INSET) * k;
+            // Memory: in use of the total, with Weatherglass's own share, and a bar (amber from 85%)
+            int pct = Math.round(st.memUsed * 100f / Math.max(1, st.memTotal));
+            c.drawText(Ui.tr("MEMÓRIA", "MEMORY"), x, y, header);
+            y += 44 * k;
+            rowLabel.setColor(0xF2FFFFFF);
+            c.drawText(pct + "%", x, y, rowLabel);
+            c.drawText(Dashboard.gb(st.memUsed) + " " + Ui.tr("de", "of") + " " + Dashboard.gb(st.memTotal) + "  ·  Weatherglass "
+                    + Math.round(st.memOurs / 1048576f) + " MB", x + 90 * k, y, notice);
+            y += 18 * k;
+            fill.setColor(0x24FFFFFF);
+            tmp.set(x, y, x + width, y + 6 * k);
+            c.drawRoundRect(tmp, 3 * k, 3 * k, fill);
+            fill.setColor(pct >= 85 ? AMBER : 0xFF5AA9FF);
+            tmp.set(x, y, x + width * Math.min(1, pct / 100f), y + 6 * k);
+            c.drawRoundRect(tmp, 3 * k, 3 * k, fill);
+            // Storage and uptime, side by side
+            y += 52 * k;
+            int dpct = Math.round((st.diskTotal - st.diskFree) * 100f / Math.max(1, st.diskTotal));
+            c.drawText(Ui.tr("ARMAZENAMENTO", "STORAGE"), x, y, header);
+            c.drawText(Ui.tr("LIGADA HÁ", "UP FOR"), x + width / 2, y, header);
+            y += 44 * k;
+            c.drawText(dpct + "%", x, y, rowLabel);
+            c.drawText(Dashboard.gb(st.diskFree) + " " + Ui.tr("livres", "free"), x + 90 * k, y, notice);
+            c.drawText(Dashboard.upFor(st.uptime), x + width / 2, y, rowLabel);
+            y += 44 * k;
+            c.drawText(Ui.tr("CUIDADOS", "CARE"), x, y, header);
+            // The care rows
+            String[] labels = careLabels();
+            for (int i = 0; i < labels.length; i++) {
+                float top = rowTop(i);
+                rowRect.set(L * k, top * k, R * k, (top + LIST_H) * k);
+                float f = drawRowBackground(c, i);
+                boolean danger = i == 3;
+                rowLabel.setColor(blend(danger ? 0xFFFF6B64 : 0xF2FFFFFF, danger ? 0xFFD70015 : INK, f));
+                float cy = rowRect.centerY(), base = cy + Ui.halfCap(rowLabel), right = rowRect.right - INSET * k;
+                c.drawText(labels[i], rowRect.left + INSET * k, base, rowLabel);
+                String value = careText[i] == null ? (i == 0 ? Ui.tr("fecha os apps em segundo plano", "stops background apps")
+                        : i == 3 ? Ui.tr("uns 40 s", "about 40 s") : "") : careText[i];
+                rowValue.setColor(blend(0x9EFFFFFF, 0x991C1C1E, f));
+                c.drawText(TextUtils.ellipsize(value, new TextPaint(rowValue), 330 * k, TextUtils.TruncateAt.END).toString(),
+                        right - rowValue.measureText(TextUtils.ellipsize(value, new TextPaint(rowValue), 330 * k, TextUtils.TruncateAt.END).toString()), base, rowValue);
+            }
+            float hy = (rowTop(labels.length - 1) + LIST_H + 40) * k;
+            wrap(c, Ui.tr("O mesmo painel abre no celular: o endereço e o código estão em Sobre.",
+                    "The same panel opens on a phone: the address and the code are under About."), x, hy, hint, 2);
+        }
+
+        /** OK on a care row: runs it (Reboot takes a second OK), and shows how it went in the row. */
+        private void runCare(int row) {
+            if (careBusy || row < 0 || row >= CARE_ACTIONS.length) return;
+            String action = CARE_ACTIONS[row];
+            if (action.equals("reboot") && !rebootArmed) {
+                rebootArmed = true;
+                careText[row] = Ui.tr("OK de novo para reiniciar", "OK again to reboot");
+                handler.postDelayed(() -> { if (rebootArmed) { rebootArmed = false; careText[3] = null; invalidate(); } }, 5000);
+                return;
+            }
+            rebootArmed = false;
+            careBusy = true;
+            careText[row] = Ui.tr("Um momento…", "One moment…");
+            Dashboard.careFrom(getContext(), action, result -> {
+                careBusy = false;
+                if (result.startsWith("!")) careText[row] = Ui.tr("Não deu: ", "Couldn't: ") + result.substring(1);
+                else if (action.equals("free")) careText[row] = result.isEmpty() ? Ui.tr("Feito", "Done") : result + " " + Ui.tr("apps fechados", "apps stopped");
+                else if (action.equals("reboot")) careText[row] = Ui.tr("Reiniciando…", "Rebooting…");
+                else careText[row] = Ui.tr("Feito", "Done");
+                statsAt = 0;
+                invalidate();
+                announceForAccessibility(careText[row]);
+            });
         }
 
         /** About: the picks, the latest notices, and where this comes from. */
@@ -1093,8 +1203,9 @@ public class SettingsActivity extends Activity {
                 screen = REMOTE_KEYS;
             } else {
                 focus = screen == HOME_SETTINGS ? section : screen == SHELF_EDIT ? S_SHELF : screen == REMOTE_KEYS ? S_REMOTE
-                        : screen == ABOUT ? S_ABOUT : S_HOME;
+                        : screen == ABOUT ? S_ABOUT : screen == CARE ? S_CARE : S_HOME;
                 screen = MAIN;
+                rebootArmed = false;
             }
             for (Spring s : pop) s.snap(0);
         }
@@ -1579,6 +1690,11 @@ public class SettingsActivity extends Activity {
         private void activate() {
             Context c = getContext();
             if (screen == ABOUT) return;
+            if (screen == CARE) {
+                runCare(focus);
+                invalidate();
+                return;
+            }
             if (screen == HOME_CHOICE) {
                 boolean wantFree = focus == 0;
                 boolean already = wantFree ? freeActive() : HomeMode.ORIGINAL.equals(state.optString("mode", HomeMode.ORIGINAL));
@@ -1638,6 +1754,10 @@ public class SettingsActivity extends Activity {
                 loadApps();
                 screen = REMOTE_KEYS;
                 focus = 0;
+            } else if (focus == S_CARE) {
+                screen = CARE;
+                focus = 0;
+                statsAt = 0;
             } else if (focus == S_ABOUT) {
                 screen = ABOUT;
                 focus = 0;

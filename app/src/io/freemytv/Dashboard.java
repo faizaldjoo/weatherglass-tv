@@ -295,25 +295,73 @@ final class Dashboard {
         return s.append("'").toString();
     }
 
-    private JSONObject status() throws Exception {
-        JSONObject o = new JSONObject();
-        ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+    /** What the TV is doing: memory, storage, uptime (read in a moment; the drawer and the page both show it). */
+    static final class Stats {
+        long memTotal, memUsed, memOurs, diskTotal, diskFree, uptime;
+    }
+
+    static Stats stats(Context c) {
+        Stats st = new Stats();
+        ActivityManager am = (ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
         am.getMemoryInfo(mi);
-        o.put("memTotal", mi.totalMem).put("memUsed", mi.totalMem - mi.availMem);
+        st.memTotal = mi.totalMem;
+        st.memUsed = mi.totalMem - mi.availMem;
         // Our own processes (the home screen, the main one, the key reader), by their real share (PSS)
-        long ours = 0;
         List<ActivityManager.RunningAppProcessInfo> procs = am.getRunningAppProcesses();
         if (procs != null) {
             int[] pids = new int[procs.size()];
             for (int i = 0; i < pids.length; i++) pids[i] = procs.get(i).pid;
-            Debug.MemoryInfo[] infos = am.getProcessMemoryInfo(pids);
-            for (Debug.MemoryInfo info : infos) ours += info.getTotalPss() * 1024L;
+            for (Debug.MemoryInfo info : am.getProcessMemoryInfo(pids)) st.memOurs += info.getTotalPss() * 1024L;
         }
-        o.put("memOurs", ours);
         StatFs fs = new StatFs(android.os.Environment.getDataDirectory().getPath());
-        o.put("diskTotal", fs.getTotalBytes()).put("diskFree", fs.getAvailableBytes());
-        o.put("uptime", SystemClock.elapsedRealtime());
+        st.diskTotal = fs.getTotalBytes();
+        st.diskFree = fs.getAvailableBytes();
+        st.uptime = SystemClock.elapsedRealtime();
+        return st;
+    }
+
+    /** "1.52 GB" */
+    static String gb(long bytes) {
+        return String.format(Locale.ROOT, "%.2f GB", bytes / 1073741824.0);
+    }
+
+    /** "4 d 06 h", or "3 h 12 min" on the first day. */
+    static String upFor(long ms) {
+        long minutes = ms / 60_000, d = minutes / 1440, h = minutes % 1440 / 60, m = minutes % 60;
+        String day = Ui.indo ? " hr " : " d ", hour = Ui.indo ? " jam" : " h", min = Ui.indo ? " mnt" : " min";
+        return d > 0 ? d + day + String.format(Locale.ROOT, "%02d", h) + hour : h + hour + " " + String.format(Locale.ROOT, "%02d", m) + min;
+    }
+
+    /**
+     * A care action from the settings drawer (the same ones as the page's): free, cache, home, reboot. `done` gets a
+     * short result on the main thread ("7" apps stopped, "" otherwise).
+     */
+    static void careFrom(Context c, String action, java.util.function.Consumer<String> done) {
+        synchronized (Dashboard.class) {
+            if (instance == null) instance = new Dashboard(c.getApplicationContext());
+        }
+        final Dashboard d = instance;
+        d.io.execute(() -> {
+            String result = "";
+            try {
+                JSONObject reply = new JSONObject();
+                d.care(action, reply);
+                if (reply.has("stopped")) result = String.valueOf(reply.optInt("stopped"));
+            } catch (Exception e) {
+                result = "!" + e.getMessage();
+            }
+            final String r = result;
+            d.main.post(() -> done.accept(r));
+        });
+    }
+
+    private JSONObject status() throws Exception {
+        JSONObject o = new JSONObject();
+        Stats st = stats(context);
+        o.put("memTotal", st.memTotal).put("memUsed", st.memUsed).put("memOurs", st.memOurs);
+        o.put("diskTotal", st.diskTotal).put("diskFree", st.diskFree);
+        o.put("uptime", st.uptime);
         PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         o.put("on", pm == null || pm.isInteractive());
         o.put("model", (Build.BRAND.substring(0, 1).toUpperCase(Locale.ROOT) + Build.BRAND.substring(1)) + " " + Build.MODEL);

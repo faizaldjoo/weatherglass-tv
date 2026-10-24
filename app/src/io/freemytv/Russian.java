@@ -13,6 +13,20 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "TV Status": return "Состояние ТВ";
+            case "memory": return "памяти";
+            case "MEMORY": return "ПАМЯТЬ";
+            case "STORAGE": return "ХРАНИЛИЩЕ";
+            case "UP FOR": return "РАБОТАЕТ";
+            case "CARE": return "УХОД";
+            case "stops background apps": return "закрывает фоновые приложения";
+            case "OK again to reboot": return "Ещё раз OK для перезагрузки";
+            case "One moment…": return "Секунду…";
+            case "Couldn't: ": return "Не удалось: ";
+            case "Done": return "Готово";
+            case "apps stopped": return "приложений закрыто";
+            case "Rebooting…": return "Перезагрузка…";
+            case "The same panel opens on a phone: the address and the code are under About.": return "Та же панель открывается на телефоне: адрес и код есть в разделе «О программе».";
             case "Remote": return "Пульт";
             case "Open": return "Открыть";
             case "Care": return "Уход";

@@ -9,6 +9,20 @@ final class Indonesian {
 
     static String text(String english) {
         switch (english) {
+            case "TV Status": return "Status TV";
+            case "memory": return "memori";
+            case "MEMORY": return "MEMORI";
+            case "STORAGE": return "PENYIMPANAN";
+            case "UP FOR": return "MENYALA SELAMA";
+            case "CARE": return "PERAWATAN";
+            case "stops background apps": return "menutup aplikasi latar belakang";
+            case "OK again to reboot": return "OK sekali lagi untuk restart";
+            case "One moment…": return "Sebentar…";
+            case "Couldn't: ": return "Gagal: ";
+            case "Done": return "Selesai";
+            case "apps stopped": return "aplikasi ditutup";
+            case "Rebooting…": return "Memulai ulang…";
+            case "The same panel opens on a phone: the address and the code are under About.": return "Panel yang sama bisa dibuka di ponsel: alamat dan kodenya ada di Tentang.";
             case "Remote": return "Remote";
             case "Open": return "Buka";
             case "Care": return "Perawatan";

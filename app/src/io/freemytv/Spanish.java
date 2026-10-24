@@ -6,6 +6,20 @@ final class Spanish {
 
     static String text(String english) {
         switch (english) {
+            case "TV Status": return "Estado del TV";
+            case "memory": return "de memoria";
+            case "MEMORY": return "MEMORIA";
+            case "STORAGE": return "ALMACENAMIENTO";
+            case "UP FOR": return "ENCENDIDO DESDE HACE";
+            case "CARE": return "CUIDADOS";
+            case "stops background apps": return "cierra las apps en segundo plano";
+            case "OK again to reboot": return "OK otra vez para reiniciar";
+            case "One moment…": return "Un momento…";
+            case "Couldn't: ": return "No se pudo: ";
+            case "Done": return "Hecho";
+            case "apps stopped": return "apps cerradas";
+            case "Rebooting…": return "Reiniciando…";
+            case "The same panel opens on a phone: the address and the code are under About.": return "El mismo panel se abre en el teléfono: la dirección y el código están en Acerca de.";
             case "Remote": return "Mando";
             case "Open": return "Abrir";
             case "Care": return "Cuidados";
