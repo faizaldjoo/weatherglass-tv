@@ -13,6 +13,7 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "APPEARANCE": return "ВНЕШНИЙ ВИД";
             case "Light or dark, the clock widget and the glass belong to the live wallpaper: this theme is always dark, with transparent glass.": return "Светлая или тёмная, виджет часов и стекло относятся к живым обоям: эта тема всегда тёмная, со стеклом прозрачным.";
             case "Live wallpaper": return "Живые обои";
             case "the whole TV, 15 s": return "весь ТВ, 15 с";

@@ -296,14 +296,12 @@ public class SettingsActivity extends Activity {
 
         /** Appearance, Wallpaper and Widgets: which Home Settings rows each one shows, in its order. */
         private int[] sectionRows() {
-            // Light or dark, the clock widget's size and the glass belong to the live wallpaper: Movie and Lite are
-            // always dark, draw their own clock and keep the glass transparent, so those rows hide with them
-            if (section == S_APPEARANCE) return Prefs.wallpaper().equals("photos") || Prefs.lite() ? new int[] {NAME_ROW, 0, 1, 3}
-                    : new int[] {NAME_ROW, 0, 2, TEXT_ROW, GLASS_ROW, 1, 3};
-            // Movie (the For You billboard) has no sky to preview: only its motion (the artwork's slow breathing)
+            if (section == S_APPEARANCE) return new int[] {NAME_ROW, 0, 1, 3};
+            // Theme: the live wallpaper has its motion, the sky preview, and its own look (light or dark, the clock
+            // widget's size, the glass); Movie only its motion (the artwork's slow breathing); Lite nothing else
             if (section == S_WALLPAPER) return Prefs.lite() ? new int[] {WALLPAPER_ROW}
                     : Prefs.wallpaper().equals("photos") ? new int[] {WALLPAPER_ROW, MOTION_ROW}
-                    : new int[] {WALLPAPER_ROW, MOTION_ROW, SKY_WEATHER_ROW, SKY_TIME_ROW};
+                    : new int[] {WALLPAPER_ROW, MOTION_ROW, SKY_WEATHER_ROW, SKY_TIME_ROW, 2, TEXT_ROW, GLASS_ROW};
             int coins = settingLabels().length - COIN_ROWS;
             int[] r = new int[5 + coins];
             r[0] = 4;
@@ -318,6 +316,7 @@ public class SettingsActivity extends Activity {
         /** A small title above a section's row (null: none). */
         private String groupTitle(int local) {
             if (section == S_WALLPAPER && local == 2) return Ui.tr("PRÉVIA DO CÉU", "SKY PREVIEW");
+            if (section == S_WALLPAPER && local == 4) return Ui.tr("APARÊNCIA", "APPEARANCE");
             if (section == S_WIDGETS && local == 0) return Ui.tr("CLIMA", "WEATHER");
             if (section == S_WIDGETS && local == 2) return HomeData.RATES ? Ui.tr("CÂMBIO", "EXCHANGE RATES") : Ui.tr("COTAÇÕES", "QUOTES");
             if (section == S_WIDGETS && local == 3 + settingLabels().length - COIN_ROWS) return Ui.tr("CÂMERA", "CCTV");
@@ -800,9 +799,6 @@ public class SettingsActivity extends Activity {
             if (y > (DB - 30) * k) return;   // no room for the hint under a long list
             String text = section == S_WIDGETS ? Ui.tr("Com o widget de cotações desligado, as moedas ficam desligadas.",
                     "With the quotes widget off, the coins stay off too.")
-                    : section == S_APPEARANCE && (Prefs.lite() || Prefs.wallpaper().equals("photos"))
-                    ? Ui.tr("Claro ou escuro, o widget do relógio e o vidro são do papel de parede vivo: este tema é sempre escuro, com vidro transparente.",
-                            "Light or dark, the clock widget and the glass belong to the live wallpaper: this theme is always dark, with transparent glass.")
                     : section == S_WALLPAPER && Prefs.lite()
                     ? Ui.tr("Lite: para TVs com pouca memória. Um fundo desenhado uma vez, texto e a prateleira; sem céu, sem filmes, nada se move sozinho.",
                             "Lite: for TVs with little memory. A background drawn once, text and the shelf; no sky, no films, nothing moves on its own.")

@@ -6,6 +6,7 @@ final class German {
 
     static String text(String english) {
         switch (english) {
+            case "APPEARANCE": return "AUSSEHEN";
             case "Light or dark, the clock widget and the glass belong to the live wallpaper: this theme is always dark, with transparent glass.": return "Hell oder dunkel, das Uhr-Widget und das Glas gehören zum Live-Hintergrund: dieses Design ist immer dunkel, mit transparentem Glas.";
             case "Live wallpaper": return "Live-Hintergrund";
             case "the whole TV, 15 s": return "ganzer Fernseher, 15 s";
