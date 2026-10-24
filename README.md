@@ -53,21 +53,9 @@ Everything else is Free My TV's work.
 
 ## Install
 
-About ten minutes. You need a Google TV or Android TV (Android 9 or newer). Without a computer, use the download just below; to build it yourself, a computer on the same Wi-Fi.
+About ten minutes. You need a Google TV or Android TV (Android 9 or newer) and a computer on the same Wi-Fi.
 
 Works on Android TV and Google TV 9+ (Sharp, Xiaomi, Polytron, Coocaa, Sony, Philips…). Tested on TCL (Android 11) and Hisense (Android 12).
-
-### Without a computer: download the APK
-
-A ready-made build is on the [Releases](https://github.com/faizaldjoo/weatherglass-tv/releases/latest) page: no TMDB key (so no For You films: the Movie theme needs one), no camera, the city set to Jakarta until you pick yours, prayer times and exchange rates in rupiah on.
-
-1. **On the TV**, turn on developer mode: Settings → System → About → press *Android TV OS build* 7 times. Then Settings → System → Developer options → turn on **USB debugging**. The switch needs it: Weatherglass TV uses the TV's own debugging to change the home screen.
-2. **Install [Downloader](https://play.google.com/store/apps/details?id=com.esaba.downloader)** (by AFTVnews) from Google Play on the TV, and allow it to install apps (Settings → Apps → Security & restrictions → Unknown sources → Downloader).
-3. **In Downloader**, type `github.com/faizaldjoo/weatherglass-tv/releases/latest/download/WeatherglassTV.apk` and install it.
-4. **Open Weatherglass TV** → *Home Screen* → *Weatherglass TV*, and accept the debugging prompt (tick *Always allow*).
-5. **Your city:** Settings → Widgets → City.
-
-It works on TVs that open debugging on the network when USB debugging is on (TCL, Hisense and many others). On TVs that only offer *Wireless debugging* with a pairing code, it can't switch yet. To have your own TMDB key, camera or name in it, build it yourself (below).
 
 ### The easy way: an AI assistant
 
@@ -135,10 +123,10 @@ You need a Samsung TV from 2017 or newer (Tizen 3+) and a computer on the same W
 
 1. **On the TV**, open **Apps** and type `1 2 3 4 5` on the remote. Turn **Developer mode** on, type your computer's IP address in **Host PC IP**, and restart the TV.
 2. **On your computer**, download [TizenBrew Installer](https://github.com/reisxd/TizenBrewInstaller/releases/latest), the community's installer for Samsung TVs, open it and connect to your TV.
-3. **Install from GitHub:** type `simbasjungles/free-my-tv`. On 2023 and newer TVs it asks you to sign in to your Samsung account once, to sign the app for your TV.
-4. **Straight to it:** in the TV's settings, under Start Screen Options, turn on **Autorun Last App**: the TV turns on into Free My TV.
+3. **Install from GitHub:** type `faizaldjoo/weatherglass-tv` (once a release is published; until then, build it yourself as below). On 2023 and newer TVs it asks you to sign in to your Samsung account once, to sign the app for your TV.
+4. **Straight to it:** in the TV's settings, under Start Screen Options, turn on **Autorun Last App**: the TV turns on into Weatherglass TV.
 
-This build takes your city from the TV's time zone. For your exact city and the trending picks, build it with your own `config.properties` and [TMDB key](#the-tmdb-key): open the folder in Claude Code and say *"Install Free My TV on my Samsung TV at 192.168.1.50. I live in Lisbon."* It sets up Samsung's tools, and on 2023 and newer TVs you sign in to your Samsung account in the browser to make the certificate. Your signed build installs with `python3 tizen/install.py 192.168.1.50`, which needs only Python: no Tizen Studio, and no Rosetta on Apple Silicon Macs.
+This build takes your city from the TV's time zone. For your exact city and the trending picks, build it with your own `config.properties` and [TMDB key](#the-tmdb-key): open the folder in Claude Code and say *"Install Weatherglass TV on my Samsung TV at 192.168.1.50. I live in Lisbon."* It sets up Samsung's tools, and on 2023 and newer TVs you sign in to your Samsung account in the browser to make the certificate. Your signed build installs with `python3 tizen/install.py 192.168.1.50`, which needs only Python: no Tizen Studio, and no Rosetta on Apple Silicon Macs.
 
 ## Settings
 
