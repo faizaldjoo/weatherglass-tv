@@ -51,6 +51,35 @@ Modified by xACTDx · English and Bahasa Indonesia
 
 Everything else is Free My TV's work.
 
+## Screenshots
+
+<sub>Screen captures from a TCL Google TV, as it looks on the TV.</sub>
+
+<p align="center"><img src=".github/screens/live-golden-hour.webp" width="760" alt="Weatherglass TV, Live wallpaper in the late afternoon: a low orange sun over ink mountains, glass clock, weather and date widgets, rates and the shelf"><br><sub><b>Live wallpaper,</b> late afternoon: the sun low over the ink mountains, your apps on the glass shelf.</sub></p>
+
+<table>
+<tr>
+<td width="50%"><img src=".github/screens/live-sunset.webp" alt="Live wallpaper in light mode with a red sun high in a cream sky"><br><sub><b>Light.</b> The sky follows your city's real time of day.</sub></td>
+<td width="50%"><img src=".github/screens/live-rain.webp" alt="Live wallpaper with rain falling and drops on the glass"><br><sub><b>Raining outside, raining on screen.</b> The weather is the real weather where you live.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src=".github/screens/live-night.webp" alt="Live wallpaper at night with a full moon and stars"><br><sub><b>Night.</b> Dark by itself after sunset, with the moon and stars.</sub></td>
+<td width="50%"><img src=".github/screens/settings-theme.webp" alt="The Theme section of the settings drawer: Theme, Motion, Sky preview, Light or dark, Clock widget, Glass"><br><sub><b>Theme settings.</b> Preview any sky, pick light or dark, the clock's size, frosted or clear glass.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src=".github/screens/movie-popular.webp" alt="Movie theme: Spider-Man: Brand New Day artwork full screen with its card on the deck"><br><sub><b>Movie.</b> The film's artwork fills the screen; its card waits on the deck. OK plays the trailer.</sub></td>
+<td width="50%"><img src=".github/screens/movie-popular-2.webp" alt="Movie theme: Clayface artwork with its card, Popular selected"><br><sub><b>Popular,</b> with what's popular on Netflix in your country mixed in. The deck deals the next film by itself.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src=".github/screens/movie-upcoming.webp" alt="Movie theme, Upcoming: an Indonesian film with a Coming soon badge and its release day"><br><sub><b>Upcoming,</b> with the release day where you live. Clock, weather and the next prayer stay in the corner.</sub></td>
+<td width="50%"><img src=".github/screens/lite.webp" alt="Lite theme: a dark aurora, the greeting, a large clock, date, weather, city and the next prayer, the shelf"><br><sub><b>Lite.</b> For TVs with 1 GB of memory: an aurora drawn once, the clock as text, nothing that moves.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src=".github/screens/lite-screensaver.webp" alt="Lite screensaver: the clock, date, weather and prayer on a dimmed aurora"><br><sub><b>Lite screensaver.</b> The clock drifts slowly on the dimmed aurora, once a minute.</sub></td>
+<td width="50%"><img src=".github/screens/settings-lite.webp" alt="The settings drawer over Lite: Home Screen, Screensaver, Appearance, Theme, Widgets, Shelf, Remote Buttons, TV Status, About, TV Settings"><br><sub><b>Settings,</b> in a drawer over the home screen. TV Status shows memory, storage, network and CPU.</sub></td>
+</tr>
+</table>
+
 ## Install
 
 About ten minutes. You need a Google TV or Android TV (Android 9 or newer) and a computer on the same Wi-Fi.
