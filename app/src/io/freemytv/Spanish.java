@@ -6,6 +6,13 @@ final class Spanish {
 
     static String text(String english) {
         switch (english) {
+            case "In cinemas": return "En cines";
+            case "Coming soon": return "Próximamente";
+            case "No trailer for this film yet.": return "Esta película aún no tiene tráiler.";
+            case "Loading films…": return "Cargando películas…";
+            case ". OK opens the trailer": return ". OK abre el tráiler";
+            case "With Motion on, the film's artwork drifts slowly.": return "Con Movimiento activado, la imagen de la película se mueve despacio.";
+            case "Movie": return "Película";
             case "Live TV": return "TV en vivo";
             case "All Apps": return "Todas las apps";
             case "Settings": return "Ajustes";

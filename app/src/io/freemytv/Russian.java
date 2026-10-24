@@ -13,6 +13,13 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "In cinemas": return "В кино";
+            case "Coming soon": return "Скоро";
+            case "No trailer for this film yet.": return "У этого фильма пока нет трейлера.";
+            case "Loading films…": return "Загружаем фильмы…";
+            case ". OK opens the trailer": return ". OK открывает трейлер";
+            case "With Motion on, the film's artwork drifts slowly.": return "Когда движение включено, кадр из фильма медленно движется.";
+            case "Movie": return "Фильм";
             case "Live TV": return "Телеканалы";
             case "All Apps": return "Приложения";
             case "Settings": return "Настройки";

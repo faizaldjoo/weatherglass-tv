@@ -9,6 +9,12 @@ final class Indonesian {
 
     static String text(String english) {
         switch (english) {
+            case "In cinemas": return "Di bioskop";
+            case "Coming soon": return "Segera tayang";
+            case "No trailer for this film yet.": return "Film ini belum punya trailer.";
+            case "Loading films…": return "Memuat film…";
+            case ". OK opens the trailer": return ". OK membuka trailer";
+            case "With Motion on, the film's artwork drifts slowly.": return "Dengan Gerakan aktif, gambar film bergerak perlahan.";
             case " Next hours: ": return " Beberapa jam ke depan: ";
             case " Sunrise ": return " Matahari terbit ";
             case " Sunset ": return " Matahari terbenam ";
@@ -115,7 +121,7 @@ final class Indonesian {
             case "Original": return "Asli";
             case "PRAYER TIMES": return "JADWAL SALAT";
             case "Partly cloudy": return "Berawan sebagian";
-            case "Pick photos": return "Foto rekomendasi";
+            case "Movie": return "Film";
             case "Preview": return "Pratinjau";
             case "Prime Video button": return "Tombol Prime Video";
             case "QUOTES": return "HARGA";

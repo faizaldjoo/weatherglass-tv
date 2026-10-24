@@ -96,13 +96,15 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private static final float L_PLATTER_TOP = 814, L_TILE_H = 126;
     private static final float L_DATE_BASE = 330, L_CLOCK_BASE = 540, L_WEATHER_BASE = 626, L_QUOTES_BASE = 694;
     private static final int L_INK = 0xFF1D1D1F, L_DIM = 0xFF6E6E73, L_FAINT = 0xFF8E8E93;
-    private static final String[] TABS = {"Explorar", "Filmes", "Séries"};
-    private static final String[] TABS_RU = {"Обзор", "Фильмы", "Сериалы"};
-    private static final String[] TABS_EN = {"Explore", "Movies", "Shows"};
-    private static final String[] TABS_ID = {"Jelajah", "Film", "Serial"};
-    private static final String[] TABS_ES = {"Explorar", "Películas", "Series"};
-    private static final String[] TABS_DE = {"Entdecken", "Filme", "Serien"};
-    private static final String[] TAB_KIND = {null, "movie", "tv"};
+    // For You's categories: TMDB's movie lists (Recs.LISTS)
+    private static final String[] TABS = {"Populares", "Em cartaz", "Em breve", "Mais bem avaliados"};
+    private static final String[] TABS_RU = {"Популярные", "Сейчас в кино", "Скоро", "Лучшие"};
+    private static final String[] TABS_EN = {"Popular", "Now Playing", "Upcoming", "Top Rated"};
+    private static final String[] TABS_ID = {"Populer", "Tayang", "Segera", "Terbaik"};
+    private static final String[] TABS_ES = {"Populares", "En cines", "Próximamente", "Mejor valoradas"};
+    private static final String[] TABS_DE = {"Beliebt", "Im Kino", "Demnächst", "Bestbewertet"};
+    /** The categories come first in the top row (0 to 3), then the corner buttons; the row holds up to ROW_MAX films. */
+    private static final int CATS = 4, ROW_MAX = 15;
     private static final int Z_TOP = 4, Z_CARDS = 5;
 
     private final Activity activity;
@@ -150,9 +152,39 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private List<Recs.Pick> cards = new ArrayList<>();
     private final Spring[] topFocus = new Spring[7];
     private final RectF[] topRects = new RectF[7];   // the 3 tabs, then the corner buttons (sound, Live TV, HDMI, Settings)
-    private final Spring[] cardFocus = new Spring[3];
-    private final RectF[] cardRects = new RectF[3];
+    private final Spring[] cardFocus = new Spring[ROW_MAX];
+    private final RectF[] cardRects = new RectF[ROW_MAX];
     private final List<HomeApps.Item> lightButtons = new ArrayList<>();
+    // For You on the Movie wallpaper (the prototype's layout at 1920 × 1080): the category pill level with the buttons,
+    // the film's text on the left, the row over the shelf, the artwork on the right
+    private static final float FY_PILL_H = 72, FY_CAT_H = 56, FY_CAT_PAD = 26, FY_INFO_TOP = 176, FY_INFO_W = 780,
+            FY_STORY_W = 640, FY_ROW_TOP = 546, FY_POSTER_W = 152, FY_CARD_H = 228, FY_LAND_W = 406, FY_GAP = 22,
+            FY_ART_X = 540, FY_ART_W = 1380, FY_ART_H = 860, FY_PRAYER_CY = 176;
+    private static final int FY_BASE = 0xFF0D0F15, FY_SOFT = 0xBDFFFFFF;
+    private static final long ART_FADE_MS = 900, RISE_MS = 700, RISE_STEP = 70, BREATHE_MS = 22_000;
+    private final RectF catPill = new RectF(), catLight = new RectF(), capsule = new RectF();
+    private final Spring catSlide = new Spring(0.3f, 0.86f, 0), catSlideW = new Spring(0.3f, 0.86f, 0);
+    private final Spring rowScroll = new Spring(0.3f, 0.9f, 0), rowZone = new Spring(0.3f, 0.86f, 0);
+    private Paint fyCat, fyMeta, fyBadge, fyChip, fyClock, fyCapsule, fyPrayer, fyService;
+    private TextPaint fyTitle, fyStory;
+    private final Paint fyRing = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private Recs.Pick bill;            // the film on the billboard
+    private boolean billDetailed;
+    private Recs.Art artFrom, artTo;
+    private long artFadeAt, infoAt = -10_000, rowAt = -10_000;
+    private StaticLayout billTitle, billStory;
+    private String billBadge = "", billMeta = "";
+    private float billServiceY, billTitleY, billMetaY, billStoryY;   // where each line starts
+    private LinearGradient fyMaskShader, fyFadeShader;
+    private RadialGradient fyWashShader;
+    private final Matrix fyMatrix = new Matrix(), artMatrix = new Matrix();
+    private final Paint fyPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
+    private final Paint fyShade = new Paint(Paint.DITHER_FLAG);
+    private float fyShaderK = -1;
+    private String capTemp = "", capCity = "", capSymbol = "", capLang = "";
+    private long capWeatherAt = -2;
+    private int capPrefs = -1;
+    private final Map<String, Bitmap> serviceLogos = new HashMap<>();
     private Paint lTitle, lTab, lTabOn, lCardTitle, lCardMeta, lQuote, lTip, lDate, lClock, lWeather, lClockQuote, lWave;
     private Shader lightGradient;
 
@@ -221,7 +253,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     // Prayer times (Config.PRAYER_TIMES): today's five and the next one, worked out again each minute.
     private long[] prayerToday;
     private long prayerNextAt, prayerMinute = -1;
-    private int prayerNext = -1;
+    private int prayerNext = -1, prayerNextIndex;
     private String prayerLine = "", prayerCountdown = "";
     private final String[] prayerTimeText = new String[5];
     private final Spring drawer = new Spring(0.46f, 0.92f, 0);
@@ -446,8 +478,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             topFocus[i] = new Spring(0.26f, 0.85f, 0);
             topRects[i] = new RectF();
         }
-        for (int i = 0; i < 3; i++) {
-            cardFocus[i] = new Spring(0.32f, 0.78f, 0);
+        for (int i = 0; i < ROW_MAX; i++) {
+            cardFocus[i] = new Spring(0.3f, 0.86f, 0);
             cardRects[i] = new RectF();
         }
         makeLightButtons();
@@ -488,7 +520,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             if (bgTo != null) showBackdrop(null);
             skyNight = skyIsNight() ? 1 : 0;   // a Sky preview picked in Settings shows straight away
             neutralGlass();
-        } else {
+        } else if (!picksOn()) {
             Recs.Pick pick = currentPick();
             Backdrop b = pick == null ? null : recs.backdrop(pick);
             if (b != null) showBackdrop(b);
@@ -610,6 +642,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             updatePicks();
         }
         if (tab != 0) selectTab(0);
+        cardIndex = 0;   // For You starts again from its first film
         retarget(!animated);
         motionDirty = true;
     }
@@ -740,6 +773,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         lWeather = Ui.text(Ui.medium, 34 * k, L_DIM);
         lClockQuote = Ui.numbers(Ui.medium, 28 * k, L_DIM);
         lAmPm = Ui.text(Ui.medium, 56 * k, L_INK);
+        makeForYouPaints();
         lightGradient = null;
         buttonPaint = Ui.text(Ui.semibold, 29 * k, INK);
         capsuleText = Ui.numbers(Ui.medium, 29 * k, 0xF2FFFFFF);
@@ -796,6 +830,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         boolean statusMoving = step(statusFocus, dt);
         boolean heroMoving = heroFocus.step(dt);
         boolean topMoving = step(topFocus, dt), cardsMoving = step(cardFocus, dt);
+        cardsMoving |= catSlide.step(dt) | catSlideW.step(dt) | rowScroll.step(dt) | rowZone.step(dt);
         if (topMoving) status.invalidate();
         heroMoving |= topMoving | cardsMoving;
         boolean drawerItemsMoving = step(drawerFocus, dt);
@@ -838,6 +873,31 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             skyBusy = sliding;
             if (!sliding && animating) skyWait = Math.max(1, frame - (up - skyDrawnAt));
         }
+        // For You: the artwork crossfades, then breathes at 20 frames a second (it drifts a few pixels a second); the
+        // film's text rises in and the row slides in at full speed
+        boolean rising = false;
+        if (picksOn()) {
+            boolean fading = artFadeAt != 0;
+            if (fading && up - artFadeAt >= ART_FADE_MS) {
+                artFadeAt = 0;
+                artFrom = null;
+                fading = false;
+                frostStale = true;   // the frosted glass takes the new artwork
+                sky.invalidate();
+                heroLayer.invalidate();
+                platter.invalidate();
+                status.invalidate();
+            }
+            boolean breathing = artTo != null && Prefs.wallpaperMotion() && sheet.value < 0.5f;
+            if (fading || breathing && up - skyDrawnAt >= 50) {
+                sky.invalidate();
+                skyDrawnAt = up;
+            }
+            skyBusy = fading;
+            if (!fading && breathing) skyWait = Math.max(1, 50 - (up - skyDrawnAt));
+            rising = up - infoAt < RISE_MS + 4 * RISE_STEP || up - rowAt < RISE_MS + 8 * 50;
+            if (rising) heroLayer.invalidate();
+        }
         if (drawerMoving || sheetMoving || motionDirty) updateMotion();
         // Opening and closing the drawer only moves the cached layers: redrawing the glass on every frame made the TV
         // drop frames (measured: ~50 ms of GPU per frame). The app tiles have no glass; the top buttons fade out as
@@ -877,7 +937,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         }
 
         // Busy: something is moving, or the sheet or the drawer is open.
-        boolean busy = waving || tilesMoving || statusMoving || heroMoving || drawerItemsMoving || gridMoving || drawerMoving
+        boolean busy = waving || rising || tilesMoving || statusMoving || heroMoving || drawerItemsMoving || gridMoving || drawerMoving
                 || sheetMoving || toastFading || heroFading || bgFading || nightMoving || sheetOpen || sheet.value > 0.001f
                 || drawerOpen || drawer.value > 0.001f || toast != null || !toasts.isEmpty() || skyBusy;
         idle = !busy;
@@ -1079,7 +1139,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void checkNight(boolean animate) {
         // Rain and storms darken the weather sky enough for white text; on the ink mountains only storms do.
         boolean dark = inkOn() ? WeatherSky.kind(skyCode()) == WeatherSky.STORM : WeatherSky.dark(skyCode());
-        boolean want = skyIsNight() || skyOn() && Prefs.theme().equals("auto") && dark;
+        // The Movie wallpaper is a dark billboard at any hour: white text, smoked glass
+        boolean want = picksOn() || skyIsNight() || skyOn() && Prefs.theme().equals("auto") && dark;
         if (want == nightTarget) return;
         nightTarget = want;
         if (animate && running) {
@@ -1483,7 +1544,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         Paint text = clock ? lClockQuote : lQuote;
         // The corner buttons' names appear in this row: the quotes fade out while one of them has focus.
         float fade = 1;
-        for (int i = 3; i < 7 && !clock; i++) fade = Math.min(fade, 1 - Ui.clamp(topFocus[i].value));
+        for (int i = CATS; i < CATS + lightButtons.size() && !clock; i++) fade = Math.min(fade, 1 - Ui.clamp(topFocus[i].value));
         if (fade <= 0.01f) return;
         int textColor = text.getColor();
         text.setColor(Ui.alpha(textColor, fade));
@@ -1779,7 +1840,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         float dk = dark();
         // Frosted, like the shelf and the clock cards (Settings → Appearance → Glass)
         // (or, without the Liquid Glass shader, the same light transparent glass as theirs)
-        if ((!Prefs.glass().equals("clear") && skyOn()) || !scene.hasLiquid()) {
+        if ((!Prefs.glass().equals("clear") && (skyOn() || picksOn())) || !scene.hasLiquid()) {
             tmp.set(r);
             tmp.offset(0, drop);
             shadow.setColor(Ui.alpha(shadowColor, 1 - dk * 0.5f));
@@ -2082,7 +2143,12 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         heroFocus.target = !sheetOpen && zone == Z_HERO ? 1 : 0;
         if (snap) heroFocus.snap(heroFocus.target);
         boolean topChanged = aim(topFocus, !sheetOpen && zone == Z_TOP ? topIndex : -1, snap);
-        heroChanged |= aim(cardFocus, !sheetOpen && zone == Z_CARDS ? cardIndex : -1, snap) | topChanged;
+        // For You: the selected film stays wide wherever the focus is (the row only dims its ring)
+        heroChanged |= aim(cardFocus, picksOn() && !cards.isEmpty() ? cardIndex : -1, snap) | topChanged;
+        if (picksOn()) {
+            aimRow(snap);
+            syncBill();
+        }
         statusChanged |= topChanged;
         tilesDirty |= snap || tilesChanged;
         statusDirty |= snap || statusChanged;
@@ -2536,15 +2602,21 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             it = drawerItems.get(drawerIndex);
             r = drawerRects[drawerIndex];
         } else if (zone == Z_TOP) {
-            if (topIndex < 3) {
+            if (topIndex < CATS) {
                 selectTab(topIndex);
                 return;
             }
-            it = lightButtons.get(topIndex - 3);
+            it = lightButtons.get(topIndex - CATS);
             r = topRects[topIndex];
         } else if (zone == Z_CARDS) {
             Recs.Pick p = cardIndex < cards.size() ? cards.get(cardIndex) : null;
-            if (p == null || p.pkg == null) return;
+            if (p == null) return;
+            if (p.pkg == null) {
+                // Not on one of the TV's services (yet): its trailer on YouTube
+                click.open();
+                if (!Recs.openTrailer(activity, p)) showToast(Ui.tr("Este filme ainda não tem trailer.", "No trailer for this film yet."));
+                return;
+            }
             it = HomeApps.app(p.pkg, Recs.serviceName(p), p.link);
             r = cardRects[cardIndex];
         } else {
@@ -2807,8 +2879,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             for (int i = 0; i < others.size(); i++) out.add(a11yId(GRID, i));
             return;
         }
-        for (int i = picksOn() ? 0 : 3; i < 3 + lightButtons.size(); i++) out.add(a11yId(Z_TOP, i));
-        for (int i = 0; i < Math.min(3, cards.size()); i++) out.add(a11yId(Z_CARDS, i));
+        for (int i = picksOn() ? 0 : CATS; i < CATS + lightButtons.size(); i++) out.add(a11yId(Z_TOP, i));
+        for (int i = 0; i < cards.size(); i++) out.add(a11yId(Z_CARDS, i));
         for (int i = 0; i < shelf.size(); i++) out.add(a11yId(Z_SHELF, i));
         for (int i = 0; i < drawerItems.size(); i++) out.add(a11yId(Z_DRAWER, i));
         if (drawerOpen && Prefs.weather()) out.add(a11yId(WIDGETS, 0));
@@ -2822,8 +2894,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 if (i >= others.size()) return "";
                 return label(others, i) + ", " + (i + 1) + Ui.tr(" de ", " of ") + others.size();
             case Z_TOP:
-                if (i >= 3) return label(lightButtons, i - 3);
-                return tabs()[i] + Ui.tr(", aba ", ", tab ") + (i + 1) + Ui.tr(" de 3", " of 3");
+                if (i >= CATS) return label(lightButtons, i - CATS);
+                return tabs()[i] + Ui.tr(", aba ", ", tab ") + (i + 1) + Ui.tr(" de ", " of ") + CATS;
             case Z_CARDS: return i < cards.size() ? pickText(cards.get(i)) : "";
             case Z_SHELF:
                 if (reordering && i == shelfIndex) {
@@ -2855,12 +2927,12 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 break;
             }
             case Z_TOP:
-                if (i >= 3 + lightButtons.size()) return false;
+                if (i >= CATS + lightButtons.size()) return false;
                 a11yRect.set(topRects[i]);
-                dy = (i < 3 ? heroLayer : status).getTranslationY();
+                dy = (i < CATS ? heroLayer : status).getTranslationY();
                 break;
             case Z_CARDS:
-                if (i >= Math.min(3, cards.size())) return false;
+                if (i >= cards.size()) return false;
                 a11yRect.set(cardRects[i]);
                 dy = heroLayer.getTranslationY();
                 break;
@@ -2942,10 +3014,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 widgetIndex = i;
                 break;
             case Z_TOP:
-                if (i >= 3 + lightButtons.size() || (i < 3 && !picksOn())) return;
+                if (i >= CATS + lightButtons.size() || (i < CATS && !picksOn())) return;
                 if (drawerOpen) closeDrawer();
                 topIndex = i;
-                if (i < 3) selectTab(i);
+                if (i < CATS) selectTab(i);
                 break;
             case Z_CARDS:
                 if (i >= cards.size()) return;
@@ -2974,6 +3046,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (p == null) return "";
         StringBuilder s = new StringBuilder(p.title == null ? "" : p.title);
         if (p.meta != null && !p.meta.isEmpty()) s.append(", ").append(p.meta);
+        if (p.info != null && !p.info.isEmpty()) s.append(", ").append(p.year).append(", ").append(p.info);
+        if (p.pkg == null && p.trailer != null) s.append(Ui.tr(". OK abre o trailer", ". OK opens the trailer"));
         String app = Recs.serviceName(p);
         if (app != null && !app.isEmpty()) s.append(". App: ").append(app);
         return s.toString();
@@ -3014,47 +3088,59 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     private void layoutLight() {
         if (lTab == null) return;
-        // Text tabs; the focus pill extends 26 px past the text (the first tab's text starts at the margin).
-        float pad = 26 * k, tabTop = L_TABBAR_TOP * k, tabBottom = (L_TABBAR_TOP + L_TABBAR_H) * k;
-        float x = MARGIN * k - pad;
-        for (int i = 0; i < 3; i++) {
-            float tw = Math.max(lTabOn.measureText(tabs()[i]), lTab.measureText(tabs()[i]));
-            topRects[i].set(x, tabTop, x + tw + 2 * pad, tabBottom);
-            x = topRects[i].right + 4 * k;
-        }
         float b = L_BUTTON * k, right = CONTENT_R * k, cy = L_BUTTON_CY * k;
         for (int i = lightButtons.size() - 1; i >= 0; i--) {
-            topRects[3 + i].set(right - b, cy - b / 2, right, cy + b / 2);
+            topRects[CATS + i].set(right - b, cy - b / 2, right, cy + b / 2);
             right -= b + L_BUTTON_GAP * k;
         }
-        float top = L_CARDS_TOP * k, ch = L_CARD_H * k, g = L_CARD_GAP * k, left = MARGIN * k, tall = L_TALL_W * k;
-        float wide = (CONTENT_R - MARGIN) * k - 2 * tall - 2 * g;
-        cardRects[0].set(left, top, left + wide, top + ch);
-        cardRects[1].set(cardRects[0].right + g, top, cardRects[0].right + g + tall, top + ch);
-        cardRects[2].set(cardRects[1].right + g, top, cardRects[1].right + g + tall, top + ch);
+        // For You's categories in one glass pill, level with the buttons: 8 of padding, the names 26 past each side
+        float pad = FY_CAT_PAD * k, ph = FY_PILL_H * k, ch = FY_CAT_H * k;
+        float x = MARGIN * k + 8 * k;
+        for (int i = 0; i < CATS; i++) {
+            float tw = fyCat.measureText(tabs()[i]);
+            topRects[i].set(x, cy - ch / 2, x + tw + 2 * pad, cy + ch / 2);
+            x = topRects[i].right + 4 * k;
+        }
+        catPill.set(MARGIN * k, cy - ph / 2, x - 4 * k + 8 * k, cy + ph / 2);
+        catSlide.snap(topRects[tab].centerX() / k);
+        catSlideW.snap(topRects[tab].width() / k);
+        layoutBill();
         heroDirty = statusDirty = true;
     }
 
-    /** The three cards of the current tab (Explore, Movies, Shows) and the background taken from the first one. */
+    /** The films of the current category (Recs.movies) and the billboard of the selected one. */
     private void updateCards() {
-        // No picks shown (no key, or the ink mountains): no cards either, so ↑ from the shelf goes straight to the buttons
-        List<Recs.Pick> list = picksOn() ? recs.now(TAB_KIND[tab]) : new ArrayList<>();
+        if (picksOn()) {
+            List<Recs.Pick> list = recs.movies(tab);
+            if (list.size() > ROW_MAX) list = new ArrayList<>(list.subList(0, ROW_MAX));
+            if (!samePicks(list, cards)) {
+                cardIndex = cards.isEmpty() ? 0 : Math.min(cardIndex, Math.max(0, list.size() - 1));
+                rowAt = SystemClock.uptimeMillis();
+                if (zone == Z_CARDS && list.isEmpty()) {
+                    zone = Z_SHELF;
+                    retarget(false);
+                }
+            }
+            cards = list;   // the same films may come back with their details: keep the newest
+            for (Recs.Pick p : cards) recs.smallPoster(p);
+            heroDirty |= aim(cardFocus, cards.isEmpty() ? -1 : cardIndex, false);
+            aimRow(false);
+            syncBill();
+            heroDirty = statusDirty = true;
+            spoken.focusMoved();
+            return;
+        }
+        // No picks shown (no key, or the sky wallpapers): no cards either, so ↑ from the shelf goes straight to the buttons
+        List<Recs.Pick> list = new ArrayList<>();
         if (!samePicks(list, cards)) {
             cards = list;
-            cardIndex = Math.min(cardIndex, Math.max(0, list.size() - 1));
-            if (zone == Z_CARDS && list.isEmpty()) {
+            cardIndex = 0;
+            if (zone == Z_CARDS) {
                 zone = Z_SHELF;
                 retarget(false);
             }
         }
-        if (picksOn()) {
-            for (Recs.Pick p : recs.wanted()) {   // all three tabs preloaded: switching tabs is instant
-                recs.backdrop(p);
-                recs.poster(p);
-            }
-        }
-        Backdrop b = cards.isEmpty() ? null : recs.backdrop(cards.get(0));
-        if (cards.isEmpty() || b != null) showBackdrop(b);
+        showBackdrop(null);
         heroDirty = true;
         spoken.focusMoved();    // new picks under the focused card
     }
@@ -3062,7 +3148,12 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private void selectTab(int index) {
         if (index == tab) return;
         tab = index;
+        cardIndex = 0;
+        cards = new ArrayList<>();   // the new category's films slide in
+        catSlide.target = topRects[tab].centerX() / k;
+        catSlideW.target = topRects[tab].width() / k;
         updateCards();
+        retarget(false);
         heroDirty = true;
     }
 
@@ -3072,6 +3163,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      */
     private void drawLightSky(Canvas c) {
         long up = SystemClock.uptimeMillis();
+        if (picksOn()) {
+            drawBillboard(c, up);
+            return;
+        }
         if (skyOn()) {
             if (skyNight < 0) skyNight = skyIsNight() ? 1 : 0;
             if (inkOn()) inkSky.draw(c, skyCode(), inkHour(), up, skyParallax, Prefs.wallpaperMotion());
@@ -3126,42 +3221,12 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             drawClockCards(c);
             return;   // the rates are drawn with the shelf (drawPlatter): this layer ends above it
         }
-        String hello = Ui.tr("Para você", "For You");
-        c.drawText(hello, MARGIN * k - Ui.leftBearing(lTitle, hello), L_TITLE_BASE * k, lTitle);
-        // Text tabs (the selected one in bold, in the main text color); with focus on the tabs, the selected one gets
-        // the white pill with a shadow and grows a little (the tvOS focus).
-        float focus = Ui.clamp(topFocus[tab].value);
-        for (int i = 0; i < 3; i++) {
-            RectF r = topRects[i];
-            if (i == tab && focus > 0.01f) {
-                float s = 1 + 0.05f * focus;
-                cell.set(r.centerX() - r.width() * s / 2, r.centerY() - r.height() * s / 2,
-                        r.centerX() + r.width() * s / 2, r.centerY() + r.height() * s / 2);
-                float rr = cell.height() / 2;
-                if (focus > 0.01f) {
-                    tmp.set(cell);
-                    tmp.offset(0, 8 * k * focus);
-                    shadow.setColor(Ui.alpha(0xFF000000, tone(0.22f, 0.4f) * focus));
-                    shadows.draw(c, tmp, rr, SHADOW_BLUR * k, shadow);
-                }
-                fill.setShader(null);
-                fill.setColor(Ui.alpha(0xFFFFFFFF, focus));
-                c.drawRoundRect(cell, rr, rr, fill);
-            }
-            Paint p = i == tab ? lTabOn : lTab;
-            if (i == tab) lTabOn.setColor(blend(tone(L_INK, WHITE), L_INK, focus));   // always dark on the white pill
-            c.drawText(tabs()[i], r.centerX() - p.measureText(tabs()[i]) / 2, r.centerY() + Ui.halfCap(p), p);
-        }
-        int top = -1;
-        for (int i = 0; i < 3; i++) if (cardFocus[i].value > 0.02f && (top < 0 || cardFocus[i].value > cardFocus[top].value)) top = i;
-        for (int i = 0; i < 3; i++) if (i != top) drawLightCard(c, i);
-        if (top >= 0) drawLightCard(c, top);
-        if (HomeData.coinCount() > 0) drawQuotes(c);
+        drawForYou(c);
     }
 
-    /** The For You picks (tabs and cards): with a TMDB key, and not over the ink mountains (that wallpaper stays clear). */
+    /** For You (categories, billboard and the row of films): the Movie wallpaper, with a TMDB key. */
     private boolean picksOn() {
-        return Recs.hasKey(getContext()) && !inkOn();
+        return Recs.hasKey(getContext()) && Prefs.wallpaper().equals("photos");
     }
 
     /** Lays the cards out again when anything they show changes (text, weather, prayer, text size, language, size). */
@@ -3321,7 +3386,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
 
     /** The frosted sky behind the cards, made again if it is older than 30 s or the glass changed. False: not available. */
     private boolean frost(String glass) {
-        if (frostFailed || !skyOn() || w == 0) return false;   // photo backgrounds live on the GPU: no frost from them
+        if (frostFailed || (!skyOn() && !picksOn()) || w == 0) return false;   // photo backgrounds live on the GPU: no frost from them
         long up = SystemClock.uptimeMillis();
         if (glass.equals(frostFor) && frostAt >= 0 && up - frostAt < 30_000 && frostImage != null && !frostStale) return true;
         frostStale = false;
@@ -3560,7 +3625,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         prayerMinute = minute;
         prayerToday = PrayerTimes.times(lat, lon, now, 0);
         long[] next = PrayerTimes.next(lat, lon, now);
-        prayerNext = (int) next[0];
+        prayerNext = prayerNextIndex = (int) next[0];
         prayerNextAt = next[1];
         // Tomorrow's Subuh (after Isya): no row of today's list is "next".
         if (prayerNextAt != prayerToday[prayerNext]) prayerNext = -1;
@@ -3579,73 +3644,521 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         return String.format(java.util.Locale.ROOT, "%02d:%02d", cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE));
     }
 
+    // MARK: - For You (the Movie wallpaper): billboard, categories, the row of films, the top right
+
+    /** Paints, gradients and the layout's text for For You (made with the other paints, for the UI's size). */
+    private void makeForYouPaints() {
+        fyCat = Ui.text(Ui.medium, 26 * k, 0xFFFFFFFF);
+        fyTitle = new TextPaint(Ui.text(Ui.displaySemibold, 70 * k, 0xFFFFFFFF));
+        fyTitle.setLetterSpacing(-0.02f);
+        fyTitle.setShadowLayer(24 * k, 0, 2 * k, 0x59000000);
+        fyMeta = Ui.numbers(Ui.medium, 24 * k, FY_SOFT);
+        fyBadge = Ui.numbers(Ui.semibold, 18 * k, 0xFFFFFFFF);
+        fyStory = new TextPaint(Ui.text(Ui.regular, 24 * k, FY_SOFT));
+        fyStory.setShadowLayer(18 * k, 0, 1 * k, 0x59000000);
+        fyChip = Ui.text(Ui.semibold, 15 * k, 0xFFFFFFFF);
+        fyService = Ui.text(Ui.semibold, 26 * k, 0xFFFFFFFF);
+        fyClock = Ui.numbers(Ui.semibold, 28 * k, 0xFFFFFFFF);
+        fyCapsule = Ui.numbers(Ui.medium, 26 * k, 0xFFFFFFFF);
+        fyPrayer = Ui.numbers(Ui.medium, 24 * k, 0xFFFFFFFF);
+        fyPrayer.setShadowLayer(16 * k, 0, 1 * k, 0x66000000);
+        fyRing.setStyle(Paint.Style.STROKE);
+        fyShaderK = -1;
+    }
+
+    /** Tints of the dark backdrop the artwork fades into (the prototype's #0D0F15). */
+    private static int base(float alpha) {
+        return Ui.alpha(FY_BASE, alpha);
+    }
+
     /**
-     * Recommendation card: the title's photo (already at the focused card size, so it stays sharp), rounded corners and
-     * a soft shadow; when focused, it grows 5%, rises and lights up its border. Below it, the title (and on the large
-     * card, genre · runtime · service).
+     * The billboard, behind everything (the sky layer): the dark backdrop, the selected film's artwork on the right
+     * (crossfading to the next, breathing while you rest on it), fading into the dark on the left and toward the shelf.
+     * The fades are drawn on top in the backdrop's color, so no offscreen mask is needed. The frost (a software canvas)
+     * reads the artwork's small copy.
      */
-    private void drawLightCard(Canvas c, int i) {
-        RectF base = cardRects[i];
-        Recs.Pick p = i < cards.size() ? cards.get(i) : null;
-        float v = cardFocus[i].value, f = Ui.clamp(v), s = 1 + 0.05f * v;
-        float bw = base.width(), bh = base.height(), r0 = 18 * k;
-        float cx = base.centerX(), cy = base.centerY() - 6 * k * v;
-        cell.set(cx - bw * s / 2, cy - bh * s / 2, cx + bw * s / 2, cy + bh * s / 2);
-        float r = r0 * s;
-        c.save();
-        c.translate(cx, cy);
-        c.scale(s, s);
-        tmp.set(-bw / 2, -bh / 2, bw / 2, bh / 2);
-        tmp.offset(0, (10 + 14 * f) * k);
-        shadowDeep.setColor(Ui.alpha(0xFF000000, tone(0.14f, 0.32f) + tone(0.2f, 0.28f) * f));
-        shadows.draw(c, tmp, r0, DEEP_BLUR * k, shadowDeep);
-        c.restore();
-        Backdrop b = p == null ? null : recs.backdrop(p);
-        // The tall cards show the title's poster; the photo until it has loaded (or if there is none)
-        Bitmap img = i > 0 ? recs.poster(p) : null;
-        if (img == null && b != null) img = i == 0 ? b.wide : b.tall;
-        if (img != null) {
-            roundImage(c, img, cell, r);
-        } else {
-            fill.setShader(null);
-            fill.setColor(tone(0xFFDADADF, 0xFF2C2C2E));
-            c.drawRoundRect(cell, r, r, fill);
+    private void drawBillboard(Canvas c, long up) {
+        boolean gpu = c.isHardwareAccelerated();
+        c.drawColor(FY_BASE);
+        if (fyShaderK != k) {
+            fyShaderK = k;
+            float ax = FY_ART_X * k;
+            fyMaskShader = new LinearGradient(ax, 0, ax + 0.38f * FY_ART_W * k, 0, base(1), base(0), Shader.TileMode.CLAMP);
+            fyWashShader = new RadialGradient(0, 0, 1, new int[] {base(0.85f), base(0)}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
+            fyMatrix.setScale(0.7f * w, 0.6f * h);
+            fyMatrix.postTranslate(0, 0.4f * h);
+            fyWashShader.setLocalMatrix(fyMatrix);
+            fyFadeShader = new LinearGradient(0, 0, 0, h, new int[] {base(0.45f), base(0), base(0), base(1)},
+                    new float[] {0, 0.22f, 0.55f, 0.8f}, Shader.TileMode.CLAMP);
         }
-        if (f > 0.01f) {
-            if (lightSheens.length != cardRects.length) {
-                lightSheens = new LinearGradient[cardRects.length];
-                lightRims = new LinearGradient[cardRects.length];
-                lightShaderW = new float[cardRects.length];
-            }
-            if (lightSheens[i] == null || lightShaderW[i] != bw) {
-                lightSheens[i] = new LinearGradient(-bw / 2, -bh / 2, 0, bh / 2, 0x38FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
-                lightRims[i] = new LinearGradient(0, -bh / 2, 0, bh / 2, 0xE6FFFFFF, 0x59FFFFFF, Shader.TileMode.CLAMP);
-                lightShaderW[i] = bw;
-            }
-            int alpha = Math.round(255 * f);
+        float fade = artFadeAt == 0 ? 1 : fadeEase(artFadeAt, up, ART_FADE_MS);
+        if (artTo != null) {
             c.save();
-            c.translate(cx, cy);
-            c.scale(s, s);
-            tmp.set(-bw / 2, -bh / 2, bw / 2, bh / 2);
-            sheen.setShader(lightSheens[i]);
-            sheen.setAlpha(alpha);
-            c.drawRoundRect(tmp, r0, r0, sheen);
-            sheen.setAlpha(255);
-            rim.setShader(lightRims[i]);
-            rim.setAlpha(alpha);
-            rim.setStrokeWidth(2.5f * k / s);
-            c.drawRoundRect(tmp, r0, r0, rim);
-            rim.setStrokeWidth(2.5f * k);
-            rim.setAlpha(255);
+            c.clipRect(FY_ART_X * k, 0, w, FY_ART_H * k);
+            breathe(gpu && Prefs.wallpaperMotion() ? up : -1);
+            if (artFrom != null && fade < 1) drawArt(c, artFrom, 1, gpu);
+            drawArt(c, artTo, fade, gpu);
+            fyShade.setShader(fyMaskShader);
+            c.drawRect(FY_ART_X * k, 0, (FY_ART_X + 0.38f * FY_ART_W) * k, FY_ART_H * k, fyShade);
             c.restore();
         }
-        if (p == null) return;
-        fitPaint.set(lCardTitle);
-        c.drawText(TextUtils.ellipsize(p.title, fitPaint, bw, TextUtils.TruncateAt.END).toString(), base.left, base.bottom + 46 * k, lCardTitle);
-        if (i == 0 && p.meta != null && !p.meta.isEmpty()) {
-            fitPaint.set(lCardMeta);
-            c.drawText(TextUtils.ellipsize(p.meta, fitPaint, bw, TextUtils.TruncateAt.END).toString(), base.left, base.bottom + 80 * k, lCardMeta);
+        fyShade.setShader(fyWashShader);
+        c.drawRect(0, 0, 0.49f * w, 0.82f * h, fyShade);
+        fyShade.setShader(fyFadeShader);
+        c.drawRect(0, 0, w, 0.22f * h, fyShade);
+        c.drawRect(0, 0.55f * h, w, h, fyShade);
+        fyShade.setShader(null);
+        float veil = skyVeilOff ? 0 : skyVeil();
+        if (veil > 0.002f) {
+            fill.setShader(null);
+            fill.setColor(Ui.alpha(0xFF000000, veil));
+            c.drawRect(screen, fill);
         }
+    }
+
+    // The artwork's slow breathing (22 s): zoom and a drift, eased between four keyframes, as in the prototype
+    private static final float[] BREATHE_T = {0, 0.3f, 0.6f, 1}, BREATHE_S = {1.05f, 1.13f, 1.09f, 1.05f},
+            BREATHE_X = {0, -26, -8, 0}, BREATHE_Y = {0, -10, -18, 0};
+    private float breatheS = 1.06f, breatheX, breatheY;
+
+    /** The artwork's zoom and offset at `up` (-1: still, slightly zoomed). */
+    private void breathe(long up) {
+        if (up < 0) {
+            breatheS = 1.06f;
+            breatheX = breatheY = 0;
+            return;
+        }
+        float t = (up % BREATHE_MS) / (float) BREATHE_MS;
+        int i = t < BREATHE_T[1] ? 0 : t < BREATHE_T[2] ? 1 : 2;
+        float e = smoothstep(BREATHE_T[i], BREATHE_T[i + 1], t);
+        breatheS = BREATHE_S[i] + (BREATHE_S[i + 1] - BREATHE_S[i]) * e;
+        breatheX = BREATHE_X[i] + (BREATHE_X[i + 1] - BREATHE_X[i]) * e;
+        breatheY = BREATHE_Y[i] + (BREATHE_Y[i + 1] - BREATHE_Y[i]) * e;
+    }
+
+    /** One artwork over the billboard's area (its full height, centered), zoomed and moved by the breathing. */
+    private void drawArt(Canvas c, Recs.Art a, float alpha, boolean gpu) {
+        Bitmap b = gpu ? a.big : a.small;
+        if (b == null || alpha <= 0.004f) return;
+        float dh = FY_ART_H * k, dw = dh * b.getWidth() / b.getHeight();
+        if (dw < FY_ART_W * k) {
+            dw = FY_ART_W * k;
+            dh = dw * b.getHeight() / b.getWidth();
+        }
+        float cx = (FY_ART_X + FY_ART_W / 2) * k, cy = FY_ART_H / 2 * k;
+        float sx = dw * breatheS / b.getWidth(), sy = dh * breatheS / b.getHeight();
+        artMatrix.setScale(sx, sy);
+        artMatrix.postTranslate(cx - dw * breatheS / 2 + breatheX * k, cy - dh * breatheS / 2 + breatheY * k);
+        fyPaint.setAlpha(Math.round(255 * Math.min(1, alpha)));
+        c.drawBitmap(b, artMatrix, fyPaint);
+        fyPaint.setAlpha(255);
+    }
+
+    /** The film on the billboard follows the selected card; its artwork crossfades in once it's ready. */
+    private void syncBill() {
+        Recs.Pick p = cards.isEmpty() ? null : cards.get(Math.min(cardIndex, cards.size() - 1));
+        boolean other = p == null ? bill != null : bill == null || !Recs.key(p).equals(Recs.key(bill));
+        long up = SystemClock.uptimeMillis();
+        if (other) infoAt = up;
+        if (other || p != bill || (p != null && p.detailed != billDetailed)) {
+            bill = p;
+            billDetailed = p != null && p.detailed;
+            layoutBill();
+            heroDirty = true;
+        }
+        if (p == null) return;
+        Recs.Art a = recs.art(p);
+        if (cardIndex + 1 < cards.size()) recs.art(cards.get(cardIndex + 1));   // the next one, ready for →
+        if (a != null && a != artTo) {
+            // In the middle of another crossfade, start from whichever is more visible
+            if (artFadeAt == 0 || fadeEase(artFadeAt, up, ART_FADE_MS) >= 0.5f) artFrom = artTo;
+            artTo = a;
+            artFadeAt = up;
+            wake();
+        }
+    }
+
+    /** The billboard's text: the service (or the trailer), the title, its details and the story, from the top down. */
+    private void layoutBill() {
+        Recs.Pick p = bill;
+        if (p == null || fyTitle == null) {
+            billTitle = billStory = null;
+            return;
+        }
+        String title = p.title == null ? "" : p.title;
+        billTitle = StaticLayout.Builder.obtain(title, 0, title.length(), fyTitle, Math.max(1, Math.round(FY_INFO_W * k)))
+                .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 0.92f).setIncludePad(false).build();
+        billBadge = tab == 1 ? Ui.tr("Nos cinemas", "In cinemas") : tab == 2 ? Ui.tr("Em breve", "Coming soon")
+                : p.rating == null ? "" : p.rating;
+        String when = tab == 2 && p.release > 0 ? Ui.dayMonth(p.release) : p.year == null ? "" : p.year;
+        StringBuilder meta = new StringBuilder(when);
+        if (p.info != null && !p.info.isEmpty()) meta.append(meta.length() > 0 ? "  ·  " : "").append(p.info);
+        billMeta = meta.toString();
+        String story = p.story == null ? "" : p.story;
+        int lines = billTitle.getLineCount() > 1 ? 2 : 3;
+        billStory = StaticLayout.Builder.obtain(story, 0, story.length(), fyStory, Math.max(1, Math.round(FY_STORY_W * k)))
+                .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 1.2f).setIncludePad(false).build();
+        float y = FY_INFO_TOP * k;
+        billServiceY = y;
+        if (mark(p) != null) y += (52 + 14) * k;
+        billTitleY = y;
+        y += billTitle.getHeight() + 16 * k;
+        billMetaY = y;
+        y += (34 + 16) * k;
+        billStoryY = y;
+    }
+
+    /** What the film's card shows and OK opens: its service ("netflix"...), else "trailer", else null. */
+    private static String mark(Recs.Pick p) {
+        if (p == null) return null;
+        if (p.pkg != null && p.app != null) return p.app;
+        return p.trailer != null ? "trailer" : null;
+    }
+
+    /** A service's white logo (assets/services, Simple Icons), or null: its name is written instead. */
+    private Bitmap serviceLogo(String app) {
+        if (app == null) return null;
+        if (serviceLogos.containsKey(app)) return serviceLogos.get(app);
+        Bitmap b = null;
+        try (java.io.InputStream in = getContext().getAssets().open("services/" + app + ".png")) {
+            Bitmap color = android.graphics.BitmapFactory.decodeStream(in);
+            if (color != null) {
+                b = color.extractAlpha();
+                color.recycle();
+                b.setHasMipMap(true);
+            }
+        } catch (java.io.IOException ignored) {
+        }
+        serviceLogos.put(app, b);
+        return b;
+    }
+
+    private static int serviceColor(String app) {
+        return "netflix".equals(app) ? 0xFFE50914 : "youtube".equals(app) ? 0xFFFF0000 : 0xFFFFFFFF;
+    }
+
+    /**
+     * The service's logo `height` tall (or its name in `text`), or YouTube's red logo and "Trailer", from `left`
+     * centered on `cy`; returns its width. With `draw` false, only measures.
+     */
+    private float drawMark(Canvas c, String mark, float left, float cy, float height, Paint text, float alpha, boolean draw) {
+        if (mark == null) return 0;
+        boolean trailer = mark.equals("trailer");
+        String app = trailer ? "youtube" : mark;
+        Bitmap logo = serviceLogo(app);
+        float x = left;
+        if (logo != null) {
+            float lh = trailer ? height * 0.8f : height, lw = lh * logo.getWidth() / logo.getHeight();
+            if (draw) {
+                tmp.set(x, cy - lh / 2, x + lw, cy + lh / 2);
+                bitmapPaint.setColor(serviceColor(app));
+                bitmapPaint.setAlpha(Math.round(255 * alpha));
+                c.drawBitmap(logo, null, tmp, bitmapPaint);
+                bitmapPaint.setColor(0xFFFFFFFF);
+            }
+            x += lw;
+            if (!trailer) return x - left;
+            x += height * 0.3f;
+        }
+        String name = trailer ? "Trailer" : Recs.serviceName(fakePick(mark));
+        if (name == null) name = "";
+        if (draw) {
+            text.setAlpha(Math.round(255 * alpha));
+            c.drawText(name, x, cy + Ui.halfCap(text), text);
+            text.setAlpha(255);
+        }
+        return x + text.measureText(name) - left;
+    }
+
+    private final Recs.Pick markPick = new Recs.Pick();
+
+    private Recs.Pick fakePick(String app) {
+        markPick.app = app;
+        return markPick;
+    }
+
+    /** Rises in: 0 → 1 over RISE_MS after `delay` (a quick start, a long soft landing). */
+    private static float rise(long since, long delay) {
+        float t = Ui.clamp((since - delay) / (float) RISE_MS);
+        float u = 1 - t;
+        return 1 - u * u * u * u;
+    }
+
+    private void drawForYou(Canvas c) {
+        long up = SystemClock.uptimeMillis();
+        drawCategories(c);
+        drawBill(c, up);
+        drawRow(c, up);
+    }
+
+    /** The categories: one glass pill, the chosen one marked by a light that slides to it (white when focused). */
+    private void drawCategories(Canvas c) {
+        float radius = catPill.height() / 2;
+        fyGlass(c, catPill, radius);
+        float focus = Ui.clamp(topFocus[tab].value);
+        float cw = catSlideW.value * k, cx = catSlide.value * k;
+        catLight.set(cx - cw / 2, topRects[0].top, cx + cw / 2, topRects[0].bottom);
+        float rr = catLight.height() / 2;
+        if (focus > 0.01f) {
+            tmp.set(catLight);
+            tmp.offset(0, 6 * k);
+            shadow.setColor(Ui.alpha(0xFF000000, 0.25f * focus));
+            shadows.draw(c, tmp, rr, SHADOW_BLUR * k, shadow);
+        }
+        fill.setShader(null);
+        fill.setColor(blend(0x38FFFFFF, 0xEBFFFFFF, focus));
+        c.drawRoundRect(catLight, rr, rr, fill);
+        if (focus < 0.99f) {
+            fyRing.setColor(Ui.alpha(0xFFFFFFFF, 0.3f * (1 - focus)));
+            fyRing.setStrokeWidth(Math.max(1, k));
+            c.drawRoundRect(catLight, rr, rr, fyRing);
+        }
+        for (int i = 0; i < CATS; i++) {
+            RectF r = topRects[i];
+            fyCat.setColor(i == tab ? blend(0xFFFFFFFF, 0xFF12141A, focus) : FY_SOFT);
+            String name = tabs()[i];
+            c.drawText(name, r.centerX() - fyCat.measureText(name) / 2, r.centerY() + Ui.halfCap(fyCat), fyCat);
+        }
+    }
+
+    /** For You's glass (the pill, the capsule): the shelf's frosted or clear glass, smoked. */
+    private void fyGlass(Canvas c, RectF r, float radius) {
+        tmp.set(r);
+        tmp.offset(0, 14 * k);
+        shadow.setColor(0x40000000);
+        shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
+        if (frostedGlass(c, r, radius) || clearGlass(c, r, radius)) return;
+        scene.liquid(c, r, radius, SMOKE, 0.12f, 0.08f, 28 * k, 22 * k, 0.95f, 1);
+    }
+
+    /** The billboard's text, each line rising into place one after another when the film changes. */
+    private void drawBill(Canvas c, long up) {
+        Recs.Pick p = bill;
+        if (p == null || billTitle == null) {
+            if (cards.isEmpty() && recs.error().isEmpty()) {
+                fyStory.setAlpha(255);
+                c.drawText(Ui.tr("Carregando filmes…", "Loading films…"), MARGIN * k, (FY_INFO_TOP + 60) * k, fyStory);
+            }
+            return;
+        }
+        long since = up - infoAt;
+        float lift = 18 * k;
+        int line = 0;
+        String mark = mark(p);
+        if (mark != null) {
+            float e = rise(since, RISE_STEP * line++);
+            drawMark(c, mark, MARGIN * k, billServiceY + (26 + lift * (1 - e) / k) * k, mark.equals("trailer") ? 40 * k : 44 * k,
+                    fyService, e, true);
+        }
+        float e = rise(since, RISE_STEP * line++);
+        c.save();
+        c.translate(MARGIN * k, billTitleY + lift * (1 - e));
+        fyTitle.setAlpha(Math.round(255 * e));
+        billTitle.draw(c);
+        fyTitle.setAlpha(255);
+        c.restore();
+        // Details: a badge (the age rating, or In cinemas / Coming soon), then the year (or release day), genre, runtime
+        e = rise(since, RISE_STEP * line++);
+        float x = MARGIN * k, cy = billMetaY + 17 * k + lift * (1 - e);
+        if (!billBadge.isEmpty()) {
+            float bw = fyBadge.measureText(billBadge) + 20 * k;
+            tmp.set(x, cy - 15 * k, x + bw, cy + 15 * k);
+            fyRing.setColor(Ui.alpha(0xFFFFFFFF, 0.45f * e));
+            fyRing.setStrokeWidth(1.5f * k);
+            c.drawRoundRect(tmp, 8 * k, 8 * k, fyRing);
+            fyBadge.setAlpha(Math.round(255 * e));
+            c.drawText(billBadge, x + 10 * k, cy + Ui.halfCap(fyBadge), fyBadge);
+            x += bw + 14 * k;
+        }
+        fyMeta.setColor(Ui.alpha(FY_SOFT, e));
+        c.drawText(billMeta, x, cy + Ui.halfCap(fyMeta), fyMeta);
+        if (billStory != null) {
+            e = rise(since, RISE_STEP * line);
+            c.save();
+            c.translate(MARGIN * k, billStoryY + lift * (1 - e));
+            fyStory.setAlpha(Math.round((FY_SOFT >>> 24) * e));
+            billStory.draw(c);
+            c.restore();
+        }
+    }
+
+    /** Where the row scrolls: the selected film stays third from the left until the row's end comes into view. */
+    private void aimRow(boolean snap) {
+        int n = cards.size();
+        float step = FY_POSTER_W + FY_GAP;
+        float total = n == 0 ? 0 : n * FY_POSTER_W + (n - 1) * FY_GAP + (FY_LAND_W - FY_POSTER_W);
+        float max = Math.max(0, MARGIN + total - CONTENT_R);
+        rowScroll.target = Math.min(max, Math.max(0, (cardIndex - 2) * step));
+        rowZone.target = !sheetOpen && zone == Z_CARDS ? 1 : 0;
+        if (snap) {
+            rowScroll.snap(rowScroll.target);
+            rowZone.snap(rowZone.target);
+        }
+    }
+
+    /**
+     * The row: posters, the selected one widened to its landscape artwork (white ring and lifted while the row has the
+     * focus), each with its service's logo (or YouTube's, for the trailer) in a small glass chip.
+     */
+    private void drawRow(Canvas c, long up) {
+        int n = cards.size();
+        float x = MARGIN - rowScroll.value, top = FY_ROW_TOP;
+        for (int i = 0; i < n; i++) {
+            float f = Ui.clamp(cardFocus[i].value), cw = FY_POSTER_W + (FY_LAND_W - FY_POSTER_W) * f;
+            cardRects[i].set(x * k, top * k, (x + cw) * k, (top + FY_CARD_H) * k);
+            x += cw + FY_GAP;
+        }
+        for (int i = 0; i < n; i++) if (i != cardIndex) drawFilm(c, i, up);
+        if (cardIndex < n) drawFilm(c, cardIndex, up);
+    }
+
+    private void drawFilm(Canvas c, int i, long up) {
+        RectF base = cardRects[i];
+        if (base.right < -40 * k || base.left > w + 40 * k) return;
+        Recs.Pick p = cards.get(i);
+        float f = Ui.clamp(cardFocus[i].value), zf = Ui.clamp(rowZone.value), lift = 8 * k * f * zf;
+        // Slides in with the category's films, one after another
+        float in = rise(up - rowAt, 50L * Math.max(0, i - Math.round(rowScroll.value / (FY_POSTER_W + FY_GAP))));
+        if (in <= 0.01f) return;
+        cell.set(base);
+        cell.offset(40 * k * (1 - in), -lift);
+        float r = 20 * k;
+        tmp.set(cell);
+        tmp.offset(0, (12 + 18 * f * zf) * k);
+        shadowDeep.setColor(Ui.alpha(0xFF000000, (0.35f + 0.15f * f * zf) * in));
+        shadows.draw(c, tmp, r, DEEP_BLUR * k, shadowDeep);
+        Bitmap poster = recs.smallPoster(p);
+        Recs.Art art = f > 0.01f ? recs.art(p) : null;
+        Bitmap land = art == null ? null : art.land;
+        float landAlpha = land == null ? 0 : f;
+        if (poster != null && landAlpha < 0.99f) coverImage(c, poster, cell, r, in);
+        else if (poster == null && land == null) {
+            fill.setShader(null);
+            fill.setColor(Ui.alpha(0xFF23262F, in));
+            c.drawRoundRect(cell, r, r, fill);
+        }
+        if (land != null && landAlpha > 0.01f) coverImage(c, land, cell, r, landAlpha * in);
+        if (poster == null && land == null && p.title != null) {
+            // Still loading: the title, so the card isn't blank
+            fitPaint.set(fyChip);
+            String t = TextUtils.ellipsize(p.title, fitPaint, cell.width() - 24 * k, TextUtils.TruncateAt.END).toString();
+            fyChip.setAlpha(Math.round(200 * in));
+            c.drawText(t, cell.left + 12 * k, cell.bottom - 16 * k, fyChip);
+            fyChip.setAlpha(255);
+        }
+        // The ring: white and wide while the row has the focus, faint otherwise
+        if (f > 0.01f) {
+            float ringW = (2 + 2 * zf) * k;
+            fyRing.setStrokeWidth(ringW);
+            fyRing.setColor(Ui.alpha(0xFFFFFFFF, f * in * (0.4f + 0.55f * zf)));
+            tmp.set(cell);
+            tmp.inset(-ringW / 2, -ringW / 2);
+            c.drawRoundRect(tmp, r + ringW / 2, r + ringW / 2, fyRing);
+        }
+        String mark = mark(p);
+        if (mark != null) {
+            float ch = 36 * k, mw = drawMark(c, mark, 0, 0, mark.equals("trailer") ? 16 * k : 18 * k, fyChip, 1, false);
+            tmp.set(cell.left + 12 * k, cell.top + 12 * k, cell.left + 12 * k + mw + 24 * k, cell.top + 12 * k + ch);
+            if (tmp.right <= cell.right - 8 * k) {
+                fill.setShader(null);
+                fill.setColor(Ui.alpha(0xFF0A0C12, 0.6f * in));
+                c.drawRoundRect(tmp, 12 * k, 12 * k, fill);
+                fyRing.setStrokeWidth(Math.max(1, k));
+                fyRing.setColor(Ui.alpha(0xFFFFFFFF, 0.22f * in));
+                c.drawRoundRect(tmp, 12 * k, 12 * k, fyRing);
+                drawMark(c, mark, tmp.left + 12 * k, tmp.centerY(), mark.equals("trailer") ? 16 * k : 18 * k, fyChip, in, true);
+            }
+        }
+    }
+
+    /** `image` covering `r` (cropped to its shape, centered), with rounded corners: a shader, no clip. */
+    private void coverImage(Canvas c, Bitmap image, RectF r, float radius, float alpha) {
+        if (alpha <= 0.004f) return;
+        BitmapShader shader = imageShaders.get(image);
+        if (shader == null) {
+            shader = new BitmapShader(image, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+            imageShaders.put(image, shader);
+        }
+        float s = Math.max(r.width() / image.getWidth(), r.height() / image.getHeight());
+        imageMatrix.setScale(s, s);
+        imageMatrix.postTranslate(r.centerX() - image.getWidth() * s / 2, r.centerY() - image.getHeight() * s / 2);
+        shader.setLocalMatrix(imageMatrix);
+        imageFill.setShader(shader);
+        imageFill.setAlpha(Math.round(255 * Math.min(1, alpha)));
+        c.drawRoundRect(r, radius, radius, imageFill);
+        imageFill.setShader(null);
+        imageFill.setAlpha(255);
+    }
+
+    /**
+     * The top right, before the buttons: the clock, the weather and the place in one glass capsule; under it, the next
+     * prayer and how long until it.
+     */
+    private void drawTopRight(Canvas c) {
+        HomeData.Weather wx = data.weather;
+        boolean weather = Prefs.weather() && !Double.isNaN(wx.temp);
+        if (capWeatherAt != data.weatherAt || capPrefs != Prefs.version || !Ui.language.equals(capLang)) {
+            capWeatherAt = data.weatherAt;
+            capPrefs = Prefs.version;
+            capLang = Ui.language;
+            capTemp = weather ? HomeData.degrees(wx.temp) : "";
+            capSymbol = weather ? Symbols.weather(wx.code, wx.isDay) : "";
+            String city = Prefs.city().isEmpty() ? Config.CITY : Prefs.city();
+            fitPaint.set(fyCapsule);
+            capCity = city.isEmpty() ? "" : TextUtils.ellipsize(city, fitPaint, 260 * k, TextUtils.TruncateAt.END).toString();
+        }
+        float pad = 28 * k, gap = 22 * k, iconH = 34 * k, iconW = iconH * WeatherIcons.ASPECT, pin = 24 * k;
+        float width = pad + fyClock.measureText(clockText) + pad;
+        if (weather) width += 2 * gap + iconW + 8 * k + fyCapsule.measureText(capTemp);
+        if (!capCity.isEmpty()) width += 2 * gap + pin + 10 * k + fyCapsule.measureText(capCity);
+        float right = topRects[CATS].left - L_BUTTON_GAP * k, cy = L_BUTTON_CY * k, ch = 68 * k;
+        capsule.set(right - width, cy - ch / 2, right, cy + ch / 2);
+        fyGlass(c, capsule, ch / 2);
+        float x = capsule.left + pad;
+        c.drawText(clockText, x, cy + Ui.halfCap(fyClock), fyClock);
+        x += fyClock.measureText(clockText);
+        fill.setShader(null);
+        if (weather) {
+            fill.setColor(0x40FFFFFF);
+            x += gap;
+            c.drawRect(x, cy - 14 * k, x + Math.max(1, k), cy + 14 * k, fill);
+            x += gap;
+            if (!WeatherIcons.draw(getContext(), c, capSymbol, x + iconW / 2, cy, iconH)) {
+                Symbols.draw(getContext(), c, capSymbol, x + iconW / 2, cy, 28 * k, 0xFFFFFFFF);
+            }
+            x += iconW + 8 * k;
+            fyCapsule.setColor(0xFFFFFFFF);
+            c.drawText(capTemp, x, cy + Ui.halfCap(fyCapsule), fyCapsule);
+            x += fyCapsule.measureText(capTemp);
+        }
+        if (!capCity.isEmpty()) {
+            fill.setColor(0x40FFFFFF);
+            x += gap;
+            c.drawRect(x, cy - 14 * k, x + Math.max(1, k), cy + 14 * k, fill);
+            x += gap;
+            WeatherIcons.pin(getContext(), c, x + pin / 2, cy, pin, FY_SOFT);
+            x += pin + 10 * k;
+            fyCapsule.setColor(FY_SOFT);
+            c.drawText(capCity, x, cy + Ui.halfCap(fyCapsule), fyCapsule);
+        }
+        // The next prayer, right-aligned under the buttons: "☾ Dhuhr 11:36  in 1 h 31 min"
+        if (!Config.PRAYER_TIMES || !refreshPrayers()) return;
+        // A focused button writes its name here: the prayer steps aside meanwhile
+        float shown = 1;
+        for (int i = CATS; i < CATS + lightButtons.size(); i++) shown = Math.min(shown, 1 - Ui.clamp(topFocus[i].value));
+        if (shown <= 0.01f) return;
+        float base = (FY_PRAYER_CY) * k + Ui.halfCap(fyPrayer), xr = CONTENT_R * k;
+        String name = PrayerTimes.name(prayerNextIndex), at = clock24(prayerNextAt);
+        fyPrayer.setColor(Ui.alpha(FY_SOFT, shown));
+        float cw = fyPrayer.measureText(prayerCountdown);
+        c.drawText(prayerCountdown, xr - cw, base, fyPrayer);
+        xr -= cw + 16 * k;
+        fyPrayer.setColor(Ui.alpha(0xFFFFFFFF, shown));
+        String main = name + "  " + at;
+        float mw = fyPrayer.measureText(main);
+        c.drawText(main, xr - mw, base, fyPrayer);
+        xr -= mw + 12 * k;
+        Symbols.draw(getContext(), c, "bedtime", xr - 12 * k, FY_PRAYER_CY * k, 24 * k, Ui.alpha(FY_SOFT, shown));
     }
 
     /**
@@ -3654,9 +4167,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      */
     private void drawLightButtons(Canvas c) {
         applyTone();
+        if (picksOn()) drawTopRight(c);
         for (int i = 0; i < Math.min(4, lightButtons.size()); i++) {
-            RectF r = topRects[3 + i];
-            float f = Ui.clamp(topFocus[3 + i].value), s = 1 + 0.1f * f, rad = r.width() / 2 * s;
+            RectF r = topRects[CATS + i];
+            float f = Ui.clamp(topFocus[CATS + i].value), s = 1 + 0.1f * f, rad = r.width() / 2 * s;
             cell.set(r.centerX() - rad, r.centerY() - rad, r.centerX() + rad, r.centerY() + rad);
             tmp.set(cell);
             tmp.offset(0, (6 + 8 * f) * k);
@@ -3689,10 +4203,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 if (dy >= 0) return false;
                 if (cards.isEmpty()) {
                     zone = Z_TOP;
-                    topIndex = picksOn() ? tab : 3;
+                    topIndex = picksOn() ? tab : CATS;
                 } else {
-                    zone = Z_CARDS;
-                    cardIndex = nearest(cardRects, cards.size(), shelf.isEmpty() ? w / 2f : tileRects[shelfIndex].centerX());
+                    zone = Z_CARDS;   // back to the selected film
                 }
                 break;
             case Z_CARDS:
@@ -3710,16 +4223,15 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 break;
             case Z_TOP:
                 if (dx != 0) {
-                    int next = Math.max(picksOn() ? 0 : 3, Math.min(2 + lightButtons.size(), topIndex + dx));
+                    int next = Math.max(picksOn() ? 0 : CATS, Math.min(CATS - 1 + lightButtons.size(), topIndex + dx));
                     if (next == topIndex) return true;
                     topIndex = next;
-                    if (topIndex < 3) selectTab(topIndex);   // like Apple TV tabs: focusing a tab selects it
+                    if (topIndex < CATS) selectTab(topIndex);   // like Apple TV tabs: focusing a tab selects it
                 } else if (dy > 0) {
                     if (cards.isEmpty()) {
                         zone = Z_SHELF;
                     } else {
                         zone = Z_CARDS;
-                        cardIndex = nearest(cardRects, cards.size(), topRects[topIndex].centerX());
                     }
                 } else {
                     return true;

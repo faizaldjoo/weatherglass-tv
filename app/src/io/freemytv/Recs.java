@@ -49,6 +49,16 @@ final class Recs {
         String poster;          // the title's poster (TMDB path), for the two tall cards
         String link;            // opens the title in its app (looked up with Watchmode), or null: the app's home
         boolean detailed;
+        // The Movie wallpaper's lists (moviesDetails): the story, the year (or the release day), the age rating, the
+        // genre · runtime line, the YouTube trailer's key and the theatrical release date
+        String story = "", year = "", rating = "", info = "", trailer;
+        long release;
+    }
+
+    /** The billboard's artwork: big (on screen, GPU), the focused card's landscape (GPU) and a small copy for the frost. */
+    static final class Art {
+        final Bitmap big, land, small;
+        Art(Bitmap big, Bitmap land, Bitmap small) { this.big = big; this.land = land; this.small = small; }
     }
 
     interface Listener { void onRecs(); }
@@ -515,6 +525,7 @@ final class Recs {
     /** Language of titles and genres; the services come from the region. */
     private static String lang() {
         if (Ui.ru) return "ru-RU";
+        if (Ui.indo) return "id-ID";   // TMDB has Indonesian titles and stories for most films
         if (Ui.es) return "ES".equals(java.util.Locale.getDefault().getCountry()) ? "es-ES" : "es-MX";
         if (Ui.de) return "de-DE";   // TMDB's de-AT and de-CH have few translations of their own
         return Ui.en ? "en-US" : "pt-BR";
@@ -854,6 +865,426 @@ final class Recs {
         for (int i = 0; i < files.length - 24; i++) {
             //noinspection ResultOfMethodCallIgnored
             files[i].delete();
+        }
+    }
+
+    // MARK: - Movie lists (the Movie wallpaper: For You's four TMDB movie lists, movies only)
+
+    /** TMDB's lists, in the order of the categories: Popular, Now Playing, Upcoming, Top Rated. */
+    static final String[] LISTS = {"popular", "now_playing", "upcoming", "top_rated"};
+    private static final int LIST_MAX = 15;
+    /** The billboard's size (16:9, covers the 1380 × 860 area on the right) and the focused card's (406 × 228). */
+    static final int ART_W = Math.round(Backdrop.W * 0.8f), ART_H = Math.round(Backdrop.H * 0.8f);
+    static final int LAND_W = Math.round(Backdrop.W * 0.22f), LAND_H = Math.round(Backdrop.H * 0.22f);
+    static final int POSTER_W = Math.round(Backdrop.W * 0.084f), POSTER_H = Math.round(Backdrop.W * 0.126f);
+    private final ExecutorService movieIo = Executors.newSingleThreadExecutor();
+    private final ExecutorService artIo = Executors.newSingleThreadExecutor();
+    private final ExecutorService posterIo = Executors.newSingleThreadExecutor();
+    @SuppressWarnings("unchecked")
+    private volatile List<Pick>[] movieLists = new List[] {new ArrayList<Pick>(), new ArrayList<Pick>(), new ArrayList<Pick>(), new ArrayList<Pick>()};
+    private volatile boolean moviesFetching, moviesLoaded;
+    private volatile long moviesAt, moviesFailedAt;
+    private final Map<String, Art> arts = new LinkedHashMap<>();
+    private final Set<String> artPending = new HashSet<>();
+    private final Map<String, Bitmap> smallPosters = new LinkedHashMap<>();
+    private final Set<String> smallPending = new HashSet<>();
+
+    /** The list for a category (0 to 3); fetched again when it's six hours old, or the language or the services changed. */
+    List<Pick> movies(int list) {
+        if (!hasKey(context)) return new ArrayList<>();
+        loadMovies();
+        refreshMovies(list);
+        List<Pick> l = movieLists[Math.max(0, Math.min(3, list))];
+        return new ArrayList<>(l);
+    }
+
+    private long stampValue, stampAt;
+
+    /** sourceStamp() asks the package manager about every service: at most once a minute (this runs on every notice). */
+    private long stamp() {
+        long now = System.currentTimeMillis();
+        if (stampAt == 0 || now - stampAt > 60_000 || now < stampAt) {
+            stampValue = sourceStamp();
+            stampAt = now;
+        }
+        return stampValue;
+    }
+
+    private void loadMovies() {
+        if (moviesLoaded) return;
+        moviesLoaded = true;
+        try {
+            if (cache.getLong("mStamp", 0) != stamp() || !Ui.language.equals(cache.getString("mLanguage", ""))) return;
+            moviesAt = cache.getLong("mAt", 0);
+            @SuppressWarnings("unchecked") List<Pick>[] l = new List[4];
+            for (int i = 0; i < 4; i++) l[i] = parseMovies(new JSONArray(cache.getString("m" + i, "[]")));
+            movieLists = l;
+        } catch (Exception ignored) {
+        }
+    }
+
+    private void refreshMovies(int first) {
+        if (moviesFetching) return;
+        long now = System.currentTimeMillis();
+        long sinceFail = now - moviesFailedAt;
+        if (moviesFailedAt != 0 && sinceFail >= 0 && sinceFail < 10 * 60_000L) return;
+        boolean stale = moviesAt == 0 || now - moviesAt > LIST_EVERY || now < moviesAt
+                || cache.getLong("mStamp", 0) != stamp() || !Ui.language.equals(cache.getString("mLanguage", ""));
+        boolean missing = false;
+        for (List<Pick> l : movieLists) for (Pick p : l) missing |= !p.detailed;
+        if (!stale && !missing) return;
+        moviesFetching = true;
+        final long stamp = stamp();
+        final String language = Ui.language;
+        movieIo.execute(() -> {
+            try {
+                if (stale) {
+                    @SuppressWarnings("unchecked") List<Pick>[] l = new List[4];
+                    for (int i = 0; i < 4; i++) l[i] = fetchMovieList(LISTS[i]);
+                    if (l[0].isEmpty() && l[1].isEmpty()) throw new IOException("TMDB returned no movies");
+                    movieLists = l;
+                    moviesAt = System.currentTimeMillis();
+                    saveMovies(stamp, language);
+                    notifyListeners();
+                }
+                // The details (genre, runtime, rating, services, trailer): the list on screen first, then the others
+                for (int n = 0; n < 4; n++) {
+                    List<Pick> l = movieLists[(first + n) % 4];
+                    boolean changed = false;
+                    for (Pick p : l) {
+                        if (p.detailed) continue;
+                        try {
+                            movieDetails(p);
+                            changed = true;
+                        } catch (Exception e) {
+                            p.detailed = true;   // not again until the list is fetched again
+                            changed = true;
+                            AppLog.w("movie " + p.id + ": " + e.getMessage());
+                        }
+                    }
+                    if (changed) {
+                        saveMovies(stamp, language);
+                        notifyListeners();
+                    }
+                }
+                moviesFailedAt = 0;
+            } catch (Exception e) {
+                moviesFailedAt = System.currentTimeMillis();
+                AppLog.w("movies: " + e.getMessage());
+            } finally {
+                moviesFetching = false;
+            }
+        });
+    }
+
+    private List<Pick> fetchMovieList(String list) throws Exception {
+        JSONArray results = get("/movie/" + list + "?language=" + lang() + "&region=" + REGION + "&page=1").getJSONArray("results");
+        List<Pick> out = new ArrayList<>();
+        for (int i = 0; i < results.length() && out.size() < LIST_MAX; i++) {
+            JSONObject o = results.getJSONObject(i);
+            if (o.optBoolean("adult")) continue;
+            int before = out.size();
+            add(out, o, "movie");
+            if (out.size() == before) continue;
+            Pick p = out.get(out.size() - 1);
+            p.story = o.optString("overview", "");
+            String date = o.optString("release_date", "");
+            if (date.length() >= 4) p.year = date.substring(0, 4);
+            p.release = parseDay(date);
+        }
+        return out;
+    }
+
+    /** "2026-11-12" → that day at noon, local time (0 when unknown). */
+    private static long parseDay(String date) {
+        try {
+            if (date == null || date.length() < 10) return 0;
+            Calendar cal = Calendar.getInstance();
+            cal.clear();
+            cal.set(Integer.parseInt(date.substring(0, 4)), Integer.parseInt(date.substring(5, 7)) - 1, Integer.parseInt(date.substring(8, 10)), 12, 0);
+            return cal.getTimeInMillis();
+        } catch (RuntimeException e) {
+            return 0;
+        }
+    }
+
+    /** Genre · runtime, the age rating, the service it's on (among the TV's apps) and its YouTube trailer. */
+    private void movieDetails(Pick p) throws Exception {
+        String video = Ui.language.equals("en") ? "en" : Ui.language + ",en";
+        JSONObject o = get("/movie/" + p.id + "?language=" + lang() + "&append_to_response=watch/providers,videos,release_dates"
+                + "&include_video_language=" + video);
+        String title = o.optString("title", "");
+        if (!title.isEmpty()) p.title = title;
+        if (p.story.isEmpty()) p.story = o.optString("overview", "");
+        if (p.story.isEmpty() && !Ui.en) {
+            try {
+                p.story = get("/movie/" + p.id + "?language=en-US").optString("overview", "");
+            } catch (Exception ignored) {
+            }
+        }
+        List<String> parts = new ArrayList<>();
+        JSONArray genres = o.optJSONArray("genres");
+        if (genres != null && genres.length() > 0) {
+            String name = genres.getJSONObject(0).optString("name");
+            parts.add(Ui.en ? name : genre(name));
+        }
+        int minutes = o.optInt("runtime");
+        if (minutes > 0) parts.add(runtime(minutes));
+        p.info = String.join(" · ", parts);
+        // The age rating where you live (else the US one); for Upcoming, the release day there
+        JSONArray countries = o.optJSONObject("release_dates") == null ? null : o.optJSONObject("release_dates").optJSONArray("results");
+        String us = "";
+        for (int i = 0; countries != null && i < countries.length(); i++) {
+            JSONObject country = countries.getJSONObject(i);
+            JSONArray dates = country.optJSONArray("release_dates");
+            String cert = "";
+            long theatrical = 0;
+            for (int j = 0; dates != null && j < dates.length(); j++) {
+                JSONObject d = dates.getJSONObject(j);
+                if (cert.isEmpty()) cert = d.optString("certification", "").trim();
+                int type = d.optInt("type");
+                if ((type == 2 || type == 3) && theatrical == 0) theatrical = parseDay(d.optString("release_date", ""));
+            }
+            String code = country.optString("iso_3166_1");
+            if (code.equals(REGION)) {
+                p.rating = cert;
+                if (theatrical != 0) p.release = theatrical;
+            }
+            if (code.equals("US")) us = cert;
+        }
+        if (p.rating.isEmpty()) p.rating = us;
+        JSONObject wp = o.optJSONObject("watch/providers");
+        JSONObject here = wp == null || wp.optJSONObject("results") == null ? null : wp.optJSONObject("results").optJSONObject(REGION);
+        JSONArray flat = here == null ? null : here.optJSONArray("flatrate");
+        for (int i = 0; flat != null && i < flat.length() && p.app == null; i++) {
+            String[] s = service(flat.getJSONObject(i).optString("provider_name"));
+            if (s != null && installed(s[2])) {
+                p.app = s[1];
+                p.pkg = s[2];
+            }
+        }
+        // The trailer: an official YouTube trailer in the TV's language, else in English, else a teaser
+        JSONArray videos = o.optJSONObject("videos") == null ? null : o.optJSONObject("videos").optJSONArray("results");
+        int best = -1;
+        for (int i = 0; videos != null && i < videos.length(); i++) {
+            JSONObject v = videos.getJSONObject(i);
+            if (!"YouTube".equals(v.optString("site"))) continue;
+            String type = v.optString("type");
+            int score = (type.equals("Trailer") ? 8 : type.equals("Teaser") ? 4 : 0) + (v.optBoolean("official") ? 2 : 0)
+                    + (Ui.language.equals(v.optString("iso_639_1")) ? 1 : 0);
+            if (score < 4) continue;
+            if (score > best) {
+                best = score;
+                p.trailer = v.optString("key");
+            }
+        }
+        p.detailed = true;
+    }
+
+    private static String runtime(int minutes) {
+        if (Ui.ru) return minutes >= 60 ? (minutes / 60) + " ч " + (minutes % 60) + " мин" : minutes + " мин";
+        if (Ui.indo) return minutes >= 60 ? (minutes / 60) + " j " + (minutes % 60) + " mnt" : minutes + " mnt";
+        if (Ui.en) return minutes >= 60 ? (minutes / 60) + "h " + (minutes % 60) + "m" : minutes + "m";
+        return minutes >= 60 ? (minutes / 60) + " h " + (minutes % 60) + " min" : minutes + " min";
+    }
+
+    private void saveMovies(long stamp, String language) {
+        try {
+            SharedPreferences.Editor e = cache.edit().putLong("mAt", moviesAt).putLong("mStamp", stamp).putString("mLanguage", language);
+            for (int i = 0; i < 4; i++) {
+                JSONArray a = new JSONArray();
+                for (Pick p : movieLists[i]) {
+                    a.put(new JSONObject().put("id", p.id).put("title", p.title).put("backdrop", p.backdrop)
+                            .put("poster", p.poster == null ? "" : p.poster).put("story", p.story).put("year", p.year)
+                            .put("rating", p.rating).put("info", p.info).put("trailer", p.trailer == null ? "" : p.trailer)
+                            .put("release", p.release).put("app", p.app == null ? "" : p.app).put("pkg", p.pkg == null ? "" : p.pkg)
+                            .put("detailed", p.detailed));
+                }
+                e.putString("m" + i, a.toString());
+            }
+            e.apply();
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static List<Pick> parseMovies(JSONArray a) {
+        List<Pick> out = new ArrayList<>();
+        for (int i = 0; i < a.length(); i++) {
+            JSONObject o = a.optJSONObject(i);
+            if (o == null) continue;
+            Pick p = new Pick();
+            p.id = o.optInt("id");
+            p.kind = "movie";
+            p.title = o.optString("title");
+            p.backdrop = o.optString("backdrop");
+            p.poster = o.optString("poster").isEmpty() ? null : o.optString("poster");
+            p.story = o.optString("story");
+            p.year = o.optString("year");
+            p.rating = o.optString("rating");
+            p.info = o.optString("info");
+            p.trailer = o.optString("trailer").isEmpty() ? null : o.optString("trailer");
+            p.release = o.optLong("release");
+            p.app = o.optString("app").isEmpty() ? null : o.optString("app");
+            p.pkg = o.optString("pkg").isEmpty() ? null : o.optString("pkg");
+            p.detailed = o.optBoolean("detailed");
+            out.add(p);
+        }
+        return out;
+    }
+
+    /** The billboard's artwork for the pick (or null: loads it in the background and notifies when it's ready). */
+    Art art(Pick p) {
+        if (p == null || p.backdrop == null) return null;
+        final String key = p.backdrop;
+        synchronized (arts) {
+            Art a = arts.get(key);
+            if (a != null) {
+                arts.remove(key);   // most recently used last
+                arts.put(key, a);
+                return a;
+            }
+            if (!artPending.add(key)) return null;
+        }
+        artIo.execute(() -> {
+            try {
+                loadArt(key);
+            } finally {
+                synchronized (arts) { artPending.remove(key); }
+            }
+        });
+        return null;
+    }
+
+    /** Whether the art is ready (without loading it). */
+    boolean hasArt(Pick p) {
+        if (p == null || p.backdrop == null) return false;
+        synchronized (arts) { return arts.containsKey(p.backdrop); }
+    }
+
+    private void loadArt(String path) {
+        File f = new File(new File(context.getCacheDir(), "movie-art"), path.replace("/", ""));
+        try {
+            fetchFile("https://image.tmdb.org/t/p/w1280" + path, f, 40);
+            BitmapFactory.Options bounds = new BitmapFactory.Options();
+            bounds.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(f.getPath(), bounds);
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inSampleSize = 1;
+            while (bounds.outWidth / (opts.inSampleSize * 2) >= ART_W) opts.inSampleSize *= 2;
+            Bitmap src = BitmapFactory.decodeFile(f.getPath(), opts);
+            if (src == null) throw new IOException("unreadable image");
+            Bitmap full = Bitmap.createBitmap(ART_W, ART_H, Bitmap.Config.ARGB_8888);
+            android.graphics.Canvas c = new android.graphics.Canvas(full);
+            float scale = Math.max((float) ART_W / src.getWidth(), (float) ART_H / src.getHeight());
+            float sw = src.getWidth() * scale, sh = src.getHeight() * scale;
+            c.drawBitmap(src, null, new android.graphics.RectF((ART_W - sw) / 2, (ART_H - sh) / 2, (ART_W + sw) / 2, (ART_H + sh) / 2),
+                    new android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG | android.graphics.Paint.DITHER_FLAG));
+            src.recycle();
+            Bitmap land = Backdrop.card(full, LAND_W, LAND_H);
+            Bitmap small = Bitmap.createScaledBitmap(full, Math.max(1, ART_W / 4), Math.max(1, ART_H / 4), true);
+            Art art = new Art(Backdrop.gpu(full), land, small);
+            synchronized (arts) {
+                arts.put(path, art);
+                while (arts.size() > 4) arts.remove(arts.keySet().iterator().next());
+            }
+            notifyListeners();
+        } catch (IOException | RuntimeException | OutOfMemoryError e) {
+            //noinspection ResultOfMethodCallIgnored
+            f.delete();
+            AppLog.w("movie art: " + e.getMessage());
+        }
+    }
+
+    /** The pick's poster at the card's size (or null: loads it in the background and notifies when it's ready). */
+    Bitmap smallPoster(Pick p) {
+        if (p == null || p.poster == null) return null;
+        final String key = p.poster;
+        synchronized (smallPosters) {
+            Bitmap b = smallPosters.get(key);
+            if (b != null) return b;
+            if (!smallPending.add(key)) return null;
+        }
+        posterIo.execute(() -> {
+            File f = new File(new File(context.getCacheDir(), "movie-posters"), key.replace("/", ""));
+            try {
+                fetchFile("https://image.tmdb.org/t/p/w342" + key, f, 80);
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                BitmapFactory.decodeFile(f.getPath(), bounds);
+                BitmapFactory.Options opts = new BitmapFactory.Options();
+                opts.inSampleSize = 1;
+                while (bounds.outWidth / (opts.inSampleSize * 2) >= POSTER_W && bounds.outHeight / (opts.inSampleSize * 2) >= POSTER_H) opts.inSampleSize *= 2;
+                Bitmap b = BitmapFactory.decodeFile(f.getPath(), opts);
+                if (b == null) throw new IOException("unreadable poster");
+                Bitmap card = Backdrop.card(b, POSTER_W, POSTER_H);
+                if (card != b) b.recycle();
+                synchronized (smallPosters) {
+                    smallPosters.put(key, card);
+                    while (smallPosters.size() > 64) smallPosters.remove(smallPosters.keySet().iterator().next());
+                }
+                notifyListeners();
+            } catch (IOException | RuntimeException | OutOfMemoryError e) {
+                //noinspection ResultOfMethodCallIgnored
+                f.delete();
+                AppLog.w("movie poster: " + e.getMessage());
+            } finally {
+                synchronized (smallPosters) { smallPending.remove(key); }
+            }
+        });
+        return null;
+    }
+
+    /** Downloads `url` to `f` once (a folder keeps its newest `keep` files). */
+    private static void fetchFile(String url, File f, int keep) throws IOException {
+        if (f.exists()) return;
+        File dir = f.getParentFile();
+        //noinspection ResultOfMethodCallIgnored
+        dir.mkdirs();
+        File part = new File(f.getPath() + ".part");
+        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+        c.setConnectTimeout(8000);
+        c.setReadTimeout(20000);
+        try (InputStream in = c.getInputStream(); FileOutputStream out = new FileOutputStream(part)) {
+            byte[] buffer = new byte[16384];
+            int n;
+            while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
+        } catch (IOException e) {
+            //noinspection ResultOfMethodCallIgnored
+            part.delete();
+            throw e;
+        } finally {
+            c.disconnect();
+        }
+        if (!part.renameTo(f)) throw new IOException("couldn't save " + f.getName());
+        File[] files = dir.listFiles((d, name) -> !name.endsWith(".part"));
+        if (files != null && files.length > keep) {
+            Arrays.sort(files, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+            //noinspection ResultOfMethodCallIgnored
+            for (int i = 0; i < files.length - keep; i++) files[i].delete();
+        }
+    }
+
+    /** Opens the film's YouTube trailer (the TV's YouTube app when it has one). */
+    static boolean openTrailer(android.app.Activity a, Pick p) {
+        if (p == null || p.trailer == null) return false;
+        android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse("https://www.youtube.com/watch?v=" + p.trailer));
+        i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+        for (String pkg : new String[] {"com.google.android.youtube.tv", "com.google.android.youtube.tvkids", "com.google.android.youtube"}) {
+            if (HomeApps.launchIntent(a.getPackageManager(), pkg) == null) continue;
+            i.setPackage(pkg);
+            try {
+                a.startActivity(i);
+                return true;
+            } catch (RuntimeException ignored) {
+                i.setPackage(null);
+            }
+        }
+        try {
+            a.startActivity(i);
+            return true;
+        } catch (RuntimeException e) {
+            return false;
         }
     }
 
