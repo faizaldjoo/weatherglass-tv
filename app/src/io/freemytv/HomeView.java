@@ -4203,7 +4203,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         return liteStats;
     }
 
-    /** A pill before the corner buttons: the signal as bars and a word, free memory, free storage, how long the TV has been on. */
+    /** A pill before the corner buttons: the signal as bars and a word, free memory, free storage (with their icons). */
     private void drawLiteStats(Canvas c) {
         Dashboard.Stats st = liteStats();
         float pad = 24 * k, gap = 18 * k, cy = L_BUTTON_CY * k, ch = 68 * k;
@@ -4213,11 +4213,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         String signal = liteWired ? Ui.tr("Cabo", "Wired") : bars == 0 ? Ui.tr("Sem rede", "No network")
                 : bars == 4 ? Ui.tr("Forte", "Strong") : bars == 3 ? Ui.tr("Bom", "Good") : bars == 2 ? Ui.tr("Razoável", "Fair") : Ui.tr("Fraco", "Weak");
         String mem = Math.round(freeMem / 1048576f) + " MB", memWord = Ui.tr("livres", "free");
-        String disk = Dashboard.gb(st.diskFree), up = Dashboard.upFor(st.uptime);
-        float barsW = 4 * 5 * k + 3 * 3 * k;
+        String disk = Dashboard.gb(st.diskFree);
+        float barsW = 4 * 5 * k + 3 * 3 * k, icon = 24 * k;
         float width = pad + barsW + 8 * k + ltStat.measureText(signal) + gap * 2 + Math.max(1, k)
-                + ltStat.measureText(mem) + 6 * k + ltStatDim.measureText(memWord) + gap * 2 + Math.max(1, k)
-                + ltStat.measureText(disk) + gap * 2 + Math.max(1, k) + ltStat.measureText(up) + pad;
+                + icon + 8 * k + ltStat.measureText(mem) + 6 * k + ltStatDim.measureText(memWord) + gap * 2 + Math.max(1, k)
+                + icon + 8 * k + ltStat.measureText(disk) + pad;
         float right = topRects[CATS].left - L_BUTTON_GAP * k;
         capsule.set(right - width, cy - ch / 2, right, cy + ch / 2);
         fyGlass(c, capsule, ch / 2);
@@ -4236,17 +4236,18 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         c.drawText(signal, x, cy + Ui.halfCap(ltStat), ltStat);
         x += ltStat.measureText(signal);
         x = liteSep(c, x, cy, gap);
+        Symbols.draw(getContext(), c, "memory", x + icon / 2, cy, icon, 0xB3FFFFFF);
+        x += icon + 8 * k;
         ltStat.setColor(low ? 0xFFFFB340 : 0xFFFFFFFF);
         c.drawText(mem, x, cy + Ui.halfCap(ltStat), ltStat);
         x += ltStat.measureText(mem) + 6 * k;
         c.drawText(memWord, x, cy + Ui.halfCap(ltStatDim), ltStatDim);
         x += ltStatDim.measureText(memWord);
         x = liteSep(c, x, cy, gap);
+        Symbols.draw(getContext(), c, "storage", x + icon / 2, cy, icon, 0xB3FFFFFF);
+        x += icon + 8 * k;
         ltStat.setColor(0xFFFFFFFF);
         c.drawText(disk, x, cy + Ui.halfCap(ltStat), ltStat);
-        x += ltStat.measureText(disk);
-        x = liteSep(c, x, cy, gap);
-        c.drawText(up, x, cy + Ui.halfCap(ltStat), ltStat);
     }
 
     private float liteSep(Canvas c, float x, float cy, float gap) {
