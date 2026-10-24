@@ -873,8 +873,8 @@ final class Recs {
     /** TMDB's lists, in the order of the categories: Popular, Now Playing, Upcoming, Top Rated. */
     static final String[] LISTS = {"popular", "now_playing", "upcoming", "top_rated"};
     private static final int LIST_MAX = 12;
-    /** The billboard's size (16:9, covers the 1380 × 860 area on the right) and the focused card's (406 × 228). */
-    static final int ART_W = Math.round(Backdrop.W * 0.8f), ART_H = Math.round(Backdrop.H * 0.8f);
+    /** The billboard's size (16:9, the whole screen) and the landscape card's (unused by the deck, kept for the art). */
+    static final int ART_W = Backdrop.W, ART_H = Backdrop.H;   // the whole screen, at the UI's size
     static final int LAND_W = Math.round(Backdrop.W * 0.22f), LAND_H = Math.round(Backdrop.H * 0.22f);
     static final int POSTER_W = Math.round(Backdrop.W * 0.084f), POSTER_H = Math.round(Backdrop.W * 0.126f);
     private final ExecutorService movieIo = Executors.newSingleThreadExecutor();

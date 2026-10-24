@@ -160,9 +160,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     // the film's text on the left, the row over the shelf, the artwork on the right
     private static final float FY_PILL_H = 72, FY_CAT_H = 56, FY_CAT_PAD = 26, FY_DECK_TOP = 176, FY_DECK_W = 560,
             FY_DECK_H = 360, FY_CARD_PAD = 44,
-            FY_ART_X = 540, FY_ART_W = 1380, FY_ART_H = 860, FY_PRAYER_CY = 176;
+            FY_ART_X = 0, FY_ART_W = 1920, FY_ART_H = 1080, FY_PRAYER_CY = 176;
     private static final int FY_BASE = 0xFF0D0F15, FY_SOFT = 0xBDFFFFFF;
-    private static final long ART_FADE_MS = 900, DECK_MS = 650, BREATHE_MS = 22_000;
+    private static final long ART_FADE_MS = 900, DECK_MS = 500, BREATHE_MS = 22_000;
     private final RectF catPill = new RectF(), catLight = new RectF(), capsule = new RectF();
     private final Spring catSlide = new Spring(0.3f, 0.86f, 0), catSlideW = new Spring(0.3f, 0.86f, 0);
     private Paint fyCat, fyMeta, fyBadge, fyChip, fyClock, fyCapsule, fyPrayer, fyService;
@@ -173,8 +173,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private long deckAt;
     private Recs.Art artFrom, artTo;
     private long artFadeAt;
-    private LinearGradient fyMaskShader, fyFadeShader, fyRimShader, fySheenShader;
-    private RadialGradient fyWashShader;
+    private LinearGradient fyWashShader, fyFadeShader, fyRimShader, fySheenShader;
     private final Matrix fyMatrix = new Matrix(), artMatrix = new Matrix();
     private final Paint fyPaint = new Paint(Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG);
     private final Paint fyShade = new Paint(Paint.DITHER_FLAG);
@@ -3679,31 +3678,24 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         c.drawColor(FY_BASE);
         if (fyShaderK != k) {
             fyShaderK = k;
-            float ax = FY_ART_X * k;
-            fyMaskShader = new LinearGradient(ax, 0, ax + 0.38f * FY_ART_W * k, 0, base(1), base(0), Shader.TileMode.CLAMP);
-            fyWashShader = new RadialGradient(0, 0, 1, new int[] {base(0.85f), base(0)}, new float[] {0, 0.7f}, Shader.TileMode.CLAMP);
-            fyMatrix.setScale(0.7f * w, 0.6f * h);
-            fyMatrix.postTranslate(0, 0.4f * h);
-            fyWashShader.setLocalMatrix(fyMatrix);
-            fyFadeShader = new LinearGradient(0, 0, 0, h, new int[] {base(0.45f), base(0), base(0), base(1)},
-                    new float[] {0, 0.22f, 0.55f, 0.8f}, Shader.TileMode.CLAMP);
+            // The shade from the top left corner (the card's), along the diagonal: 20% there, gone three quarters across
+            float d = (w + h) / 2f;
+            fyWashShader = new LinearGradient(0, 0, d, d, new int[] {base(0.2f), base(0.12f), base(0)},
+                    new float[] {0, 0.4f, 0.75f}, Shader.TileMode.CLAMP);
+            fyFadeShader = new LinearGradient(0, 0, 0, h, new int[] {base(0.2f), base(0), base(0), base(0.45f)},
+                    new float[] {0, 0.2f, 0.65f, 1}, Shader.TileMode.CLAMP);
         }
         float fade = artFadeAt == 0 ? 1 : fadeEase(artFadeAt, up, ART_FADE_MS);
         if (artTo != null) {
-            c.save();
-            c.clipRect(FY_ART_X * k, 0, w, FY_ART_H * k);
             breathe(gpu && Prefs.wallpaperMotion() ? up : -1);
             if (artFrom != null && fade < 1) drawArt(c, artFrom, 1, gpu);
             drawArt(c, artTo, fade, gpu);
-            fyShade.setShader(fyMaskShader);
-            c.drawRect(FY_ART_X * k, 0, (FY_ART_X + 0.38f * FY_ART_W) * k, FY_ART_H * k, fyShade);
-            c.restore();
         }
         fyShade.setShader(fyWashShader);
-        c.drawRect(0, 0, 0.49f * w, 0.82f * h, fyShade);
+        c.drawRect(0, 0, w, h, fyShade);
         fyShade.setShader(fyFadeShader);
-        c.drawRect(0, 0, w, 0.22f * h, fyShade);
-        c.drawRect(0, 0.55f * h, w, h, fyShade);
+        c.drawRect(0, 0, w, 0.2f * h, fyShade);
+        c.drawRect(0, 0.65f * h, w, h, fyShade);
         fyShade.setShader(null);
         float veil = skyVeilOff ? 0 : skyVeil();
         if (veil > 0.002f) {
@@ -3933,6 +3925,11 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         tmp.offset(0, 14 * k);
         shadow.setColor(0x40000000);
         shadows.draw(c, tmp, radius, SHADOW_BLUR * k, shadow);
+        fyGlassFill(c, r, radius);
+    }
+
+    /** The glass alone (the corner buttons draw their own shadow). */
+    private void fyGlassFill(Canvas c, RectF r, float radius) {
         if (frostedGlass(c, r, radius) || clearGlass(c, r, radius)) return;
         scene.liquid(c, r, radius, SMOKE, 0.12f, 0.08f, 28 * k, 22 * k, 0.95f, 1);
     }
@@ -3944,7 +3941,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
      */
     private static void pose(float depth, float[] out) {
         float[][] p = {
-            {520, 60, 14, 1, 0, 1},      // -1: off the deck, to the right
+            {120, 20, 5, 1, 0, 1},       // -1: off the deck, a little to the right (it fades in and out from there)
             {0, 0, 0, 1, 1, 1},          // 0: on top
             {30, 10, 4, 0.97f, 1, 0.35f},
             {58, 22, 8, 0.94f, 0.8f, 0.15f},
@@ -4169,7 +4166,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             tmp.offset(0, (6 + 8 * f) * k);
             shadow.setColor(Ui.alpha(0xFF000000, tone(0.1f, 0.3f) + tone(0.14f, 0.2f) * f));
             shadows.draw(c, tmp, rad, SHADOW_BLUR * k, shadow);
-            scene.liquid(c, cell, rad, tone(0xFFFFFFFF, SMOKE), tone(0.55f, 0.5f), tone(0.02f, 0.01f), 12 * k, 8 * k,
+            if (picksOn()) fyGlassFill(c, cell, rad);   // the same glass as the categories and the clock capsule
+            else scene.liquid(c, cell, rad, tone(0xFFFFFFFF, SMOKE), tone(0.55f, 0.5f), tone(0.02f, 0.01f), 12 * k, 8 * k,
                     tone(0.6f, 0.45f), 1 - f);
             if (f > 0.01f) {
                 fill.setShader(null);
