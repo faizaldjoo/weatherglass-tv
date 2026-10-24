@@ -159,7 +159,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     // For You on the Movie wallpaper (the prototype's layout at 1920 × 1080): the category pill level with the buttons,
     // the film's text on the left, the row over the shelf, the artwork on the right
     private static final float FY_PILL_H = 72, FY_CAT_H = 56, FY_CAT_PAD = 26, FY_DECK_TOP = 176, FY_DECK_W = 560,
-            FY_DECK_H = 620, FY_CARD_PAD = 44, FY_CARD_POSTER_W = 150, FY_CARD_POSTER_H = 225,
+            FY_DECK_H = 360, FY_CARD_PAD = 44,
             FY_ART_X = 540, FY_ART_W = 1380, FY_ART_H = 860, FY_PRAYER_CY = 176;
     private static final int FY_BASE = 0xFF0D0F15, FY_SOFT = 0xBDFFFFFF;
     private static final long ART_FADE_MS = 900, DECK_MS = 650, BREATHE_MS = 22_000;
@@ -3648,7 +3648,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     /** Paints, gradients and the layout's text for For You (made with the other paints, for the UI's size). */
     private void makeForYouPaints() {
         fyCat = Ui.text(Ui.medium, 26 * k, 0xFFFFFFFF);
-        fyTitle = new TextPaint(Ui.text(Ui.displaySemibold, 40 * k, 0xFFFFFFFF));
+        fyTitle = new TextPaint(Ui.text(Ui.displaySemibold, 34 * k, 0xFFFFFFFF));
         fyTitle.setLetterSpacing(-0.02f);
         fyMeta = Ui.numbers(Ui.medium, 22 * k, FY_SOFT);
         fyBadge = Ui.numbers(Ui.semibold, 16 * k, 0xFFFFFFFF);
@@ -3810,9 +3810,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (p.info != null && !p.info.isEmpty()) meta.append(meta.length() > 0 ? "  ·  " : "").append(p.info);
         card.meta = meta.toString();
         String story = p.story == null ? "" : p.story;
-        // Two lines of story under a two-line title, so the poster keeps its room at the bottom
         card.story = StaticLayout.Builder.obtain(story, 0, story.length(), fyStory, Math.max(1, Math.round(width)))
-                .setMaxLines(card.title.getLineCount() > 1 ? 2 : 3).setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 1.25f).setIncludePad(false).build();
+                .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 1.25f).setIncludePad(false).build();
         deckCards.put(key, card);
         while (deckCards.size() > 8) deckCards.remove(deckCards.keySet().iterator().next());
         return card;
@@ -4001,9 +4000,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         tmp.offset(0, 30 * k);
         shadow.setColor(Ui.alpha(0xFF000000, 0.45f * alpha));
         shadows.draw(c, tmp, r, DEEP_BLUR * k, shadow);
-        // Smoked glass: a dark fill, light along the top edge, the rim (the frost is not used here: it can't turn)
+        // An opaque dark card (the artwork behind is the film's own: no picture on it), darker the further back it
+        // sits, light along its top edge, the rim. Opaque, so the cards behind don't show through the top one.
         fill.setShader(null);
-        fill.setColor(Ui.alpha(top ? 0xFF161922 : 0xFF21242F, (top ? 0.8f : 0.88f) * alpha));
+        fill.setColor(Ui.alpha(blend(0xFF0A0B0F, 0xFF161922, pose[5]), alpha));
         c.drawRoundRect(cell, r, r, fill);
         if (sheenShader == null) {
             sheenShader = new LinearGradient(0, 0, 0, 1, 0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
@@ -4031,7 +4031,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             }
             Symbols.draw(getContext(), c, "play", bx + 1.5f * k, by, 20 * k, Ui.alpha(lit ? 0xFF12141A : 0xFFFFFFFF, content));
             Card card = cardOf(p);
-            y += 44 * k + 32 * k;
+            y += 44 * k + 30 * k;
             c.save();
             c.translate(x, y);
             fyTitle.setAlpha(Math.round(255 * content));
@@ -4060,24 +4060,6 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             fyStory.setAlpha(Math.round((FY_SOFT >>> 24) * content));
             card.story.draw(c);
             c.restore();
-            // The poster, large at the bottom left (where the reference keeps its icon)
-            Bitmap poster = recs.smallPoster(p);
-            tmp.set(x, topY + ch - pad - FY_CARD_POSTER_H * k, x + FY_CARD_POSTER_W * k, topY + ch - pad);
-            if (tmp.top > y + card.story.getHeight() + 16 * k) {
-                cell.set(tmp);
-                cell.offset(0, 10 * k);
-                shadow.setColor(Ui.alpha(0xFF000000, 0.45f * content));
-                shadows.draw(c, cell, 18 * k, SHADOW_BLUR * k, shadow);
-                if (poster != null) {
-                    coverImage(c, poster, tmp, 18 * k, content);
-                } else {
-                    fill.setColor(Ui.alpha(0xFF2C3040, content));
-                    c.drawRoundRect(tmp, 18 * k, 18 * k, fill);
-                }
-                fyRing.setStrokeWidth(Math.max(1, k));
-                fyRing.setColor(Ui.alpha(0x1FFFFFFF, content));
-                c.drawRoundRect(tmp, 18 * k, 18 * k, fyRing);
-            }
         }
         c.restore();
     }
