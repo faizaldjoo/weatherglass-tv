@@ -13,6 +13,41 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "Remote": return "Пульт";
+            case "Open": return "Открыть";
+            case "Care": return "Уход";
+            case "Log": return "Журнал";
+            case "Memory": return "Память";
+            case "Storage": return "Хранилище";
+            case "Up since": return "Работает";
+            case "In front": return "На экране";
+            case "Type to the TV": return "Ввод текста на ТВ";
+            case "Send": return "Отправить";
+            case "a search, a password": return "поиск, пароль";
+            case "when the TV feels slow": return "когда телевизор тормозит";
+            case "stops apps in the background": return "закрывает фоновые приложения";
+            case "Clear caches": return "Очистить кэш";
+            case "Restart home screen": return "Перезапустить главный экран";
+            case "Sleep in 30 min": return "Сон через 30 мин";
+            case "Sleep in 60 min": return "Сон через 60 мин";
+            case "Reboot TV": return "Перезагрузить ТВ";
+            case "about 40 s": return "около 40 с";
+            case "Reboot the TV?": return "Перезагрузить телевизор?";
+            case "It turns off and comes back in about 40 seconds, into the home screen. Whatever is playing stops.": return "Он выключится и вернётся примерно через 40 секунд на главный экран. Воспроизведение остановится.";
+            case "Reboot": return "Перезагрузить";
+            case "Haptic feedback": return "Вибрация при нажатии";
+            case "not on this device": return "не на этом устройстве";
+            case "Pair this phone": return "Подключить этот телефон";
+            case "Enter the four-digit code from the TV's Settings → About.": return "Введите четырёхзначный код из Настройки → О программе на телевизоре.";
+            case "Pair": return "Подключить";
+            case "Wrong code": return "Неверный код";
+            case "No connection to the TV": return "Нет связи с телевизором";
+            case "used": return "занято";
+            case "free": return "свободно";
+            case "of": return "из";
+            case "DASHBOARD": return "ПАНЕЛЬ";
+            case "No Wi‑Fi network": return "Нет сети Wi‑Fi";
+            case "Open it on a phone or a computer on the same Wi‑Fi. Code to pair: ": return "Откройте на телефоне или компьютере в той же сети Wi‑Fi. Код для подключения: ";
             case "Light or dark": return "Светлая или тёмная";
             case "On the Movie wallpaper the glass is always transparent: lighter for the TV.": return "На обоях «Фильм» стекло всегда прозрачное: так телевизору легче.";
             case "In cinemas": return "В кино";

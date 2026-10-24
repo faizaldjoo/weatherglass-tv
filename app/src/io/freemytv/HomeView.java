@@ -1802,6 +1802,30 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         drawerDirty = true;
     }
 
+    /** The dashboard asked for the inputs: the drawer, on its first input (the home screen is in front). */
+    void showInputs() {
+        if (!running || drawerItems.isEmpty()) return;
+        wake();
+        if (sheetOpen) closeSheet();
+        openDrawer();
+        for (int i = 0; i < drawerItems.size(); i++) {
+            if (drawerItems.get(i).kind == HomeApps.INPUT) {
+                drawerIndex = i;
+                break;
+            }
+        }
+        retarget(false);
+    }
+
+    /** The dashboard asked for the camera: its live popup. */
+    void showCamera() {
+        if (running && camera != null) openCameraPopup(camera);
+    }
+
+    boolean hasCamera() {
+        return camera != null;
+    }
+
     private void openDrawer() {
         if (drawerItems.isEmpty()) return;
         drawerOpen = true;

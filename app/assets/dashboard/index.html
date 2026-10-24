@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="{{lang}}">
+<head>
+<meta charset="utf-8">
+<title>Weatherglass TV</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0c11">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+/* The TV's own control page, served by Weatherglass TV on the home network and opened on a phone or laptop.
+   Dark, with the home screen's smoked glass. Prototype: the numbers and the log are made up and move on their own. */
+:root {
+  color-scheme: dark;
+  --page: #0b0c11;
+  --ink: #eceef5;
+  --soft: rgba(255,255,255,0.68);
+  --dim: rgba(255,255,255,0.42);
+  --line: rgba(255,255,255,0.09);
+  --glass: rgba(255,255,255,0.06);
+  --glass-hi: rgba(255,255,255,0.12);
+  --accent: #5aa9ff;
+  --ok: #30d158;
+  --warn: #ffb340;
+  --bad: #ff453a;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --face: "Geist", system-ui, sans-serif;
+  --mono: "Geist Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--page); color: var(--ink); font-family: var(--face); }
+body { padding: 0 max(16px, env(safe-area-inset-left, 0px)) 48px max(16px, env(safe-area-inset-right, 0px)); }
+main { max-width: 1120px; margin: 0 auto; }
+
+/* Header: the TV, live or not, the clock */
+header { position: sticky; top: 0; z-index: 3; display: flex; align-items: center; gap: 14px; padding: 16px 0 14px; background: linear-gradient(var(--page) 80%, transparent); }
+.mark { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #3b7bff, #7b4dff); display: grid; place-items: center; flex: none; }
+.mark svg { width: 20px; height: 20px; fill: #fff; }
+header h1 { font-size: 17px; font-weight: 600; margin: 0; white-space: nowrap; }
+header .tv { color: var(--dim); font-size: 13px; font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+header .right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.live { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 15px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--ok); background: rgba(48,209,88,0.1); box-shadow: inset 0 0 0 1px rgba(48,209,88,0.3); }
+.live i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 rgba(48,209,88,0.5); animation: pulse 2s infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(48,209,88,0.5); } 70% { box-shadow: 0 0 0 7px rgba(48,209,88,0); } 100% { box-shadow: 0 0 0 0 rgba(48,209,88,0); } }
+header .clock { font-family: var(--mono); font-size: 14px; color: var(--soft); font-variant-numeric: tabular-nums; }
+
+/* Glass cards */
+.card { background: var(--glass); border-radius: 18px; padding: 18px 20px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 0 1px var(--line); }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.stat .label { font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--dim); text-transform: uppercase; }
+.stat .big { font-family: var(--mono); font-size: 34px; font-weight: 600; margin: 8px 0 4px; letter-spacing: -0.02em; line-height: 1; }
+.stat .big small { font-size: 18px; color: var(--soft); font-weight: 500; }
+.stat .sub { font-size: 13px; color: var(--soft); line-height: 1.45; min-height: 38px; }
+.bar { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.08); margin-top: 12px; overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); width: 0; transition: width 1.2s var(--ease); }
+.bar.warn i { background: var(--warn); }
+.state { display: inline-flex; align-items: center; gap: 8px; }
+.state i { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
+
+/* Sections */
+section { margin-top: 14px; }
+.section-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.section-head h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.section-head span { font-size: 12px; color: var(--dim); }
+
+button { font: inherit; color: var(--ink); background: var(--glass); border: 0; border-radius: 14px; padding: 0 16px; height: 44px; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 0 1px var(--line); transition: background 0.2s, transform 0.12s var(--ease); white-space: nowrap; }
+button:hover { background: var(--glass-hi); }
+button:active, button.down { transform: scale(0.94); background: var(--glass-hi); }
+
+/* The page: the remote at the left, everything else beside it */
+.cols { display: grid; grid-template-columns: 320px 1fr; gap: 14px; margin-top: 14px; align-items: start; }
+.cols section:first-of-type { margin-top: 0; }
+
+/* The remote, shaped like the TV's: a tall slab with round keys, the ring in the middle */
+.remote { background: linear-gradient(180deg, #1c1f2a, #121419); border-radius: 44px; padding: 26px 24px 28px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px var(--line), 0 30px 60px rgba(0,0,0,0.45); display: flex; flex-direction: column; gap: 18px; align-items: center; }
+.remote .row { display: flex; gap: 14px; justify-content: center; width: 100%; }
+.remote .row.spread { justify-content: space-between; }
+.key { width: 56px; height: 56px; border-radius: 50%; padding: 0; display: grid; place-items: center; }
+.key svg { width: 24px; height: 24px; fill: currentColor; }
+.key.power { color: var(--bad); }
+.key.wide { width: auto; border-radius: 28px; padding: 0 20px 0 16px; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.key.wide svg { width: 20px; height: 20px; }
+.ring { position: relative; width: 224px; height: 224px; border-radius: 50%; background: radial-gradient(circle at 50% 36%, rgba(255,255,255,0.1), rgba(255,255,255,0.04) 60%, rgba(0,0,0,0.2)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 0 1px var(--line), inset 0 -8px 20px rgba(0,0,0,0.25); }
+.ring button { position: absolute; background: transparent; box-shadow: none; border-radius: 0; width: 72px; height: 60px; display: grid; place-items: center; color: var(--soft); }
+.ring button:hover { background: transparent; color: var(--ink); }
+.ring button:active, .ring button.down { transform: scale(0.9); color: #fff; }
+.ring button svg { width: 26px; height: 26px; fill: currentColor; }
+.ring .up { left: 76px; top: 4px; } .ring .down { left: 76px; bottom: 4px; } .ring .left { left: 2px; top: 82px; } .ring .right { right: 2px; top: 82px; }
+.ring .ok { position: absolute; left: 67px; top: 67px; width: 90px; height: 90px; border-radius: 50%; background: rgba(255,255,255,0.92); color: #12141a; font-weight: 700; font-size: 16px; letter-spacing: 0.04em; box-shadow: 0 6px 18px rgba(0,0,0,0.35), inset 0 -2px 0 rgba(0,0,0,0.1); }
+.ring .ok:hover { background: #fff; }
+.ring .ok:active, .ring .ok.down { transform: scale(0.94); background: #fff; }
+.rocker { width: 56px; height: 132px; border-radius: 28px; background: var(--glass); box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 0 1px var(--line); display: flex; flex-direction: column; overflow: hidden; }
+.rocker button { flex: 1; width: 100%; border-radius: 0; background: transparent; box-shadow: none; padding: 0; display: grid; place-items: center; }
+.rocker button:active, .rocker button.down { transform: none; background: var(--glass-hi); }
+.rocker button svg { width: 22px; height: 22px; fill: currentColor; }
+.rocker span { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; color: var(--dim); text-align: center; line-height: 1; padding: 2px 0; }
+.remote .brands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
+.remote .brands button { height: 38px; border-radius: 19px; font-size: 12px; font-weight: 700; letter-spacing: 0.02em; padding: 0; }
+.remote .brands .nf { color: #fff; background: #d81f26; box-shadow: inset 0 1px 0 rgba(255,255,255,0.25); }
+.remote .brands .yt { color: #fff; background: #e62117; box-shadow: inset 0 1px 0 rgba(255,255,255,0.25); }
+.remote .brands .pv { color: #fff; background: #1a98ff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.25); }
+.remote .brands .nf:hover { background: #ef2a31; } .remote .brands .yt:hover { background: #f52d22; } .remote .brands .pv:hover { background: #2aa3ff; }
+.haptic { display: flex; align-items: center; justify-content: space-between; width: 100%; font-size: 12px; color: var(--dim); padding: 0 6px; }
+.haptic label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.haptic input { accent-color: var(--accent); }
+
+/* Type to the TV */
+.type { display: flex; gap: 8px; }
+.type input { flex: 1; min-width: 0; font: inherit; color: var(--ink); background: rgba(0,0,0,0.25); border: 0; border-radius: 14px; height: 44px; padding: 0 16px; box-shadow: inset 0 0 0 1px var(--line); }
+.type input::placeholder { color: var(--dim); }
+.type input:focus { outline: 0; box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+/* Presets and care */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button { height: 42px; }
+.chips button.danger { color: var(--bad); box-shadow: inset 0 1px 0 rgba(255,69,58,0.15), inset 0 0 0 1px rgba(255,69,58,0.35); }
+.chips button.danger:hover { background: rgba(255,69,58,0.1); }
+.chips button b { font-weight: 600; }
+.chips button small { color: var(--dim); font-size: 12px; margin-left: 6px; }
+
+/* Log */
+.log { font-family: var(--mono); font-size: 12.5px; color: var(--soft); line-height: 1.7; max-height: 150px; overflow: auto; }
+.log .t { color: var(--dim); margin-right: 10px; }
+.log .ok { color: var(--ok); }
+.log .warn { color: var(--warn); }
+
+/* Confirm sheet, for the reboot */
+.sheet { position: fixed; inset: 0; z-index: 10; display: grid; place-items: end center; background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity 0.25s; padding: 16px; }
+.sheet.on { opacity: 1; pointer-events: auto; }
+.sheet .box { width: min(440px, 100%); background: #171922; border-radius: 22px; padding: 22px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 30px 60px rgba(0,0,0,0.5); transform: translateY(20px); transition: transform 0.35s var(--ease); }
+.sheet.on .box { transform: none; }
+.sheet h3 { margin: 0 0 6px; font-size: 17px; }
+.sheet p { margin: 0 0 18px; color: var(--soft); font-size: 14px; line-height: 1.5; }
+.sheet .row { display: flex; gap: 8px; justify-content: flex-end; }
+.sheet .go { background: var(--bad); color: #fff; }
+
+/* Toast */
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 10px); background: #1d2030; color: var(--ink); padding: 11px 18px; border-radius: 14px; font-size: 14px; box-shadow: 0 14px 34px rgba(0,0,0,0.4), inset 0 0 0 1px var(--line); opacity: 0; transition: opacity 0.25s, transform 0.35s var(--ease); pointer-events: none; z-index: 20; white-space: nowrap; }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+
+@media (max-width: 900px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .cols { grid-template-columns: 1fr; }
+  .remote { max-width: 340px; margin: 0 auto; width: 100%; }
+  .stat .big { font-size: 28px; }
+}
+@media (max-width: 480px) {
+  header h1 { font-size: 15px; }
+  header .clock { display: none; }
+  .card { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .live i { animation: none; } .bar i, .sheet .box, .toast { transition: none; } }
+
+.pair .box input { width: 100%; font: 600 28px var(--mono); letter-spacing: 0.3em; text-align: center; color: var(--ink); background: rgba(0,0,0,0.25); border: 0; border-radius: 14px; height: 56px; margin: 6px 0 16px; box-shadow: inset 0 0 0 1px var(--line); }
+.pair .box input:focus { outline: 0; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.pair .err { color: var(--bad); font-size: 13px; min-height: 18px; margin: -10px 0 10px; }
+.sheet .go.blue { background: var(--accent); color: #0b0c11; }
+.offline .live { color: var(--warn); background: rgba(255,179,64,0.1); box-shadow: inset 0 0 0 1px rgba(255,179,64,0.3); }
+.offline .live i { background: var(--warn); animation: none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="mark"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M216,40H40A16,16,0,0,0,24,56V184a16,16,0,0,0,16,16h64v16H88a8,8,0,0,0,0,16h80a8,8,0,0,0,0-16H152V200h64a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,144H40V56H216V184Z"/></svg></div>
+    <div><h1>Weatherglass TV</h1><div class="tv" id="tvName">…</div></div>
+    <div class="right"><span class="live"><i></i>LIVE</span><span class="clock" id="clock"></span></div>
+  </header>
+
+  <div class="stats">
+    <div class="card stat">
+      <div class="label">TV</div>
+      <div class="big"><span class="state"><i id="onDot"></i><span id="onText">…</span></span></div>
+      <div class="sub">{{In front}}: <b id="front">…</b><br><span id="android"></span></div>
+    </div>
+    <div class="card stat">
+      <div class="label">{{Memory}}</div>
+      <div class="big" id="memPct">…</div>
+      <div class="sub" id="memText"></div>
+      <div class="bar" id="memBar"><i></i></div>
+    </div>
+    <div class="card stat">
+      <div class="label">{{Storage}}</div>
+      <div class="big" id="diskPct">…</div>
+      <div class="sub" id="diskText"></div>
+      <div class="bar" id="diskBar"><i></i></div>
+    </div>
+    <div class="card stat">
+      <div class="label">{{Up since}}</div>
+      <div class="big" id="up">…</div>
+      <div class="sub" id="wifi"></div>
+    </div>
+  </div>
+
+  <div class="cols">
+  <div class="remote" id="remote">
+    <div class="row spread">
+      <button class="key power" data-key="POWER" title="Screen on or off"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104,104,0,0,0,128,24Zm-8,40a8,8,0,0,1,16,0v64a8,8,0,0,1-16,0Zm8,144A80,80,0,0,1,83.55,61.48a8,8,0,1,1,8.9,13.29,64,64,0,1,0,71.1,0,8,8,0,1,1,8.9-13.29A80,80,0,0,1,128,208Z"/></svg></button>
+      <button class="key wide" data-open="HDMI inputs"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M149.66,149.66,131.31,168l18.35,18.34a8,8,0,0,1-11.32,11.32L132,191.31l-23.31,23.32a32.06,32.06,0,0,1-45.26,0l-5.37-5.38-28.4,28.41a8,8,0,0,1-11.32-11.32l28.41-28.4-5.38-5.37a32,32,0,0,1,0-45.26L64.69,124l-6.35-6.34a8,8,0,0,1,11.32-11.32L88,124.69l18.34-18.35a8,8,0,0,1,11.32,11.32L99.31,136,120,156.69l18.34-18.35a8,8,0,0,1,11.32,11.32Zm88-131.32a8,8,0,0,0-11.32,0l-28.4,28.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L124,64.69l-6.34-6.35a8,8,0,0,0-11.32,11.32l80,80a8,8,0,0,0,11.32-11.32L191.31,132l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,28.41-28.4A8,8,0,0,0,237.66,18.34Z"/></svg>{{Inputs}}</button>
+      <button class="key" data-key="MENU" title="Menu"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM192,184H64a8,8,0,0,1,0-16H192a8,8,0,0,1,0,16Zm0-48H64a8,8,0,0,1,0-16H192a8,8,0,0,1,0,16Zm0-48H64a8,8,0,0,1,0-16H192a8,8,0,0,1,0,16Z"/></svg></button>
+    </div>
+    <div class="ring">
+      <button class="up" data-key="DPAD_UP"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M215.39,163.06A8,8,0,0,1,208,168H48a8,8,0,0,1-5.66-13.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,215.39,163.06Z"/></svg></button>
+      <button class="left" data-key="DPAD_LEFT"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M168,48V208a8,8,0,0,1-13.66,5.66l-80-80a8,8,0,0,1,0-11.32l80-80A8,8,0,0,1,168,48Z"/></svg></button>
+      <button class="ok" data-key="DPAD_CENTER">OK</button>
+      <button class="right" data-key="DPAD_RIGHT"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M181.66,133.66l-80,80A8,8,0,0,1,88,208V48a8,8,0,0,1,13.66-5.66l80,80A8,8,0,0,1,181.66,133.66Z"/></svg></button>
+      <button class="down" data-key="DPAD_DOWN"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,48,88H208a8,8,0,0,1,5.66,13.66Z"/></svg></button>
+    </div>
+    <div class="row spread">
+      <button class="key" data-key="BACK" title="Back"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M232,144a64.07,64.07,0,0,1-64,64H80a8,8,0,0,1,0-16h88a48,48,0,0,0,0-96H88v40a8,8,0,0,1-13.66,5.66l-48-48a8,8,0,0,1,0-11.32l48-48A8,8,0,0,1,88,40V80h80A64.07,64.07,0,0,1,232,144Z"/></svg></button>
+      <button class="key" data-key="HOME" title="Home"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M224,120v96a8,8,0,0,1-8,8H160a8,8,0,0,1-8-8V164a4,4,0,0,0-4-4H108a4,4,0,0,0-4,4v52a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V120a16,16,0,0,1,4.69-11.31l80-80a16,16,0,0,1,22.62,0l80,80A16,16,0,0,1,224,120Z"/></svg></button>
+      <button class="key" data-key="MEDIA_PLAY_PAUSE" title="Play or pause"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M184,64V192a8,8,0,0,1-16,0V64a8,8,0,0,1,16,0Zm40-8a8,8,0,0,0-8,8V192a8,8,0,0,0,16,0V64A8,8,0,0,0,224,56Zm-87.33,58.66L48.48,58.51A15.91,15.91,0,0,0,24,71.85v112.3A15.83,15.83,0,0,0,32.23,198a15.95,15.95,0,0,0,16.25-.53l88.19-56.15a15.8,15.8,0,0,0,0-26.68Z"/></svg></button>
+    </div>
+    <div class="row spread">
+      <div class="rocker"><button data-key="VOLUME_UP"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM184,136H136v48a8,8,0,0,1-16,0V136H72a8,8,0,0,1,0-16h48V72a8,8,0,0,1,16,0v48h48a8,8,0,0,1,0,16Z"/></svg></button><span>VOL</span><button data-key="VOLUME_DOWN"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM184,136H72a8,8,0,0,1,0-16H184a8,8,0,0,1,0,16Z"/></svg></button></div>
+      <div style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+        <button class="key" data-key="VOLUME_MUTE" title="Mute"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M213.92,210.62a8,8,0,1,1-11.84,10.76L160,175.09v48.6a8.29,8.29,0,0,1-3.91,7.18,8,8,0,0,1-9-.56l-65.55-51A4,4,0,0,1,80,176.18V87.09L42.08,45.38A8,8,0,1,1,53.92,34.62Zm-27.21-55.46a8,8,0,0,0,11.29-.7,40,40,0,0,0,0-52.88,8,8,0,1,0-12,10.57,24,24,0,0,1,0,31.72A8,8,0,0,0,186.71,155.16Zm40.92-80.49a8,8,0,1,0-11.92,10.66,64,64,0,0,1,0,85.34,8,8,0,1,0,11.92,10.66,80,80,0,0,0,0-106.66ZM153,119.87a4,4,0,0,0,7-2.7V32.25a8.27,8.27,0,0,0-2.88-6.4,8,8,0,0,0-10-.16L103.83,59.33a4,4,0,0,0-.5,5.85ZM60,80H32A16,16,0,0,0,16,96v64a16,16,0,0,0,16,16H60a4,4,0,0,0,4-4V84A4,4,0,0,0,60,80Z"/></svg></button>
+        <button class="key" data-care="sleep30" title="Sleep in 30 min"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M235.54,150.21a104.84,104.84,0,0,1-37,52.91A104,104,0,0,1,32,120,103.09,103.09,0,0,1,52.88,57.48a104.84,104.84,0,0,1,52.91-37,8,8,0,0,1,10,10,88.08,88.08,0,0,0,109.8,109.8,8,8,0,0,1,10,10Z"/></svg></button>
+      </div>
+      <div class="rocker"><button data-key="CHANNEL_UP"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M215.39,163.06A8,8,0,0,1,208,168H48a8,8,0,0,1-5.66-13.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,215.39,163.06Z"/></svg></button><span>CH</span><button data-key="CHANNEL_DOWN"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,48,88H208a8,8,0,0,1,5.66,13.66Z"/></svg></button></div>
+    </div>
+    <div class="row">
+      <button class="key" data-key="MEDIA_REWIND" title="Rewind"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M232,71.84V184.16a15.92,15.92,0,0,1-24.48,13.34L128,146.86v37.3a15.92,15.92,0,0,1-24.48,13.34L15.33,141.34a15.8,15.8,0,0,1,0-26.68L103.52,58.5A15.91,15.91,0,0,1,128,71.84v37.3L207.52,58.5A15.91,15.91,0,0,1,232,71.84Z"/></svg></button>
+      <button class="key" data-key="MEDIA_FAST_FORWARD" title="Fast forward"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M256,128a15.76,15.76,0,0,1-7.33,13.34L160.48,197.5A15.91,15.91,0,0,1,136,184.16v-37.3L56.48,197.5A15.91,15.91,0,0,1,32,184.16V71.84A15.91,15.91,0,0,1,56.48,58.5L136,109.14V71.84A15.91,15.91,0,0,1,160.48,58.5l88.19,56.16A15.76,15.76,0,0,1,256,128Z"/></svg></button>
+    </div>
+    <div class="brands">
+      <button class="nf" data-open="Netflix">NETFLIX</button>
+      <button class="yt" data-open="YouTube">YouTube</button>
+      <button class="pv" data-open="Prime Video">prime</button>
+    </div>
+    <div class="haptic"><label><input type="checkbox" id="haptic" checked> {{Haptic feedback}}</label><span id="hapticNote"></span></div>
+  </div>
+  <div>
+  <section class="card">
+    <div class="section-head"><h2>{{Type to the TV}}</h2><span>{{a search, a password}}</span></div>
+    <div class="type"><input id="typed" autocomplete="off" autocapitalize="off"><button id="send">{{Send}}</button></div>
+  </section>
+  <section class="card">
+    <div class="section-head"><h2>{{Open}}</h2></div>
+    <div class="chips" id="apps"></div>
+  </section>
+  <section class="card">
+    <div class="section-head"><h2>{{Care}}</h2><span>{{when the TV feels slow}}</span></div>
+    <div class="chips">
+      <button data-care="free"><b>{{Free memory}}</b><small>{{stops apps in the background}}</small></button>
+      <button data-care="cache"><b>{{Clear caches}}</b></button>
+      <button data-care="home"><b>{{Restart home screen}}</b></button>
+      <button data-care="sleep30" class="sleep"><b>{{Sleep in 30 min}}</b></button>
+      <button data-care="sleep60" class="sleep"><b>{{Sleep in 60 min}}</b></button>
+      <button class="danger" id="reboot"><b>{{Reboot TV}}</b><small style="color:inherit;opacity:.7">{{about 40 s}}</small></button>
+    </div>
+  </section>
+  <section class="card">
+    <div class="section-head"><h2>{{Log}}</h2></div>
+    <div class="log" id="log"></div>
+  </section>
+  </div>
+  </div>
+</main>
+
+<div class="sheet" id="sheet"><div class="box">
+  <h3>{{Reboot the TV?}}</h3>
+  <p>{{It turns off and comes back in about 40 seconds, into the home screen. Whatever is playing stops.}}</p>
+  <div class="row"><button id="cancel">{{Cancel}}</button><button class="go" id="go">{{Reboot}}</button></div>
+</div></div>
+<div class="sheet pair" id="pair"><div class="box">
+  <h3>{{Pair this phone}}</h3>
+  <p>{{Enter the four-digit code from the TV's Settings → About.}}</p>
+  <input id="code" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code">
+  <div class="err" id="pairErr"></div>
+  <div class="row"><button class="go blue" id="pairGo">{{Pair}}</button></div>
+</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  var T = { wrong: "{{Wrong code}}", offline: "{{No connection to the TV}}", used: "{{used}}", free: "{{free}}", of: "{{of}}", ours: "{{Weatherglass}}" };
+  var log = document.getElementById('log'), toast = document.getElementById('toast'), toastTimer;
+  var token = ''; try { token = localStorage.getItem('wg-token') || ''; } catch (e) {}
+  function two(n) { return (n < 10 ? '0' : '') + n; }
+  function stamp() { var d = new Date(); return two(d.getHours()) + ':' + two(d.getMinutes()) + ':' + two(d.getSeconds()); }
+  function tick() { document.getElementById('clock').textContent = stamp(); }
+  tick(); setInterval(tick, 1000);
+  function say(text, cls) {
+    var line = document.createElement('div');
+    line.innerHTML = '<span class="t">' + stamp() + '</span><span class="' + (cls || '') + '"></span>';
+    line.lastChild.textContent = text;
+    log.insertBefore(line, log.firstChild);
+    while (log.children.length > 40) log.removeChild(log.lastChild);
+    toast.textContent = text;
+    toast.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('on'); }, 1600);
+  }
+  function api(method, path, body, done) {
+    var x = new XMLHttpRequest();
+    x.open(method, '/api/' + path, true);
+    x.timeout = 8000;
+    x.setRequestHeader('X-Token', token);
+    x.onload = function () {
+      var r = {};
+      try { r = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status === 401) { pair.classList.add('on'); document.getElementById('code').focus(); return; }
+      if (x.status !== 200) { say(r.error || ('error ' + x.status), 'warn'); return; }
+      if (done) done(r);
+    };
+    x.onerror = x.ontimeout = function () { document.body.classList.add('offline'); if (done) done(null); };
+    x.send(body || null);
+  }
+  // Pairing
+  var pair = document.getElementById('pair');
+  document.getElementById('pairGo').addEventListener('click', function () {
+    var code = document.getElementById('code').value.trim();
+    var x = new XMLHttpRequest();
+    x.open('POST', '/api/pair?code=' + encodeURIComponent(code), true);
+    x.onload = function () {
+      if (x.status !== 200) { document.getElementById('pairErr').textContent = T.wrong; return; }
+      token = JSON.parse(x.responseText).token;
+      try { localStorage.setItem('wg-token', token); } catch (e) {}
+      pair.classList.remove('on');
+      refresh();
+    };
+    x.send();
+  });
+  document.getElementById('code').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('pairGo').click(); });
+  // Status
+  function gb(b) { return (b / 1073741824).toFixed(2) + ' GB'; }
+  function mb(b) { return Math.round(b / 1048576) + ' MB'; }
+  function refresh() {
+    api('GET', 'status', null, function (s) {
+      if (!s) return;
+      document.body.classList.remove('offline');
+      document.getElementById('tvName').textContent = s.model + ' · ' + location.hostname;
+      document.getElementById('onDot').style.background = s.on ? 'var(--ok)' : 'var(--dim)';
+      document.getElementById('onText').textContent = s.on ? 'On' : 'Off';
+      document.getElementById('front').textContent = s.front || '…';
+      document.getElementById('android').textContent = 'Android ' + s.android;
+      var pct = Math.round(s.memUsed / s.memTotal * 100);
+      document.getElementById('memPct').innerHTML = pct + '<small>%</small>';
+      document.getElementById('memText').textContent = gb(s.memUsed) + ' ' + T.of + ' ' + gb(s.memTotal) + ' ' + T.used + ' · ' + T.ours + ' ' + mb(s.memOurs);
+      var bar = document.getElementById('memBar'); bar.querySelector('i').style.width = pct + '%'; bar.classList.toggle('warn', pct >= 85);
+      var dpct = Math.round((s.diskTotal - s.diskFree) / s.diskTotal * 100);
+      document.getElementById('diskPct').innerHTML = dpct + '<small>%</small>';
+      document.getElementById('diskText').textContent = gb(s.diskTotal - s.diskFree) + ' ' + T.of + ' ' + gb(s.diskTotal) + ' ' + T.used + ' · ' + gb(s.diskFree) + ' ' + T.free;
+      var dbar = document.getElementById('diskBar'); dbar.querySelector('i').style.width = dpct + '%'; dbar.classList.toggle('warn', dpct >= 90);
+      var up = Math.floor(s.uptime / 60000), d = Math.floor(up / 1440), h = Math.floor(up % 1440 / 60), m = up % 60;
+      document.getElementById('up').innerHTML = d > 0 ? d + '<small>d</small> ' + two(h) + '<small>h</small>' : h + '<small>h</small> ' + two(m) + '<small>m</small>';
+      document.getElementById('wifi').textContent = s.rssi !== undefined ? 'Wi‑Fi ' + s.rssi + ' dBm · ' + s.ghz + ' GHz' : '';
+      var apps = document.getElementById('apps');
+      if (apps.getAttribute('data-n') !== String(s.apps.length)) {
+        apps.innerHTML = '';
+        apps.setAttribute('data-n', s.apps.length);
+        s.apps.forEach(function (a) {
+          var b = document.createElement('button');
+          b.textContent = a.label;
+          b.setAttribute('data-open', a.id);
+          b.addEventListener('click', function () { open(a.id, a.label); });
+          apps.appendChild(b);
+          wire(b);
+        });
+      }
+      Array.prototype.forEach.call(document.querySelectorAll('.sleep'), function (b) { b.style.opacity = s.sleepAt ? 0.6 : 1; });
+    });
+  }
+  refresh(); setInterval(refresh, 5000);
+  // Haptics: a short tap on each key, a double one on OK (Android browsers; iPhones don't let a web page vibrate)
+  var canBuzz = 'vibrate' in navigator, hapticBox = document.getElementById('haptic');
+  document.getElementById('hapticNote').textContent = canBuzz ? '' : "{{not on this device}}";
+  if (!canBuzz) hapticBox.disabled = true;
+  try { if (localStorage.getItem('wg-haptic') === '0') hapticBox.checked = false; } catch (e) {}
+  hapticBox.addEventListener('change', function () { try { localStorage.setItem('wg-haptic', hapticBox.checked ? '1' : '0'); } catch (e) {} });
+  function buzz(pattern) { if (canBuzz && hapticBox.checked) { try { navigator.vibrate(pattern); } catch (e) {} } }
+  function wire(b) {
+    b.addEventListener('pointerdown', function () { b.classList.add('down'); buzz(b.classList.contains('ok') ? [12, 30, 12] : 10); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { b.addEventListener(ev, function () { b.classList.remove('down'); }); });
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('button'), wire);
+  // Keys: one per tap; holding repeats, like on the remote (volume, the arrows)
+  var repeat;
+  function key(code) { api('POST', 'key?code=' + code, null, function (r) { if (r) say(code.replace('DPAD_', '').replace('_', ' ').toLowerCase(), 'ok'); }); }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-key]'), function (b) {
+    var code = b.getAttribute('data-key');
+    b.addEventListener('click', function () { key(code); });
+    b.addEventListener('pointerdown', function () {
+      clearTimeout(repeat);
+      repeat = setTimeout(function tick() { key(code); buzz(6); repeat = setTimeout(tick, 160); }, 450);
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { b.addEventListener(ev, function () { clearTimeout(repeat); }); });
+  });
+  var KEYS = { ArrowUp: 'DPAD_UP', ArrowDown: 'DPAD_DOWN', ArrowLeft: 'DPAD_LEFT', ArrowRight: 'DPAD_RIGHT', Enter: 'DPAD_CENTER', Escape: 'BACK', Backspace: 'BACK' };
+  document.addEventListener('keydown', function (e) {
+    if (e.target.tagName === 'INPUT' || !KEYS[e.key] || pair.classList.contains('on')) return;
+    e.preventDefault();
+    var b = document.querySelector('[data-key="' + KEYS[e.key] + '"]');
+    if (b) { b.classList.add('down'); setTimeout(function () { b.classList.remove('down'); }, 120); }
+    key(KEYS[e.key]);
+  });
+  // Open
+  function open(id, label) { api('POST', 'open?id=' + encodeURIComponent(id), null, function (r) { if (r) say(label, 'ok'); }); }
+  Array.prototype.forEach.call(document.querySelectorAll('.remote [data-open]'), function (b) {
+    b.addEventListener('click', function () { open(b.getAttribute('data-open'), b.textContent.trim()); });
+  });
+  // Type
+  document.getElementById('send').addEventListener('click', function () {
+    var t = document.getElementById('typed');
+    if (!t.value.trim()) return;
+    var text = t.value.trim();
+    api('POST', 'text', text, function (r) { if (r) say('“' + text + '”', 'ok'); });
+    t.value = '';
+  });
+  document.getElementById('typed').addEventListener('keydown', function (e) { if (e.key === 'Enter') document.getElementById('send').click(); });
+  // Care
+  Array.prototype.forEach.call(document.querySelectorAll('[data-care]'), function (b) {
+    b.addEventListener('click', function () {
+      var what = b.getAttribute('data-care'), label = b.querySelector('b') ? b.querySelector('b').textContent : b.title;
+      api('POST', 'care?what=' + what, null, function (r) {
+        if (!r) return;
+        if (what === 'free' && r.stopped !== undefined) say(label + ' · ' + r.stopped, 'ok');
+        else if (r.sleepAt) { var d = new Date(r.sleepAt); say(label + ' → ' + two(d.getHours()) + ':' + two(d.getMinutes()), 'ok'); }
+        else say(label, 'ok');
+        setTimeout(refresh, 1500);
+      });
+    });
+  });
+  var sheet = document.getElementById('sheet');
+  document.getElementById('reboot').addEventListener('click', function () { sheet.classList.add('on'); });
+  document.getElementById('cancel').addEventListener('click', function () { sheet.classList.remove('on'); });
+  document.getElementById('go').addEventListener('click', function () {
+    sheet.classList.remove('on');
+    api('POST', 'care?what=reboot', null, function () { say('{{Reboot TV}}…', 'warn'); });
+  });
+})();
+</script>
+</body>
+</html>

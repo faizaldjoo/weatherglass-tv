@@ -887,6 +887,16 @@ public class SettingsActivity extends Activity {
                 y = wrap(c, Ui.tr("Links dos títulos por Watchmode.", "Links to the titles by Watchmode."), x, y + 30 * k, hint, 1);
             }
 
+            // The control page on the home network: where to open it, and the code that pairs a phone once
+            y += 64 * k;
+            c.drawText(Ui.tr("PAINEL", "DASHBOARD"), x, y, header);
+            String address = Dashboard.address();
+            y += 44 * k;
+            rowLabel.setColor(0xF2FFFFFF);
+            c.drawText(address.isEmpty() ? Ui.tr("Sem rede Wi‑Fi", "No Wi‑Fi network") : address, x, y, rowLabel);
+            y = wrap(c, Ui.tr("Abra no celular ou no computador, na mesma rede Wi‑Fi. Código para parear: ", "Open it on a phone or a computer on the same Wi‑Fi. Code to pair: ")
+                    + Dashboard.code(getContext()) + ".", x, y + 38 * k, notice, 2);
+
             y += 64 * k;
             c.drawText(Ui.tr("AVISOS", "NOTICES"), x, y, header);
             JSONArray notices = state.optJSONArray("notices");

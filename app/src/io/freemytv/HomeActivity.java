@@ -38,6 +38,12 @@ public class HomeActivity extends Activity {
         home = new HomeView(this);
         setContentView(home);
         getWindow().setBackgroundDrawable(null);
+        // The control page on the home network (Settings → About shows its address and code)
+        Dashboard.start(this, new Dashboard.Host() {
+            @Override public void openInputs() { if (home != null) home.showInputs(); }
+            @Override public void openCamera() { if (home != null) home.showCamera(); }
+            @Override public boolean hasCamera() { return home != null && home.hasCamera(); }
+        });
     }
 
     @Override protected void onResume() {
@@ -63,6 +69,7 @@ public class HomeActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        Dashboard.stop(this);
         if (home != null) home.destroy();
         super.onDestroy();
     }

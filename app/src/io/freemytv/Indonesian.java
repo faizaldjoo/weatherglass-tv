@@ -9,6 +9,41 @@ final class Indonesian {
 
     static String text(String english) {
         switch (english) {
+            case "Remote": return "Remote";
+            case "Open": return "Buka";
+            case "Care": return "Perawatan";
+            case "Log": return "Catatan";
+            case "Memory": return "Memori";
+            case "Storage": return "Penyimpanan";
+            case "Up since": return "Menyala sejak";
+            case "In front": return "Di depan";
+            case "Type to the TV": return "Ketik ke TV";
+            case "Send": return "Kirim";
+            case "a search, a password": return "pencarian, kata sandi";
+            case "when the TV feels slow": return "saat TV terasa lambat";
+            case "stops apps in the background": return "menutup aplikasi di latar belakang";
+            case "Clear caches": return "Bersihkan cache";
+            case "Restart home screen": return "Mulai ulang layar utama";
+            case "Sleep in 30 min": return "Tidur dalam 30 mnt";
+            case "Sleep in 60 min": return "Tidur dalam 60 mnt";
+            case "Reboot TV": return "Restart TV";
+            case "about 40 s": return "sekitar 40 dtk";
+            case "Reboot the TV?": return "Restart TV?";
+            case "It turns off and comes back in about 40 seconds, into the home screen. Whatever is playing stops.": return "TV mati dan menyala lagi dalam sekitar 40 detik, ke layar utama. Yang sedang diputar berhenti.";
+            case "Reboot": return "Restart";
+            case "Haptic feedback": return "Getar saat ditekan";
+            case "not on this device": return "tidak di perangkat ini";
+            case "Pair this phone": return "Sambungkan ponsel ini";
+            case "Enter the four-digit code from the TV's Settings → About.": return "Masukkan kode empat digit dari Pengaturan → Tentang di TV.";
+            case "Pair": return "Sambungkan";
+            case "Wrong code": return "Kode salah";
+            case "No connection to the TV": return "Tidak terhubung ke TV";
+            case "used": return "terpakai";
+            case "free": return "kosong";
+            case "of": return "dari";
+            case "DASHBOARD": return "DASBOR";
+            case "No Wi‑Fi network": return "Tidak ada jaringan Wi‑Fi";
+            case "Open it on a phone or a computer on the same Wi‑Fi. Code to pair: ": return "Buka di ponsel atau komputer di Wi‑Fi yang sama. Kode untuk menyambungkan: ";
             case "Light or dark": return "Terang atau gelap";
             case "On the Movie wallpaper the glass is always transparent: lighter for the TV.": return "Di wallpaper Film, kacanya selalu transparan: lebih ringan untuk TV.";
             case "In cinemas": return "Di bioskop";

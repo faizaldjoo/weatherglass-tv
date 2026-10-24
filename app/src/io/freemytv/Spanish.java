@@ -6,6 +6,41 @@ final class Spanish {
 
     static String text(String english) {
         switch (english) {
+            case "Remote": return "Mando";
+            case "Open": return "Abrir";
+            case "Care": return "Cuidados";
+            case "Log": return "Registro";
+            case "Memory": return "Memoria";
+            case "Storage": return "Almacenamiento";
+            case "Up since": return "Encendido desde hace";
+            case "In front": return "Al frente";
+            case "Type to the TV": return "Escribir en el TV";
+            case "Send": return "Enviar";
+            case "a search, a password": return "una búsqueda, una contraseña";
+            case "when the TV feels slow": return "cuando el TV va lento";
+            case "stops apps in the background": return "cierra las apps en segundo plano";
+            case "Clear caches": return "Limpiar cachés";
+            case "Restart home screen": return "Reiniciar la pantalla de inicio";
+            case "Sleep in 30 min": return "Dormir en 30 min";
+            case "Sleep in 60 min": return "Dormir en 60 min";
+            case "Reboot TV": return "Reiniciar el TV";
+            case "about 40 s": return "unos 40 s";
+            case "Reboot the TV?": return "¿Reiniciar el TV?";
+            case "It turns off and comes back in about 40 seconds, into the home screen. Whatever is playing stops.": return "Se apaga y vuelve en unos 40 segundos, en la pantalla de inicio. Lo que se esté viendo se detiene.";
+            case "Reboot": return "Reiniciar";
+            case "Haptic feedback": return "Vibración al pulsar";
+            case "not on this device": return "no en este dispositivo";
+            case "Pair this phone": return "Vincular este teléfono";
+            case "Enter the four-digit code from the TV's Settings → About.": return "Escribe el código de cuatro dígitos de Ajustes → Acerca de en el TV.";
+            case "Pair": return "Vincular";
+            case "Wrong code": return "Código incorrecto";
+            case "No connection to the TV": return "Sin conexión con el TV";
+            case "used": return "usados";
+            case "free": return "libres";
+            case "of": return "de";
+            case "DASHBOARD": return "PANEL";
+            case "No Wi‑Fi network": return "Sin red Wi‑Fi";
+            case "Open it on a phone or a computer on the same Wi‑Fi. Code to pair: ": return "Ábrelo en un teléfono o un ordenador en la misma Wi‑Fi. Código para vincular: ";
             case "Light or dark": return "Claro u oscuro";
             case "On the Movie wallpaper the glass is always transparent: lighter for the TV.": return "Con el fondo Película el cristal es siempre transparente: más ligero para el televisor.";
             case "In cinemas": return "En cines";

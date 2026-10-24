@@ -6,6 +6,41 @@ final class German {
 
     static String text(String english) {
         switch (english) {
+            case "Remote": return "Fernbedienung";
+            case "Open": return "Öffnen";
+            case "Care": return "Pflege";
+            case "Log": return "Protokoll";
+            case "Memory": return "Arbeitsspeicher";
+            case "Storage": return "Speicher";
+            case "Up since": return "Läuft seit";
+            case "In front": return "Im Vordergrund";
+            case "Type to the TV": return "Text an den Fernseher";
+            case "Send": return "Senden";
+            case "a search, a password": return "eine Suche, ein Passwort";
+            case "when the TV feels slow": return "wenn der Fernseher langsam wirkt";
+            case "stops apps in the background": return "beendet Apps im Hintergrund";
+            case "Clear caches": return "Caches leeren";
+            case "Restart home screen": return "Startbildschirm neu starten";
+            case "Sleep in 30 min": return "In 30 Min. schlafen";
+            case "Sleep in 60 min": return "In 60 Min. schlafen";
+            case "Reboot TV": return "Fernseher neu starten";
+            case "about 40 s": return "etwa 40 s";
+            case "Reboot the TV?": return "Fernseher neu starten?";
+            case "It turns off and comes back in about 40 seconds, into the home screen. Whatever is playing stops.": return "Er schaltet sich aus und ist nach etwa 40 Sekunden wieder da, im Startbildschirm. Was gerade läuft, stoppt.";
+            case "Reboot": return "Neu starten";
+            case "Haptic feedback": return "Vibration beim Tippen";
+            case "not on this device": return "nicht auf diesem Gerät";
+            case "Pair this phone": return "Dieses Telefon koppeln";
+            case "Enter the four-digit code from the TV's Settings → About.": return "Gib den vierstelligen Code aus Einstellungen → Info am Fernseher ein.";
+            case "Pair": return "Koppeln";
+            case "Wrong code": return "Falscher Code";
+            case "No connection to the TV": return "Keine Verbindung zum Fernseher";
+            case "used": return "belegt";
+            case "free": return "frei";
+            case "of": return "von";
+            case "DASHBOARD": return "DASHBOARD";
+            case "No Wi‑Fi network": return "Kein WLAN";
+            case "Open it on a phone or a computer on the same Wi‑Fi. Code to pair: ": return "Öffne es am Telefon oder Computer im selben WLAN. Code zum Koppeln: ";
             case "Light or dark": return "Hell oder dunkel";
             case "On the Movie wallpaper the glass is always transparent: lighter for the TV.": return "Beim Hintergrund Film ist das Glas immer transparent: leichter für den Fernseher.";
             case "In cinemas": return "Im Kino";
