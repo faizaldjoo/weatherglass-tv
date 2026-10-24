@@ -124,7 +124,7 @@ final class Recs {
     }
 
     private final Context context;
-    private final SharedPreferences cache;
+    private final SharedPreferences cache, translations;
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<Listener> listeners = new ArrayList<>();
@@ -145,6 +145,7 @@ final class Recs {
     private Recs(Context c) {
         context = c;
         cache = c.getSharedPreferences("recs", Context.MODE_PRIVATE);
+        translations = c.getSharedPreferences("translations", Context.MODE_PRIVATE);
         if (cache.getInt("version", 0) != CACHE_VERSION) cache.edit().clear().putInt("version", CACHE_VERSION).apply();
         try {
             String saved = cache.getString("picks", null);
@@ -950,9 +951,9 @@ final class Recs {
     private long stampValue, stampAt;
 
     /** sourceStamp() asks the package manager about every service: at most once a minute (this runs on every notice). */
-    /** The lists' stamp: the sources, and how the lists are made (3: Netflix in Popular and Now Playing), so a change fetches them again. */
+    /** The lists' stamp: the sources, and how the lists are made (4: Netflix in Popular and Now Playing; stories translated), so a change fetches them again. */
     private long movieStamp() {
-        return stamp() * 31L + 3;
+        return stamp() * 31L + 4;
     }
 
     private long stamp() {
@@ -1078,6 +1079,50 @@ final class Recs {
         return out;
     }
 
+    /**
+     * A film's English story in the TV's language, through Google Translate's free web endpoint, kept per film so it's
+     * asked once. Falls back to the English when that fails.
+     */
+    private String translated(int id, String english) {
+        if (english.isEmpty() || Ui.language.equals("en")) return english;
+        String key = "tr:" + Ui.language + ":" + id;
+        String kept = translations.getString(key, null);
+        if (kept != null) return kept;
+        try {
+            String url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&dt=t&tl=" + Ui.language
+                    + "&q=" + URLEncoder.encode(english, "UTF-8");
+            HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+            c.setConnectTimeout(6000);
+            c.setReadTimeout(6000);
+            c.setRequestProperty("User-Agent", "Mozilla/5.0");
+            String body;
+            try {
+                if (c.getResponseCode() != 200) throw new IOException("HTTP " + c.getResponseCode());
+                try (InputStream in = c.getInputStream()) {
+                    ByteArrayOutputStream out = new ByteArrayOutputStream();
+                    byte[] buffer = new byte[8192];
+                    int n;
+                    while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
+                    body = out.toString("UTF-8");
+                }
+            } finally {
+                c.disconnect();
+            }
+            JSONArray parts = new JSONArray(body).getJSONArray(0);
+            StringBuilder text = new StringBuilder();
+            for (int i = 0; i < parts.length(); i++) text.append(parts.getJSONArray(i).optString(0, ""));
+            String result = text.toString().trim();
+            if (result.isEmpty()) return english;
+            SharedPreferences.Editor e = translations.edit();
+            if (translations.getAll().size() > 300) e.clear();   // the films come and go: start again now and then
+            e.putString(key, result).apply();
+            return result;
+        } catch (Exception e) {
+            AppLog.w("translate " + id + ": " + e.getMessage());
+            return english;
+        }
+    }
+
     /** "2026-11-12" → that day at noon, local time (0 when unknown). */
     private static long parseDay(String date) {
         try {
@@ -1096,15 +1141,21 @@ final class Recs {
         String video = Ui.language.equals("en") ? "en" : Ui.language + ",en";
         JSONObject o = get("/movie/" + p.id + "?language=" + lang() + "&append_to_response=watch/providers,videos,release_dates"
                 + "&include_video_language=" + video);
-        String title = o.optString("title", "");
-        if (!title.isEmpty()) p.title = title;
-        if (p.story.isEmpty()) p.story = o.optString("overview", "");
-        if (p.story.isEmpty() && !Ui.en) {
+        // In Indonesian the title stays as the film is known (its English title) and the story is in Indonesian: TMDB's,
+        // else the English one translated. (Ui.en is also true for Indonesian, so the language is checked by name.)
+        boolean english = Ui.language.equals("en");
+        JSONObject en = null;
+        if (!english && (Ui.indo || o.optString("overview", "").isEmpty())) {
             try {
-                p.story = get("/movie/" + p.id + "?language=en-US").optString("overview", "");
+                en = get("/movie/" + p.id + "?language=en-US");
             } catch (Exception ignored) {
             }
         }
+        String title = Ui.indo && en != null ? en.optString("title", "") : "";
+        if (title.isEmpty()) title = o.optString("title", "");
+        if (!title.isEmpty()) p.title = title;
+        if (p.story.isEmpty()) p.story = o.optString("overview", "");
+        if (p.story.isEmpty() && en != null) p.story = translated(p.id, en.optString("overview", ""));
         List<String> parts = new ArrayList<>();
         JSONArray genres = o.optJSONArray("genres");
         if (genres != null && genres.length() > 0) {

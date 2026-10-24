@@ -216,8 +216,8 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private List<HomeApps.Item> reorderOrigin;
     private final Runnable holdStart = () -> { if (this.okDown && this.holdArmed) startReorder(); };
 
-    /** Movie: left alone, the deck deals the next film every 12 s (back to the first after the last). */
-    private static final long DECK_IDLE_MS = 12_000;
+    /** Movie: left alone, the deck deals the next film every 15 s (back to the first after the last). */
+    private static final long DECK_IDLE_MS = 15_000;
     private final Runnable deckNext = new Runnable() {
         @Override public void run() {
             if (!running) return;

@@ -275,7 +275,7 @@ The website ([freemytv.io](https://freemytv.io)) is in [`docs/`](docs): plain HT
 
 ## Privacy
 
-No accounts, no analytics, no tracking. The app talks to TMDB, Open-Meteo (with the coordinates you set, or your time zone's main city), Binance only when `show_crypto=true`, frankfurter.dev only with `rates`, and Watchmode only when you set a `watchmode_key`. The control page is served on your own Wi‑Fi only and reaches no server. Your settings stay on your computer and your TV.
+No accounts, no analytics, no tracking. The app talks to TMDB, Open-Meteo (with the coordinates you set, or your time zone's main city), Binance only when `show_crypto=true`, frankfurter.dev only with `rates`, Watchmode only when you set a `watchmode_key`, and Google Translate only for a film's story that TMDB doesn't have in the TV's language (the story's text, nothing about you). The control page is served on your own Wi‑Fi only and reaches no server. Your settings stay on your computer and your TV.
 
 ## Credits
 
