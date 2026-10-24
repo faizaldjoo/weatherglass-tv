@@ -6,6 +6,8 @@ final class German {
 
     static String text(String english) {
         switch (english) {
+            case "Live wallpaper": return "Live-Hintergrund";
+            case "the whole TV, 15 s": return "ganzer Fernseher, 15 s";
             case "NETWORK": return "NETZWERK";
             case "the whole TV, over the last 15 s": return "der ganze Fernseher, letzte 15 s";
             case "Wired": return "Kabel";

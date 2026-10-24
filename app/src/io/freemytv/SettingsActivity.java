@@ -935,7 +935,10 @@ public class SettingsActivity extends Activity {
             Dashboard.sampleCpu(getContext());
             int cpu = Dashboard.cpu();
             c.drawText(cpu < 0 ? "…" : cpu + "%", x + width / 2, y, rowLabel);
-            if (cpu >= 0) c.drawText(Ui.tr("toda a TV, nos últimos 15 s", "the whole TV, over the last 15 s"), x + width / 2 + 90 * k, y, notice);
+            if (cpu >= 0) {
+                String note = Ui.tr("toda a TV, 15 s", "the whole TV, 15 s");
+                c.drawText(TextUtils.ellipsize(note, new TextPaint(notice), width / 2 - 90 * k, TextUtils.TruncateAt.END).toString(), x + width / 2 + 90 * k, y, notice);
+            }
             y += 44 * k;
             c.drawText(Ui.tr("CUIDADOS", "CARE"), x, y, header);
             // The care rows
@@ -1299,7 +1302,7 @@ public class SettingsActivity extends Activity {
             v[CITY_ROW] = !cityStatus.isEmpty() ? cityStatus : Prefs.city().isEmpty() ? Ui.tr("Escolher", "Choose") : Prefs.city();
             String wp = Prefs.wallpaper();
             v[WALLPAPER_ROW] = wp.equals("photos") ? Ui.tr("Filme", "Movie") : wp.equals("lite") ? "Lite"
-                    : wp.equals("ink") ? Ui.tr("Montanhas em tinta", "Ink mountains") : Ui.tr("Céu do clima", "Weather sky");
+                    : wp.equals("ink") ? Ui.tr("Papel de parede vivo", "Live wallpaper") : Ui.tr("Céu do clima", "Weather sky");
             v[MOTION_ROW] = onOff(Prefs.wallpaperMotion());
             String[] weathers = {Ui.tr("Ao vivo", "Live"), Ui.tr("Céu limpo", "Clear"), Ui.tr("Parcialmente nublado", "Partly cloudy"),
                 Ui.tr("Nublado", "Cloudy"), Ui.tr("Garoa", "Drizzle"), Ui.tr("Chuva", "Rain"), Ui.tr("Tempestade", "Thunderstorm"), Ui.tr("Névoa", "Haze")};

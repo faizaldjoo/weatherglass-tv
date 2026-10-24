@@ -13,6 +13,8 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "Live wallpaper": return "Живые обои";
+            case "the whole TV, 15 s": return "весь ТВ, 15 с";
             case "NETWORK": return "СЕТЬ";
             case "the whole TV, over the last 15 s": return "весь телевизор, за последние 15 с";
             case "Wired": return "Кабель";

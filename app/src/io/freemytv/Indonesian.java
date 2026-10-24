@@ -9,6 +9,8 @@ final class Indonesian {
 
     static String text(String english) {
         switch (english) {
+            case "Live wallpaper": return "Wallpaper hidup";
+            case "the whole TV, 15 s": return "seluruh TV, 15 dtk";
             case "NETWORK": return "JARINGAN";
             case "the whole TV, over the last 15 s": return "seluruh TV, 15 detik terakhir";
             case "Wired": return "Kabel";
