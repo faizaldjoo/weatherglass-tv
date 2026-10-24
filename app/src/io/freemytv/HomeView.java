@@ -432,7 +432,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 if (!Prefs.wallpaperMotion()) sky.invalidate();
             }
             updatePicks();      // three new ones every hour
-            if (Prefs.lite()) status.invalidate();   // the stats capsule
+            if (Prefs.lite()) {   // the stats capsule: a CPU sample now, the reading on the next tick
+                Dashboard.sampleCpu(getContext());
+                status.invalidate();
+            }
             handler.postDelayed(this, 15_000);
         }
     };
@@ -4102,6 +4105,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private float liteK = -1;
     private Paint ltGreet, ltTime, ltDate, ltLine, ltStat, ltStatDim;
     private Dashboard.Stats liteStats;
+    { if (Prefs.lite()) Dashboard.sampleCpu(getContext()); }   // the first CPU sample, so the capsule has a reading by its second tick
     private long liteStatsAt;
     private int liteRssi = Integer.MIN_VALUE;   // the Wi-Fi signal (dBm), or MIN_VALUE: none / wired
     private boolean liteWired;
@@ -4214,10 +4218,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
                 : bars == 4 ? Ui.tr("Forte", "Strong") : bars == 3 ? Ui.tr("Bom", "Good") : bars == 2 ? Ui.tr("Razoável", "Fair") : Ui.tr("Fraco", "Weak");
         String mem = Math.round(freeMem / 1048576f) + " MB", memWord = Ui.tr("livres", "free");
         String disk = Dashboard.gb(st.diskFree);
+        int cpu = Dashboard.cpu();
+        String cpuText = cpu < 0 ? "" : cpu + "%";
         float barsW = 4 * 5 * k + 3 * 3 * k, icon = 24 * k;
         float width = pad + barsW + 8 * k + ltStat.measureText(signal) + gap * 2 + Math.max(1, k)
                 + icon + 8 * k + ltStat.measureText(mem) + 6 * k + ltStatDim.measureText(memWord) + gap * 2 + Math.max(1, k)
-                + icon + 8 * k + ltStat.measureText(disk) + pad;
+                + icon + 8 * k + ltStat.measureText(disk) + pad
+                + (cpu < 0 ? 0 : gap * 2 + Math.max(1, k) + ltStatDim.measureText("CPU") + 6 * k + ltStat.measureText(cpuText));
         float right = topRects[CATS].left - L_BUTTON_GAP * k;
         capsule.set(right - width, cy - ch / 2, right, cy + ch / 2);
         fyGlass(c, capsule, ch / 2);
@@ -4248,6 +4255,14 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         x += icon + 8 * k;
         ltStat.setColor(0xFFFFFFFF);
         c.drawText(disk, x, cy + Ui.halfCap(ltStat), ltStat);
+        if (cpu >= 0) {
+            x += ltStat.measureText(disk);
+            x = liteSep(c, x, cy, gap);
+            c.drawText("CPU", x, cy + Ui.halfCap(ltStatDim), ltStatDim);
+            x += ltStatDim.measureText("CPU") + 6 * k;
+            ltStat.setColor(cpu >= 80 ? 0xFFFFB340 : 0xFFFFFFFF);
+            c.drawText(cpuText, x, cy + Ui.halfCap(ltStat), ltStat);
+        }
     }
 
     private float liteSep(Canvas c, float x, float cy, float gap) {

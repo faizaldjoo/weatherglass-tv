@@ -321,6 +321,42 @@ final class Dashboard {
         return st;
     }
 
+    // The TV's CPU: Android hides /proc/stat from apps, so it's read through the TV's shell, one line at a time, and
+    // the percentage is the average between two reads (the Lite theme's capsule asks every 15 s)
+    private static volatile int cpuPercent = -1;
+    private static long cpuBusy, cpuTotal, cpuAt;
+    private static volatile boolean cpuSampling;
+
+    /** The last CPU reading (0 to 100), or -1 before the second sample. */
+    static int cpu() { return cpuPercent; }
+
+    /** Takes a sample in the background (at most every 10 s); cpu() has the result after the next one. */
+    static void sampleCpu(Context c) {
+        synchronized (Dashboard.class) {
+            if (instance == null) instance = new Dashboard(c.getApplicationContext());
+        }
+        final Dashboard d = instance;
+        long now = SystemClock.uptimeMillis();
+        if (cpuSampling || now - cpuAt < 10_000) return;
+        cpuSampling = true;
+        d.io.execute(() -> {
+            try {
+                String line = d.adbRun("head -1 /proc/stat").trim();   // "cpu  user nice system idle iowait irq softirq ..."
+                String[] f = line.split("\\s+");
+                if (f.length < 5 || !f[0].equals("cpu")) return;
+                long total = 0, idle = Long.parseLong(f[4]) + (f.length > 5 ? Long.parseLong(f[5]) : 0);
+                for (int i = 1; i < f.length; i++) total += Long.parseLong(f[i]);
+                if (cpuTotal > 0 && total > cpuTotal) cpuPercent = (int) Math.round(100.0 * ((total - idle) - cpuBusy) / (total - cpuTotal));
+                cpuBusy = total - idle;
+                cpuTotal = total;
+                cpuAt = SystemClock.uptimeMillis();
+            } catch (RuntimeException ignored) {
+            } finally {
+                cpuSampling = false;
+            }
+        });
+    }
+
     /** "1.52 GB" */
     static String gb(long bytes) {
         return String.format(Locale.ROOT, "%.2f GB", bytes / 1073741824.0);
