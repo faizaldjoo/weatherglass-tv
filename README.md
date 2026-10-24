@@ -4,52 +4,52 @@
 
 # Weatherglass TV
 
-**A TV home screen whose sky follows the real weather.**
+**Your TV's home screen, without the noise.**
 
-A modified version of [Free My TV](https://github.com/simbasjungles/free-my-tv) by simbasjungles: the same fast, ad-free home screen, with a few changes of its own.<br>
+A home screen for Google TV and Android TV that shows you the time, the weather and your apps, and sells you nothing. Made from [Free My TV](https://github.com/simbasjungles/free-my-tv) by simbasjungles: the same fast, ad-free launcher, taken further.<br>
 Modified by xACTDx · English and Bahasa Indonesia
 
-[GitHub](https://github.com/faizaldjoo/weatherglass-tv) · [Free My TV](https://github.com/simbasjungles/free-my-tv) · [What's different](#whats-different) · [Install](#install) · [Settings](#settings)
+[GitHub](https://github.com/faizaldjoo/weatherglass-tv) · [Free My TV](https://github.com/simbasjungles/free-my-tv) · [The tour](#the-tour) · [Install](#install) · [Settings](#settings)
 
-<img src=".github/weatherglass-sky.webp" width="880" alt="An animated day on the ink-mountain wallpaper: sunrise, noon, golden hour, sunset, a rain shower and a starry night, with the clock, greeting and weather changing along">
+<img src=".github/weatherglass-sky.webp" width="880" alt="An animated day on the live wallpaper: sunrise, noon, golden hour, sunset, a rain shower and a starry night, with the clock, greeting and weather changing along">
 
 </div>
 
-## What's different
+## The tour
 
-Weatherglass TV starts from Free My TV and adds or changes:
+**Turn the TV on and it says hello.** "Good Evening, Faizal", with a wave, over a sky that is doing what the sky outside is doing. The time is big, the weather is right there, and the next prayer is a glance away. Your apps wait on a glass shelf at the bottom. That's the whole screen.
 
-- **A CCTV camera on the shelf (optional).** Type the camera's RTSP address in *Settings → Widgets → Camera address* (or set `cctv_url`) and the camera gets its own tile with a still picture that refreshes every 5 minutes. OK opens it live in a popup over the home screen; OK again goes full screen in VLC. It speaks RTSP itself (Digest or Basic login, H.264 or H.265), so cameras Android's player can't log in to still work. No camera? Leave it empty, or turn *CCTV camera* off, and the shelf has no camera tile. See [Connecting a CCTV camera](#connecting-a-cctv-camera).
-- **Settings as a frosted-glass drawer.** Settings slide in from the right over the home screen, which stays where it is behind the glass: grey by day, black at night. → opens a section, ← goes back. Sections: Home Screen, Screensaver, Appearance, Theme, Widgets, Shelf, Remote Buttons, TV Status, About and TV Settings.
-- **English and Bahasa Indonesia.** The language is English, Bahasa Indonesia, or automatic from the TV's own setting; prayer times use the Indonesian names (Subuh, Dzuhur, Ashar, Maghrib, Isya).
-- **A greeting.** "Good Evening, Haikal" (or "Selamat Malam") with a waving hand, on the home screen and the screensaver, following the TV's clock; the hand waves when the home screen appears. Each TV keeps its own name: *Settings → Appearance → Your name* (`greeting_name` in `config.properties` fills it in the first time).
-- **A glass clock.** Over the sky wallpapers, the home screen's greeting, clock, weather and date sit on frosted glass cards, like the settings drawer; the shelf and the bottom drawer match. The glass catches the light from the side of the ink mountains' sun or moon. *Settings → Theme → Glass* picks Frosted or Transparent; *Clock widget* there sets its size, and *Light or dark* its look.
-- **Three themes.** *Settings → Theme* picks the **live wallpaper**, the ink mountains, a painted landscape whose sky follows the real weather and the time of day (with a Sky preview to see any weather or hour); **Movie**, below; or **Lite**, for TVs with little memory (1 GB sets): an aurora drawn once, the clock as text, the shelf as flat glass, and a screensaver that is the clock on the dimmed aurora, redrawn once a minute. On Lite nothing is loaded for a sky or films, nothing moves on its own, and the glass is always transparent. Over the mountains the home screen is the glass clock, and ↑ from the shelf goes straight to the corner buttons.
-- **The Movie theme: For You.** With a [TMDB key](#the-tmdb-key), the home screen becomes a film billboard. TMDB's Popular, Now Playing, Upcoming and Top Rated movies sit in one glass pill at the top; the selected film's artwork fills the screen (it breathes slowly with *Motion* on) and its card sits on a deck at the left, with its service, title, details and story. ← → move through the films: the next card fades in and lands on the deck, the one before sinks behind it. Each card shows the streaming app the film is on, among the TV's own; OK opens it there, or plays the film's trailer on YouTube when it isn't streaming yet. The clock, weather, city and the next prayer sit at the top right. On this theme the screensaver shows the same films, labeled by category.
-- **A control page on your Wi‑Fi.** The TV serves its own dashboard at `http://<the TV's address>:8765`: a remote shaped like the TV's, the TV's status, one-tap app launches and the care actions. See [The control page](#the-control-page).
-- **TV Status in the settings.** *Settings → TV Status* shows memory (with Weatherglass's own share), storage, how long the TV has been on, the network signal and the TV's CPU, and runs the care actions from the remote: free memory, clear caches, restart the home screen, reboot (OK twice).
-- **Softer clouds at sunrise and sunset.** On the ink mountains, the clouds take the sky's own warm colour while the sun is low, instead of standing out white.
-- **Exchange rates.** Up to four currencies (e.g. USD, AUD, JPY, EUR) priced in yours.
-- **A new name and logo, and no ambient sound.**
+### Three themes
 
+- **Live wallpaper.** Ink mountains under a painted sky that follows the real weather and the real hour in your city: sunrise, noon, golden hour, a rain shower, a starry night. The clouds take the sky's warm colour when the sun is low. The clock, weather and date sit on glass cards that catch the light from the side the sun or the moon is on, frosted or transparent as you like, and a Sky preview lets you see any weather at any hour.
+- **Movie.** With a free [TMDB key](#the-tmdb-key), the home screen becomes a film billboard. Popular, Now Playing, Upcoming and Top Rated sit in one glass pill; the selected film's artwork fills the screen and breathes slowly; its card waits on a deck at the left, with the app it streams on among yours. ← → deal the next card. OK opens the film in its app, or plays the trailer on YouTube when it isn't streaming yet. The screensaver shows the same films, labeled by category.
+- **Lite.** For TVs with little memory (the 1 GB sets). An aurora drawn once, the clock as text, the shelf as flat glass, and a screensaver that is the clock on the dimmed aurora, redrawn once a minute. Nothing is loaded for a sky or films, nothing moves on its own, and the home screen sits at 0% CPU.
+
+### Around the themes
+
+- **A CCTV camera on the shelf.** Give it the camera's RTSP address and it gets its own tile with a still that refreshes every 5 minutes; OK opens it live over the home screen, OK again goes full screen in VLC. It speaks RTSP itself (Digest or Basic login, H.264 or H.265), so cameras Android's player can't log in to still work. See [Connecting a CCTV camera](#connecting-a-cctv-camera).
+- **Prayer times and exchange rates.** The next prayer on the home screen and today's five in the drawer, with the Indonesian names; up to four currencies priced in yours.
+- **A greeting with your name,** on the home screen and the screensaver, each TV its own.
+- **English and Bahasa Indonesia,** or whatever the TV speaks (Portuguese, Spanish, German and Russian come from Free My TV).
+
+### In your hand
+
+- **Settings as a frosted-glass drawer.** It slides in from the right over the home screen, which stays where it is behind the glass. → opens a section, ← goes back. Home Screen, Screensaver, Appearance, Theme, Widgets, Shelf, Remote Buttons, TV Status, About, TV Settings.
+- **TV Status.** Memory with Weatherglass's own share, storage, how long the TV has been on, the network signal, the TV's CPU; and the care actions for when the TV feels slow: free memory, clear caches, restart the home screen, reboot.
+- **A control page on your Wi‑Fi.** The TV serves its own page at `http://<the TV's address>:8765`: a remote shaped like the TV's, with haptic taps on Android phones; the TV's status; one-tap app launches; the same care actions. Nothing goes through the internet. See [The control page](#the-control-page).
+
+### Under the hood
+
+- **No ads.** No sponsored rows, banners or autoplaying promos. Not one.
+- **Fast.** 60 fps, drawn by hand on one Canvas, on the TV's own chip. The home screen uses a fraction of the stock launcher's memory, and Lite a fraction of that.
+- **Light by day, dark by night,** following your city's real sunset.
+- **Safe.** No root. Nothing is uninstalled. One button brings back the factory home screen, and if the new one ever crashes three times in five minutes, it brings itself back.
 
 <p align="center"><img src=".github/weatherglass-drawer.webp" width="760" alt="The settings drawer sliding in over the home screen in black frosted glass: the focus moves down to Appearance, → opens it, a switch flips, ← goes back and the drawer slides out"><br><sub>The settings drawer at night: black frosted glass over the home screen, opened and worked with the arrow keys.</sub></p>
 
-Everything else is Free My TV's work.
-
 <p align="center"><img src=".github/weatherglass-preview.webp" width="760" alt="Weatherglass TV at night: the ink mountains under the moon, the greeting and date, a big clock, the weather, the next prayer, exchange rates and a glass shelf of apps with the CCTV tile"><br><sub>On a Hisense 43″ TV at night.</sub></p>
 
-## What you get
-
-- **No ads.** No sponsored rows, banners or autoplaying promos. Not one.
-- **Your apps, front and center.** The streaming apps you actually use, on a glass shelf. Pick them and their order right on the TV.
-- **Films, not sponsored.** On the Movie theme, TMDB's Popular, Now Playing, Upcoming and Top Rated films, each with the app it streams on among yours, or its trailer. Nothing is paid to be there.
-- **Weather and markets, one press away.** The hour-by-hour forecast, sunrise and sunset, and live crypto prices.
-- **Light by day, dark by night.** It follows your city's real sunset, the way your phone does.
-- **A screensaver to match.** On the Movie theme, the films' artwork full screen with a big glass clock; on the ink mountains, the mountains at night with the clock and the greeting.
-- **Fast.** 60 fps, every frame in 16.6 ms, on the TV's own chip. The home screen uses 96 MB of memory instead of 242 MB (−60%).<br><sub>Measured on a 98″ TCL Google TV running Android 14.</sub>
-- **Set up on the TV.** Language, your city, temperature, light or dark, the theme, the weather and prices cards, which coins, the camera and the apps on the shelf, in its own settings drawer.
-- **Safe.** No root. Nothing is uninstalled. One button brings back the factory home screen.
+Everything else is Free My TV's work.
 
 ## Install
 
