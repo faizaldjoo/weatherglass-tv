@@ -37,6 +37,7 @@ import org.json.JSONObject;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -157,24 +158,21 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private final List<HomeApps.Item> lightButtons = new ArrayList<>();
     // For You on the Movie wallpaper (the prototype's layout at 1920 × 1080): the category pill level with the buttons,
     // the film's text on the left, the row over the shelf, the artwork on the right
-    private static final float FY_PILL_H = 72, FY_CAT_H = 56, FY_CAT_PAD = 26, FY_INFO_TOP = 168, FY_INFO_W = 760,
-            FY_STORY_W = 640, FY_ROW_TOP = 584, FY_POSTER_W = 124, FY_CARD_H = 186, FY_LAND_W = 331, FY_GAP = 20,
+    private static final float FY_PILL_H = 72, FY_CAT_H = 56, FY_CAT_PAD = 26, FY_DECK_TOP = 176, FY_DECK_W = 560,
+            FY_DECK_H = 620, FY_CARD_PAD = 44, FY_CARD_POSTER_W = 150, FY_CARD_POSTER_H = 225,
             FY_ART_X = 540, FY_ART_W = 1380, FY_ART_H = 860, FY_PRAYER_CY = 176;
     private static final int FY_BASE = 0xFF0D0F15, FY_SOFT = 0xBDFFFFFF;
-    private static final long ART_FADE_MS = 900, RISE_MS = 700, RISE_STEP = 70, BREATHE_MS = 22_000;
+    private static final long ART_FADE_MS = 900, DECK_MS = 650, BREATHE_MS = 22_000;
     private final RectF catPill = new RectF(), catLight = new RectF(), capsule = new RectF();
     private final Spring catSlide = new Spring(0.3f, 0.86f, 0), catSlideW = new Spring(0.3f, 0.86f, 0);
-    private final Spring rowScroll = new Spring(0.3f, 0.9f, 0), rowZone = new Spring(0.3f, 0.86f, 0);
     private Paint fyCat, fyMeta, fyBadge, fyChip, fyClock, fyCapsule, fyPrayer, fyService;
     private TextPaint fyTitle, fyStory;
     private final Paint fyRing = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Recs.Pick bill;            // the film on the billboard
-    private boolean billDetailed;
+    private int deckIndex, deckTab = -1, deckFrom = -1;   // the deck's last top card; where it came from
+    private long deckAt;
     private Recs.Art artFrom, artTo;
-    private long artFadeAt, infoAt = -10_000, rowAt = -10_000;
-    private StaticLayout billTitle, billStory;
-    private String billBadge = "", billMeta = "";
-    private float billServiceY, billTitleY, billMetaY, billStoryY;   // where each line starts
+    private long artFadeAt;
     private LinearGradient fyMaskShader, fyFadeShader, fyRimShader, fySheenShader;
     private RadialGradient fyWashShader;
     private final Matrix fyMatrix = new Matrix(), artMatrix = new Matrix();
@@ -830,7 +828,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         boolean statusMoving = step(statusFocus, dt);
         boolean heroMoving = heroFocus.step(dt);
         boolean topMoving = step(topFocus, dt), cardsMoving = step(cardFocus, dt);
-        cardsMoving |= catSlide.step(dt) | catSlideW.step(dt) | rowScroll.step(dt) | rowZone.step(dt);
+        cardsMoving |= catSlide.step(dt) | catSlideW.step(dt);
         if (topMoving) status.invalidate();
         heroMoving |= topMoving | cardsMoving;
         boolean drawerItemsMoving = step(drawerFocus, dt);
@@ -895,7 +893,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             }
             skyBusy = fading;
             if (!fading && breathing) skyWait = Math.max(1, 50 - (up - skyDrawnAt));
-            rising = up - infoAt < RISE_MS + 4 * RISE_STEP || up - rowAt < RISE_MS + 8 * 50;
+            rising = deckAt != 0 && up - deckAt < DECK_MS + 50;
             if (rising) heroLayer.invalidate();
         }
         if (drawerMoving || sheetMoving || motionDirty) updateMotion();
@@ -2144,9 +2142,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (snap) heroFocus.snap(heroFocus.target);
         boolean topChanged = aim(topFocus, !sheetOpen && zone == Z_TOP ? topIndex : -1, snap);
         // For You: the selected film stays wide wherever the focus is (the row only dims its ring)
-        heroChanged |= aim(cardFocus, picksOn() && !cards.isEmpty() ? cardIndex : -1, snap) | topChanged;
+        heroChanged |= topChanged;
         if (picksOn()) {
-            aimRow(snap);
+            heroChanged = true;   // the deck's button lights up with the focus
             syncBill();
         }
         statusChanged |= topChanged;
@@ -3115,16 +3113,16 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             if (list.size() > ROW_MAX) list = new ArrayList<>(list.subList(0, ROW_MAX));
             if (!samePicks(list, cards)) {
                 cardIndex = cards.isEmpty() ? 0 : Math.min(cardIndex, Math.max(0, list.size() - 1));
-                rowAt = SystemClock.uptimeMillis();
                 if (zone == Z_CARDS && list.isEmpty()) {
                     zone = Z_SHELF;
                     retarget(false);
                 }
             }
             cards = list;   // the same films may come back with their details: keep the newest
-            for (Recs.Pick p : cards) recs.smallPoster(p);
-            heroDirty |= aim(cardFocus, cards.isEmpty() ? -1 : cardIndex, false);
-            aimRow(false);
+            for (int i = 0; i < Math.min(cards.size(), ROW_MAX); i++) {
+                recs.smallPoster(cards.get(i));
+                cardRects[i].set(MARGIN * k, FY_DECK_TOP * k, (MARGIN + FY_DECK_W) * k, (FY_DECK_TOP + FY_DECK_H) * k);   // TalkBack: the deck
+            }
             syncBill();
             heroDirty = statusDirty = true;
             spoken.focusMoved();
@@ -3152,6 +3150,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         cards = new ArrayList<>();   // the new category's films slide in
         catSlide.target = topRects[tab].centerX() / k;
         catSlideW.target = topRects[tab].width() / k;
+        layoutBill();
         updateCards();
         retarget(false);
         heroDirty = true;
@@ -3649,15 +3648,13 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     /** Paints, gradients and the layout's text for For You (made with the other paints, for the UI's size). */
     private void makeForYouPaints() {
         fyCat = Ui.text(Ui.medium, 26 * k, 0xFFFFFFFF);
-        fyTitle = new TextPaint(Ui.text(Ui.displaySemibold, 56 * k, 0xFFFFFFFF));
+        fyTitle = new TextPaint(Ui.text(Ui.displaySemibold, 40 * k, 0xFFFFFFFF));
         fyTitle.setLetterSpacing(-0.02f);
-        fyTitle.setShadowLayer(24 * k, 0, 2 * k, 0x59000000);
-        fyMeta = Ui.numbers(Ui.medium, 24 * k, FY_SOFT);
-        fyBadge = Ui.numbers(Ui.semibold, 18 * k, 0xFFFFFFFF);
-        fyStory = new TextPaint(Ui.text(Ui.regular, 24 * k, FY_SOFT));
-        fyStory.setShadowLayer(18 * k, 0, 1 * k, 0x59000000);
+        fyMeta = Ui.numbers(Ui.medium, 22 * k, FY_SOFT);
+        fyBadge = Ui.numbers(Ui.semibold, 16 * k, 0xFFFFFFFF);
+        fyStory = new TextPaint(Ui.text(Ui.regular, 22 * k, FY_SOFT));
         fyChip = Ui.text(Ui.semibold, 15 * k, 0xFFFFFFFF);
-        fyService = Ui.text(Ui.semibold, 26 * k, 0xFFFFFFFF);
+        fyService = Ui.text(Ui.semibold, 24 * k, 0xFFFFFFFF);
         fyClock = Ui.numbers(Ui.semibold, 28 * k, 0xFFFFFFFF);
         fyCapsule = Ui.numbers(Ui.medium, 26 * k, 0xFFFFFFFF);
         fyPrayer = Ui.numbers(Ui.medium, 24 * k, 0xFFFFFFFF);
@@ -3759,11 +3756,17 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         Recs.Pick p = cards.isEmpty() ? null : cards.get(Math.min(cardIndex, cards.size() - 1));
         boolean other = p == null ? bill != null : bill == null || !Recs.key(p).equals(Recs.key(bill));
         long up = SystemClock.uptimeMillis();
-        if (other) infoAt = up;
-        if (other || p != bill || (p != null && p.detailed != billDetailed)) {
+        if (other) {
+            // The deck moves from where it was: the card before comes forward or the next one swings in. A new
+            // category deals a fresh deck (the top card swings in, nothing behind it)
+            deckFrom = deckTab == tab && bill != null ? deckIndex : -1;
+            deckAt = up;
+            deckIndex = cardIndex;
+            deckTab = tab;
+            wake();
+        }
+        if (other || p != bill) {
             bill = p;
-            billDetailed = p != null && p.detailed;
-            layoutBill();
             heroDirty = true;
         }
         if (p == null) return;
@@ -3778,34 +3781,46 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         }
     }
 
-    /** The billboard's text: the service (or the trailer), the title, its details and the story, from the top down. */
-    private void layoutBill() {
-        Recs.Pick p = bill;
-        if (p == null || fyTitle == null) {
-            billTitle = billStory = null;
-            return;
-        }
+    /**
+     * A film's card in the deck: its title and story laid out for the card's width. Made once per film and kept for the
+     * few on screen (the three of the deck and the one swinging away).
+     */
+    private static final class Card {
+        StaticLayout title, story;
+        String badge = "", meta = "";
+        boolean detailed;
+    }
+
+    private final Map<String, Card> deckCards = new LinkedHashMap<>();
+
+    private Card cardOf(Recs.Pick p) {
+        String key = Recs.key(p);
+        Card card = deckCards.get(key);
+        if (card != null && card.detailed == p.detailed) return card;
+        card = new Card();
+        card.detailed = p.detailed;
+        float width = (FY_DECK_W - 2 * FY_CARD_PAD) * k;
         String title = p.title == null ? "" : p.title;
-        billTitle = StaticLayout.Builder.obtain(title, 0, title.length(), fyTitle, Math.max(1, Math.round(FY_INFO_W * k)))
-                .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 0.92f).setIncludePad(false).build();
-        billBadge = tab == 1 ? Ui.tr("Nos cinemas", "In cinemas") : tab == 2 ? Ui.tr("Em breve", "Coming soon")
+        card.title = StaticLayout.Builder.obtain(title, 0, title.length(), fyTitle, Math.max(1, Math.round(width)))
+                .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 1.0f).setIncludePad(false).build();
+        card.badge = tab == 1 ? Ui.tr("Nos cinemas", "In cinemas") : tab == 2 ? Ui.tr("Em breve", "Coming soon")
                 : p.rating == null ? "" : p.rating;
         String when = tab == 2 && p.release > 0 ? Ui.dayMonth(p.release) : p.year == null ? "" : p.year;
         StringBuilder meta = new StringBuilder(when);
         if (p.info != null && !p.info.isEmpty()) meta.append(meta.length() > 0 ? "  ·  " : "").append(p.info);
-        billMeta = meta.toString();
+        card.meta = meta.toString();
         String story = p.story == null ? "" : p.story;
-        int lines = 2;   // the row keeps a clear gap below
-        billStory = StaticLayout.Builder.obtain(story, 0, story.length(), fyStory, Math.max(1, Math.round(FY_STORY_W * k)))
-                .setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 1.2f).setIncludePad(false).build();
-        float y = FY_INFO_TOP * k;
-        billServiceY = y;
-        if (mark(p) != null) y += (44 + 18) * k;
-        billTitleY = y;
-        y += billTitle.getHeight() + 22 * k;
-        billMetaY = y;
-        y += (34 + 20) * k;
-        billStoryY = y;
+        // Two lines of story under a two-line title, so the poster keeps its room at the bottom
+        card.story = StaticLayout.Builder.obtain(story, 0, story.length(), fyStory, Math.max(1, Math.round(width)))
+                .setMaxLines(card.title.getLineCount() > 1 ? 2 : 3).setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 1.25f).setIncludePad(false).build();
+        deckCards.put(key, card);
+        while (deckCards.size() > 8) deckCards.remove(deckCards.keySet().iterator().next());
+        return card;
+    }
+
+    /** The deck's text is laid out again for a new size, language or category (the badge depends on the category). */
+    private void layoutBill() {
+        deckCards.clear();
     }
 
     /** What the film's card shows and OK opens: its service ("netflix"...), else "trailer", else null. */
@@ -3877,18 +3892,10 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         return markPick;
     }
 
-    /** Rises in: 0 → 1 over RISE_MS after `delay` (a quick start, a long soft landing). */
-    private static float rise(long since, long delay) {
-        float t = Ui.clamp((since - delay) / (float) RISE_MS);
-        float u = 1 - t;
-        return 1 - u * u * u * u;
-    }
-
     private void drawForYou(Canvas c) {
         long up = SystemClock.uptimeMillis();
         drawCategories(c);
-        drawBill(c, up);
-        drawRow(c, up);
+        drawDeck(c, up);
     }
 
     /** The categories: one glass pill, the chosen one marked by a light that slides to it (white when focused). */
@@ -3931,164 +3938,148 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         scene.liquid(c, r, radius, SMOKE, 0.12f, 0.08f, 28 * k, 22 * k, 0.95f, 1);
     }
 
-    /** The billboard's text, each line rising into place one after another when the film changes. */
-    private void drawBill(Canvas c, long up) {
-        Recs.Pick p = bill;
-        if (p == null || billTitle == null) {
-            if (cards.isEmpty() && recs.error().isEmpty()) {
+    /**
+     * Where a card sits for its depth in the deck: 0 on top, 1 and 2 behind it (moved right and down, turned a little,
+     * smaller), -1 off to the right, where a card comes from and goes to. out: x, y (px at 1080p), degrees, scale,
+     * the card's alpha, its content's alpha.
+     */
+    private static void pose(float depth, float[] out) {
+        float[][] p = {
+            {520, 60, 14, 1, 0, 1},      // -1: off the deck, to the right
+            {0, 0, 0, 1, 1, 1},          // 0: on top
+            {30, 10, 4, 0.97f, 1, 0.35f},
+            {58, 22, 8, 0.94f, 0.8f, 0.15f},
+            {86, 34, 12, 0.91f, 0, 0},   // 3: gone behind
+        };
+        int i = Math.max(0, Math.min(3, (int) Math.floor(depth + 1)));
+        float t = Ui.clamp(depth + 1 - i);
+        for (int j = 0; j < 6; j++) out[j] = p[i][j] + (p[i + 1][j] - p[i][j]) * t;
+    }
+
+    private final float[] poseA = new float[6], poseB = new float[6];
+
+    /**
+     * The deck: the selected film's card on top, the two before it behind. When the selection moves on, the next card
+     * swings in from the right and lands on the deck (DECK_MS) while the others sink back a step; when it moves back,
+     * the top card swings away and the others come forward.
+     */
+    private void drawDeck(Canvas c, long up) {
+        if (cards.isEmpty()) {
+            if (recs.error().isEmpty()) {
                 fyStory.setAlpha(255);
-                c.drawText(Ui.tr("Carregando filmes…", "Loading films…"), MARGIN * k, (FY_INFO_TOP + 60) * k, fyStory);
+                c.drawText(Ui.tr("Carregando filmes…", "Loading films…"), MARGIN * k, (FY_DECK_TOP + 60) * k, fyStory);
             }
             return;
         }
-        long since = up - infoAt;
-        float lift = 18 * k;
-        int line = 0;
-        String mark = mark(p);
-        if (mark != null) {
-            float e = rise(since, RISE_STEP * line++);
-            drawMark(c, mark, MARGIN * k, billServiceY + (22 + lift * (1 - e) / k) * k, mark.equals("trailer") ? 34 * k : 38 * k,
-                    fyService, e, true);
+        float t = deckAt == 0 ? 1 : Ui.clamp((up - deckAt) / (float) DECK_MS);
+        boolean back = deckFrom > cardIndex;
+        // Back to front: the card swinging away (when going back) is drawn last, over the deck
+        int first = Math.max(0, cardIndex - 2), last = back && t < 1 ? Math.min(cards.size() - 1, deckFrom) : cardIndex;
+        for (int i = first; i <= last; i++) {
+            float depthNow = cardIndex - i, depthBefore = deckFrom < 0 ? depthNow + (i == cardIndex ? -1 : 1) : deckFrom - i;
+            // The card leaving eases in (it speeds away); the others ease out (they land softly)
+            float e = i > cardIndex ? t * t * (2 - t) * t : 1 - (float) Math.pow(1 - t, 4);
+            pose(Math.max(-1, Math.min(3, depthBefore)), poseA);
+            pose(Math.max(-1, Math.min(3, depthNow)), poseB);
+            for (int j = 0; j < 6; j++) poseA[j] += (poseB[j] - poseA[j]) * e;
+            if (poseA[4] <= 0.01f) continue;
+            drawCard(c, cards.get(i), poseA, i == cardIndex && t >= 1);
         }
-        float e = rise(since, RISE_STEP * line++);
+    }
+
+    /** One card at its pose: turned about a point under its bottom edge, like a card held from below. */
+    private void drawCard(Canvas c, Recs.Pick p, float[] pose, boolean top) {
+        float left = MARGIN * k, topY = FY_DECK_TOP * k, cw = FY_DECK_W * k, ch = FY_DECK_H * k, r = 32 * k;
+        float px = left + cw / 2, py = topY + ch * 1.1f;
+        float alpha = pose[4], content = pose[5] * alpha;
         c.save();
-        c.translate(MARGIN * k, billTitleY + lift * (1 - e));
-        fyTitle.setAlpha(Math.round(255 * e));
-        billTitle.draw(c);
-        fyTitle.setAlpha(255);
-        c.restore();
-        // Details: a badge (the age rating, or In cinemas / Coming soon), then the year (or release day), genre, runtime
-        e = rise(since, RISE_STEP * line++);
-        float x = MARGIN * k, cy = billMetaY + 17 * k + lift * (1 - e);
-        if (!billBadge.isEmpty()) {
-            float bw = fyBadge.measureText(billBadge) + 20 * k;
-            tmp.set(x, cy - 15 * k, x + bw, cy + 15 * k);
-            fyRing.setColor(Ui.alpha(0xFFFFFFFF, 0.45f * e));
-            fyRing.setStrokeWidth(1.5f * k);
-            c.drawRoundRect(tmp, 8 * k, 8 * k, fyRing);
-            fyBadge.setAlpha(Math.round(255 * e));
-            c.drawText(billBadge, x + 10 * k, cy + Ui.halfCap(fyBadge), fyBadge);
-            x += bw + 14 * k;
-        }
-        fyMeta.setColor(Ui.alpha(FY_SOFT, e));
-        c.drawText(billMeta, x, cy + Ui.halfCap(fyMeta), fyMeta);
-        if (billStory != null) {
-            e = rise(since, RISE_STEP * line);
-            c.save();
-            c.translate(MARGIN * k, billStoryY + lift * (1 - e));
-            fyStory.setAlpha(Math.round((FY_SOFT >>> 24) * e));
-            billStory.draw(c);
-            c.restore();
-        }
-    }
-
-    /** Where the row scrolls: the selected film stays third from the left until the row's end comes into view. */
-    private void aimRow(boolean snap) {
-        int n = cards.size();
-        float step = FY_POSTER_W + FY_GAP;
-        float total = n == 0 ? 0 : n * FY_POSTER_W + (n - 1) * FY_GAP + (FY_LAND_W - FY_POSTER_W);
-        float max = Math.max(0, MARGIN + total - CONTENT_R);
-        rowScroll.target = Math.min(max, Math.max(0, (cardIndex - 2) * step));
-        rowZone.target = !sheetOpen && zone == Z_CARDS ? 1 : 0;
-        if (snap) {
-            rowScroll.snap(rowScroll.target);
-            rowZone.snap(rowZone.target);
-        }
-    }
-
-    /**
-     * The row: posters, the selected one widened to its landscape artwork (white ring and lifted while the row has the
-     * focus), each with its service's logo (or YouTube's, for the trailer) in a small glass chip.
-     */
-    private void drawRow(Canvas c, long up) {
-        int n = cards.size();
-        float x = MARGIN - rowScroll.value, top = FY_ROW_TOP;
-        for (int i = 0; i < n; i++) {
-            float f = Ui.clamp(cardFocus[i].value), cw = FY_POSTER_W + (FY_LAND_W - FY_POSTER_W) * f;
-            cardRects[i].set(x * k, top * k, (x + cw) * k, (top + FY_CARD_H) * k);
-            x += cw + FY_GAP;
-        }
-        for (int i = 0; i < n; i++) if (i != cardIndex) drawFilm(c, i, up);
-        if (cardIndex < n) drawFilm(c, cardIndex, up);
-    }
-
-    private void drawFilm(Canvas c, int i, long up) {
-        RectF base = cardRects[i];
-        if (base.right < -40 * k || base.left > w + 40 * k) return;
-        Recs.Pick p = cards.get(i);
-        float f = Ui.clamp(cardFocus[i].value), zf = Ui.clamp(rowZone.value), lift = 8 * k * f * zf;
-        // Slides in with the category's films, one after another
-        float in = rise(up - rowAt, 50L * Math.max(0, i - Math.round(rowScroll.value / (FY_POSTER_W + FY_GAP))));
-        if (in <= 0.01f) return;
-        cell.set(base);
-        cell.offset(40 * k * (1 - in), -lift);
-        float r = 20 * k;
+        c.translate(pose[0] * k, pose[1] * k);
+        c.rotate(pose[2], px, py);
+        c.scale(pose[3], pose[3], px, py);
+        cell.set(left, topY, left + cw, topY + ch);
         tmp.set(cell);
-        tmp.offset(0, (12 + 18 * f * zf) * k);
-        shadowDeep.setColor(Ui.alpha(0xFF000000, (0.35f + 0.15f * f * zf) * in));
-        shadows.draw(c, tmp, r, DEEP_BLUR * k, shadowDeep);
-        Bitmap poster = recs.smallPoster(p);
-        Recs.Art art = f > 0.01f ? recs.art(p) : null;
-        Bitmap land = art == null ? null : art.land;
-        float landAlpha = land == null ? 0 : f;
-        if (poster != null && landAlpha < 0.99f) coverImage(c, poster, cell, r, in);
-        else if (poster == null && land == null) {
-            fill.setShader(null);
-            fill.setColor(Ui.alpha(0xFF23262F, in));
-            c.drawRoundRect(cell, r, r, fill);
+        tmp.offset(0, 30 * k);
+        shadow.setColor(Ui.alpha(0xFF000000, 0.45f * alpha));
+        shadows.draw(c, tmp, r, DEEP_BLUR * k, shadow);
+        // Smoked glass: a dark fill, light along the top edge, the rim (the frost is not used here: it can't turn)
+        fill.setShader(null);
+        fill.setColor(Ui.alpha(top ? 0xFF161922 : 0xFF21242F, (top ? 0.8f : 0.88f) * alpha));
+        c.drawRoundRect(cell, r, r, fill);
+        if (sheenShader == null) {
+            sheenShader = new LinearGradient(0, 0, 0, 1, 0xFFFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
+            frostSheen.setShader(sheenShader);
         }
-        if (land != null && landAlpha > 0.01f) coverImage(c, land, cell, r, landAlpha * in);
-        if (poster == null && land == null && p.title != null) {
-            // Still loading: the title, so the card isn't blank
-            fitPaint.set(fyChip);
-            String t = TextUtils.ellipsize(p.title, fitPaint, cell.width() - 24 * k, TextUtils.TruncateAt.END).toString();
-            fyChip.setAlpha(Math.round(200 * in));
-            c.drawText(t, cell.left + 12 * k, cell.bottom - 16 * k, fyChip);
-            fyChip.setAlpha(255);
-        }
-        // The selected card's edge, like the glass pills: light along the top, fading down the sides, a faint line at
-        // the bottom, and a sheen over the top; brighter while the row has the focus
-        if (f > 0.01f) {
-            if (fyRimShader == null) {
-                fyRimShader = new LinearGradient(0, 0, 0, 1, new int[] {0xFFFFFFFF, 0x66FFFFFF, 0x2EFFFFFF, 0x8CFFFFFF},
-                        new float[] {0, 0.3f, 0.75f, 1}, Shader.TileMode.CLAMP);
-                fySheenShader = new LinearGradient(0, 0, 0, 1, 0x40FFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP);
-            }
-            fyMatrix.setScale(1, cell.height() * 0.5f);
-            fyMatrix.postTranslate(0, cell.top);
-            fySheenShader.setLocalMatrix(fyMatrix);
-            fyShade.setShader(fySheenShader);
-            fyShade.setAlpha(Math.round(255 * f * zf * in));
-            c.drawRoundRect(cell, r, r, fyShade);
-            fyShade.setAlpha(255);
-            fyShade.setShader(null);
-            fyMatrix.setScale(1, cell.height());
-            fyMatrix.postTranslate(0, cell.top);
-            fyRimShader.setLocalMatrix(fyMatrix);
-            float ringW = (1.5f + 1 * zf) * k;
-            fyRing.setShader(fyRimShader);
-            fyRing.setStrokeWidth(ringW);
-            fyRing.setColor(0xFFFFFFFF);
-            fyRing.setAlpha(Math.round(255 * f * in * (0.45f + 0.5f * zf)));
-            tmp.set(cell);
-            tmp.inset(ringW / 2, ringW / 2);
-            c.drawRoundRect(tmp, r - ringW / 2, r - ringW / 2, fyRing);
-            fyRing.setShader(null);
-        }
-        String mark = mark(p);
-        if (mark != null) {
-            float ch = 36 * k, mw = drawMark(c, mark, 0, 0, mark.equals("trailer") ? 16 * k : 18 * k, fyChip, 1, false);
-            tmp.set(cell.left + 12 * k, cell.top + 12 * k, cell.left + 12 * k + mw + 24 * k, cell.top + 12 * k + ch);
-            if (tmp.right <= cell.right - 8 * k) {
-                fill.setShader(null);
-                fill.setColor(Ui.alpha(0xFF0A0C12, 0.6f * in));
-                c.drawRoundRect(tmp, 12 * k, 12 * k, fill);
+        lightFrom(cell, sheenMatrix, 0.5f, 140 * k);
+        sheenShader.setLocalMatrix(sheenMatrix);
+        frostSheen.setAlpha(Math.round(255 * 0.1f * alpha));
+        c.drawRoundRect(cell, r, r, frostSheen);
+        glassRim(c, cell, r);
+        if (content > 0.01f) {
+            float pad = FY_CARD_PAD * k, x = left + pad, y = topY + 40 * k;
+            // The header: the service (or the trailer) and the round button OK presses
+            String mark = mark(p);
+            if (mark != null) drawMark(c, mark, x, y + 22 * k, mark.equals("trailer") ? 28 * k : 34 * k, fyService, content, true);
+            float bx = left + cw - pad - 22 * k, by = y + 22 * k;
+            boolean lit = top && zone == Z_CARDS && !sheetOpen;
+            fill.setColor(Ui.alpha(lit ? 0xFFFFFFFF : 0x24FFFFFF, content));
+            c.drawCircle(bx, by, 22 * k, fill);
+            if (!lit) {
+                fyRing.setShader(null);
                 fyRing.setStrokeWidth(Math.max(1, k));
-                fyRing.setColor(Ui.alpha(0xFFFFFFFF, 0.22f * in));
-                c.drawRoundRect(tmp, 12 * k, 12 * k, fyRing);
-                drawMark(c, mark, tmp.left + 12 * k, tmp.centerY(), mark.equals("trailer") ? 16 * k : 18 * k, fyChip, in, true);
+                fyRing.setColor(Ui.alpha(0x2EFFFFFF, content));
+                c.drawCircle(bx, by, 22 * k, fyRing);
+            }
+            Symbols.draw(getContext(), c, "play", bx + 1.5f * k, by, 20 * k, Ui.alpha(lit ? 0xFF12141A : 0xFFFFFFFF, content));
+            Card card = cardOf(p);
+            y += 44 * k + 32 * k;
+            c.save();
+            c.translate(x, y);
+            fyTitle.setAlpha(Math.round(255 * content));
+            card.title.draw(c);
+            c.restore();
+            y += card.title.getHeight() + 16 * k;
+            // The details: a badge (the age rating, or In cinemas / Coming soon), then the year, genre and runtime
+            float mx = x, mcy = y + 15 * k;
+            if (!card.badge.isEmpty()) {
+                float bw = fyBadge.measureText(card.badge) + 18 * k;
+                tmp.set(mx, mcy - 14 * k, mx + bw, mcy + 14 * k);
+                fyRing.setShader(null);
+                fyRing.setStrokeWidth(1.5f * k);
+                fyRing.setColor(Ui.alpha(0xFFFFFFFF, 0.45f * content));
+                c.drawRoundRect(tmp, 7 * k, 7 * k, fyRing);
+                fyBadge.setAlpha(Math.round(255 * content));
+                c.drawText(card.badge, mx + 9 * k, mcy + Ui.halfCap(fyBadge), fyBadge);
+                mx += bw + 12 * k;
+            }
+            fyMeta.setColor(Ui.alpha(FY_SOFT, content));
+            fitPaint.set(fyMeta);
+            c.drawText(TextUtils.ellipsize(card.meta, fitPaint, left + cw - pad - mx, TextUtils.TruncateAt.END).toString(), mx, mcy + Ui.halfCap(fyMeta), fyMeta);
+            y += 30 * k + 14 * k;
+            c.save();
+            c.translate(x, y);
+            fyStory.setAlpha(Math.round((FY_SOFT >>> 24) * content));
+            card.story.draw(c);
+            c.restore();
+            // The poster, large at the bottom left (where the reference keeps its icon)
+            Bitmap poster = recs.smallPoster(p);
+            tmp.set(x, topY + ch - pad - FY_CARD_POSTER_H * k, x + FY_CARD_POSTER_W * k, topY + ch - pad);
+            if (tmp.top > y + card.story.getHeight() + 16 * k) {
+                cell.set(tmp);
+                cell.offset(0, 10 * k);
+                shadow.setColor(Ui.alpha(0xFF000000, 0.45f * content));
+                shadows.draw(c, cell, 18 * k, SHADOW_BLUR * k, shadow);
+                if (poster != null) {
+                    coverImage(c, poster, tmp, 18 * k, content);
+                } else {
+                    fill.setColor(Ui.alpha(0xFF2C3040, content));
+                    c.drawRoundRect(tmp, 18 * k, 18 * k, fill);
+                }
+                fyRing.setStrokeWidth(Math.max(1, k));
+                fyRing.setColor(Ui.alpha(0x1FFFFFFF, content));
+                c.drawRoundRect(tmp, 18 * k, 18 * k, fyRing);
             }
         }
+        c.restore();
     }
 
     /** `image` covering `r` (cropped to its shape, centered), with rounded corners: a shader, no clip. */
