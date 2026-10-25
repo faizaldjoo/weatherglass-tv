@@ -162,19 +162,19 @@ The first values come from `config.properties`, created by the first build (Goog
 | Key | What it does | Default |
 |---|---|---|
 | `tmdb_key` | Your free TMDB key, for the Movie theme's films and the screensaver's photos | empty |
-| `tmdb_region` | Your country (two letters): which titles are on which app | `US` |
+| `tmdb_region` | Your country (two letters): which titles are on which app | `ID` |
 | `watchmode_key` | Optional, free [Watchmode](https://api.watchmode.com/) key: a pick opens the title's page in its app | empty |
-| `latitude`, `longitude` | Your city, for the weather and the sunset | New York |
-| `city` | The name on the weather card | `Weather` |
+| `latitude`, `longitude` | Your city, for the weather and the sunset. Also *Widgets → City* on the TV | Jakarta |
+| `city` | The name on the weather card | `Jakarta` |
 | `hide_animation` | Leave cartoons and anime out of the picks | `false` |
 | `language` | `auto` (follows the TV: Bahasa Indonesia if the TV is in Indonesian, else English), `en` or `id` | `auto` |
-| `show_crypto` | Show Binance crypto prices on home and screensaver | `true` |
-| `currency` | Crypto prices in `USD`, `EUR`, `BRL`… | `USD` |
-| `temperature` | `C`, `F` or `auto` | `auto` |
+| `show_crypto` | Show the prices on home and screensaver: the exchange rates when `rates` is set, else Binance crypto | `true` |
+| `currency` | Your currency: the rates (or crypto prices) are in it. `IDR`, `USD`, `EUR`… | `IDR` |
+| `temperature` | `C`, `F` or `auto` | `C` |
 | `disable_assistant` | Also turn off Google Assistant | `false` |
-| `rates` | Exchange rates on the home screen: up to four currencies priced in yours, e.g. `USD,AUD,JPY,EUR` | empty: none |
-| `prayer_times` | The next prayer on the home screen and in the drawer, from your coordinates | `false` |
-| `weather_wallpaper` | The theme the TV starts with: `true` the live wallpaper (the ink mountains), `false` Movie; Lite is picked on the TV (*Settings → Theme*) | `false` |
+| `rates` | Exchange rates on the home screen: up to four currencies priced in yours, e.g. `USD,AUD,JPY,EUR` | `USD,AUD,JPY,EUR` |
+| `prayer_times` | The next prayer on the home screen and in the drawer, from your coordinates | `true` |
+| `weather_wallpaper` | The theme the TV starts with: `true` the live wallpaper (the ink mountains), `false` Movie; Lite is picked on the TV (*Settings → Theme*) | `true` |
 | `weather_motion` | The sky's clouds and rain move, and the film's artwork breathes. Also *Theme → Motion* | `true` |
 | `cctv_url` | A CCTV camera's RTSP address (`rtsp://user:password@ip:port/path`): a live tile at the end of the shelf. Also *Widgets → Camera address* on the TV | empty: no camera |
 | `cctv_name` | The camera's name, read by TalkBack | `CCTV` |
