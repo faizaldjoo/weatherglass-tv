@@ -206,6 +206,19 @@ final class Prefs {
     }
     static void setSkyTime(String v) { put("skyTime", v); }
 
+    // MARK: - Picks, rates and prayer times
+
+    /** The TMDB key, typed on the TV; config tmdb_key until then. */
+    static String tmdbKey() { return (app == null ? Config.TMDB_KEY : sp().getString("tmdb_key", Config.TMDB_KEY)).trim(); }
+    static void setTmdbKey(String v) { put("tmdb_key", v.replaceAll("\\s", "")); }
+
+    /** The exchange rates' currencies ("USD,AUD"; empty: crypto instead), typed on the TV; config rates until then. */
+    static String rates() { return (app == null ? Config.RATES : sp().getString("rates", Config.RATES)).trim(); }
+    static void setRates(String v) { put("rates", v.trim()); HomeData.loadRates(); }
+
+    static boolean prayerTimes() { return app == null ? Config.PRAYER_TIMES : sp().getBoolean("prayer_times", Config.PRAYER_TIMES); }
+    static void setPrayerTimes(boolean on) { put("prayer_times", on); }
+
     static boolean quotes() { return sp().getBoolean("quotes", Config.SHOW_CRYPTO); }
     static void setQuotes(boolean on) { put("quotes", on); }
 

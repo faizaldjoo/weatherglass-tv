@@ -157,6 +157,7 @@ final class DreamView extends View implements Choreographer.FrameCallback, HomeD
 
     DreamView(Context c) {
         super(c);
+        HomeData.loadRates();   // on Android 11 the screensaver's process missed any change made in the settings
         data = HomeData.get(c);
         recs = Recs.get(c);
         Shaders.dream(scene.palette);

@@ -89,6 +89,13 @@ final class Glyphs {
         return full.extractAlpha();
     }
 
+    /** The rates' currencies changed: their labels (slots 10 and up) are drawn again for the new codes. */
+    static void forgetLabels() {
+        synchronized (BITMAPS) {
+            for (int i = BITMAPS.size() - 1; i >= 0; i--) if (BITMAPS.keyAt(i) >>> 16 >= 10) BITMAPS.removeAt(i);
+        }
+    }
+
     private static int slot(String coin) {
         if (HomeData.RATES) {
             for (int i = 0; i < HomeData.RATE_CODES.length; i++) if (HomeData.RATE_CODES[i].equals(coin)) return 10 + i;

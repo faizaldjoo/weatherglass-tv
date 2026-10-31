@@ -37,16 +37,39 @@ final class HomeData {
      * Exchange rates instead of crypto (config.properties "rates", e.g. USD,AUD): up to four currencies priced in
      * "currency" (e.g. IDR), daily reference rates from frankfurter.dev with the change from the day before. They take
      * the coins' places everywhere (the row on the home screen, the drawer card, the screensaver, the settings).
+     * Picked on the TV too (Prefs.rates), so they can change while the app runs: loadRates() reads them again.
      */
-    static final String[] RATE_CODES = rateCodes();
-    static final boolean RATES = RATE_CODES.length > 0;
-    static final String[] COINS = RATES ? padded(RATE_CODES) : new String[] {"BTC", "ETH", "SOL", "USDT"};
+    private static final String[] CRYPTO = {"BTC", "ETH", "SOL", "USDT"};
+    static volatile String[] RATE_CODES = {};
+    static volatile boolean RATES;
+    static volatile String[] COINS = CRYPTO;
     static final String[] COIN_NAMES = {"Bitcoin", "Ethereum", "Solana", "Dollar"};
     private static final String CURRENCY = Config.CURRENCY.trim().toUpperCase(Locale.ROOT);
+    private static String ratesLoaded;
 
-    private static String[] rateCodes() {
+    static { loadRates(); }
+
+    /**
+     * Reads the rates picked on the TV again: the settings call it when they change, the screensaver when it starts
+     * (on Android 11 it runs in another process). A change drops the old prices and the old currency labels.
+     */
+    static synchronized void loadRates() {
+        String v = Prefs.rates();
+        if (v.equals(ratesLoaded)) return;
+        ratesLoaded = v;
+        String[] codes = rateCodes(v);
+        RATE_CODES = codes;
+        RATES = codes.length > 0;
+        COINS = RATES ? padded(codes) : CRYPTO;
+        activeCoins = null;
+        Glyphs.forgetLabels();
+        HomeData data = instance;
+        if (data != null) data.pricesChanged();
+    }
+
+    private static String[] rateCodes(String rates) {
         List<String> out = new ArrayList<>();
-        for (String code : Config.RATES.split(",")) {
+        for (String code : rates.split(",")) {
             code = code.trim().toUpperCase(Locale.ROOT);
             if (code.matches("[A-Z]{3}") && out.size() < 4 && !out.contains(code)) out.add(code);
         }
@@ -136,6 +159,14 @@ final class HomeData {
         weatherAt = 0;
         pricesFailedAt = 0;
         weatherFailedAt = 0;
+    }
+
+    /** Other currencies: the old numbers mean nothing now, fetch the new ones. */
+    private void pricesChanged() {
+        java.util.Arrays.fill(prices, Double.NaN);
+        java.util.Arrays.fill(changes, Double.NaN);
+        pricesAt = 0;
+        pricesFailedAt = 0;
     }
 
     static String coinName(int i) {
@@ -304,7 +335,7 @@ final class HomeData {
     }
 
     private static String pricesKey() {
-        return RATES ? "rates:" + Config.RATES + ">" + CURRENCY : "coins>" + CURRENCY;
+        return RATES ? "rates:" + String.join(",", RATE_CODES) + ">" + CURRENCY : "coins>" + CURRENCY;
     }
 
     /**

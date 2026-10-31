@@ -299,32 +299,38 @@ public class SettingsActivity extends Activity {
             if (section == S_APPEARANCE) return new int[] {NAME_ROW, 0, 1, 3};
             // Theme: the live wallpaper has its motion, the sky preview, and its own look (light or dark, the clock
             // widget's size, the glass); Movie only its motion (the artwork's slow breathing); Lite nothing else
-            if (section == S_WALLPAPER) return Prefs.lite() ? new int[] {WALLPAPER_ROW}
-                    : Prefs.wallpaper().equals("photos") ? new int[] {WALLPAPER_ROW, MOTION_ROW}
-                    : new int[] {WALLPAPER_ROW, MOTION_ROW, SKY_WEATHER_ROW, SKY_TIME_ROW, 2, TEXT_ROW, GLASS_ROW};
+            // The TMDB key last in every theme: Movie needs it, and so do the screensaver's photos
+            if (section == S_WALLPAPER) return Prefs.lite() ? new int[] {WALLPAPER_ROW, TMDB_ROW}
+                    : Prefs.wallpaper().equals("photos") ? new int[] {WALLPAPER_ROW, MOTION_ROW, TMDB_ROW}
+                    : new int[] {WALLPAPER_ROW, MOTION_ROW, SKY_WEATHER_ROW, SKY_TIME_ROW, 2, TEXT_ROW, GLASS_ROW, TMDB_ROW};
             int coins = settingLabels().length - COIN_ROWS;
-            int[] r = new int[5 + coins];
+            int[] r = new int[7 + coins];
             r[0] = 4;
             r[1] = CITY_ROW;
-            r[2] = QUOTES_ROW;
-            for (int i = 0; i < coins; i++) r[3 + i] = COIN_ROWS + i;
-            r[3 + coins] = CAMERA_ROW;
-            r[4 + coins] = CAMERA_URL_ROW;
+            r[2] = PRAYER_ROW;
+            r[3] = QUOTES_ROW;
+            r[4] = RATES_ROW;
+            for (int i = 0; i < coins; i++) r[5 + i] = COIN_ROWS + i;
+            r[5 + coins] = CAMERA_ROW;
+            r[6 + coins] = CAMERA_URL_ROW;
             return r;
         }
 
         /** A small title above a section's row (null: none). */
         private String groupTitle(int local) {
-            if (section == S_WALLPAPER && local == 2) return Ui.tr("PRÉVIA DO CÉU", "SKY PREVIEW");
-            if (section == S_WALLPAPER && local == 4) return Ui.tr("APARÊNCIA", "APPEARANCE");
-            if (section == S_WIDGETS && local == 0) return Ui.tr("CLIMA", "WEATHER");
-            if (section == S_WIDGETS && local == 2) return HomeData.RATES ? Ui.tr("CÂMBIO", "EXCHANGE RATES") : Ui.tr("COTAÇÕES", "QUOTES");
-            if (section == S_WIDGETS && local == 3 + settingLabels().length - COIN_ROWS) return Ui.tr("CÂMERA", "CCTV");
+            int[] rows = sectionRows();
+            int row = local < rows.length ? rows[local] : -1;
+            if (section == S_WALLPAPER && row == SKY_WEATHER_ROW) return Ui.tr("PRÉVIA DO CÉU", "SKY PREVIEW");
+            if (section == S_WALLPAPER && row == 2) return Ui.tr("APARÊNCIA", "APPEARANCE");
+            if (section == S_WALLPAPER && row == TMDB_ROW) return Ui.tr("RECOMENDAÇÕES", "RECOMMENDATIONS");
+            if (section == S_WIDGETS && row == 4) return Ui.tr("CLIMA", "WEATHER");
+            if (section == S_WIDGETS && row == QUOTES_ROW) return HomeData.RATES ? Ui.tr("CÂMBIO", "EXCHANGE RATES") : Ui.tr("COTAÇÕES", "QUOTES");
+            if (section == S_WIDGETS && row == CAMERA_ROW) return Ui.tr("CÂMERA", "CCTV");
             return null;
         }
 
         private static boolean isSwitch(int row) {
-            return row == 3 || row == 4 || row == MOTION_ROW || row == QUOTES_ROW || row == CAMERA_ROW || row >= COIN_ROWS;
+            return row == 3 || row == 4 || row == MOTION_ROW || row == QUOTES_ROW || row == CAMERA_ROW || row == PRAYER_ROW || row >= COIN_ROWS;
         }
 
         private static boolean isOn(int row) {
@@ -334,6 +340,7 @@ public class SettingsActivity extends Activity {
                 case MOTION_ROW: return Prefs.wallpaperMotion();
                 case QUOTES_ROW: return Prefs.quotes();
                 case CAMERA_ROW: return Prefs.camera();
+                case PRAYER_ROW: return Prefs.prayerTimes();
                 default: return Prefs.quotes() && Prefs.coin(row - COIN_ROWS);
             }
         }
@@ -394,13 +401,23 @@ public class SettingsActivity extends Activity {
                 case MAIN: return TOP + i * (MAIN_H + GAP) + (i > S_SCREENSAVER ? DIVIDER : 0) + (i > S_REMOTE ? DIVIDER : 0);
                 case HOME_CHOICE: return TOP + i * (CHOICE_H + 8);
                 case CARE: return CARE_TOP + i * (LIST_H + GAP);
-                case HOME_SETTINGS: {
-                    float y = TOP + i * (LIST_H + GAP);
-                    for (int j = 0; j <= i; j++) if (groupTitle(j) != null) y += HEADER;
-                    return y;
-                }
+                case HOME_SETTINGS: return settingsTop(i) - settingsScroll();
                 default: return TOP + i * (LIST_H + GAP);
             }
+        }
+
+        /** Where a Home Settings row would be in a panel tall enough for all of them. */
+        private float settingsTop(int i) {
+            float y = TOP + i * (LIST_H + GAP);
+            for (int j = 0; j <= i; j++) if (groupTitle(j) != null) y += HEADER;
+            return y;
+        }
+
+        /** Rows end above the footer; a longer section (Widgets) slides up so the focused row stays in view. */
+        private static final float LIST_BOTTOM = DB - 74;
+
+        private float settingsScroll() {
+            return Math.max(0, settingsTop(focus) + LIST_H - LIST_BOTTOM);
         }
 
         private float rowHeight() {
@@ -774,8 +791,9 @@ public class SettingsActivity extends Activity {
             for (int i = 0; i < rows.length; i++) {
                 int row = rows[i];
                 float top = rowTop(i);
+                if (top < TOP - 1 || top + LIST_H > LIST_BOTTOM + 1) continue;   // slid out of the list's room
                 String group = groupTitle(i);
-                if (group != null) c.drawText(group, (L + INSET) * k, (top - 14) * k, header);
+                if (group != null && top - HEADER >= TOP - 1) c.drawText(group, (L + INSET) * k, (top - 14) * k, header);
                 rowRect.set(L * k, top * k, R * k, (top + LIST_H) * k);
                 float f = drawRowBackground(c, i);
                 boolean locked = row >= COIN_ROWS && !Prefs.quotes();
@@ -796,7 +814,7 @@ public class SettingsActivity extends Activity {
                 }
             }
             float y = (rowTop(rows.length - 1) + LIST_H + 40) * k;
-            if (y > (DB - 30) * k) return;   // no room for the hint under a long list
+            if (y > LIST_BOTTOM * k || settingsScroll() > 0) return;   // no room for the hint under a long list
             String text = section == S_WIDGETS ? Ui.tr("Com o widget de cotações desligado, as moedas ficam desligadas.",
                     "With the quotes widget off, the coins stay off too.")
                     : section == S_WALLPAPER && Prefs.lite()
@@ -995,8 +1013,8 @@ public class SettingsActivity extends Activity {
             if (!hasKey) {
                 dot = AMBER;
                 status = Ui.tr("Desligadas: sem chave do TMDB", "Off: no TMDB key");
-                detail = Ui.tr("Ponha tmdb_key no config.properties e gere o app de novo (veja o README).",
-                        "Add tmdb_key to config.properties and build again (see the README).");
+                detail = Ui.tr("Digite uma chave grátis do themoviedb.org em Tema > Chave do TMDB.",
+                        "Type a free key from themoviedb.org in Theme > TMDB key.");
             } else if (!error.isEmpty()) {
                 dot = AMBER;
                 status = Ui.tr("Erro", "Error");
@@ -1243,11 +1261,12 @@ public class SettingsActivity extends Activity {
          * weather, wallpaper, its motion, the sky preview (weather, time of day), city, quotes, then one row per coin.
          */
         private static final int WALLPAPER_ROW = 5, MOTION_ROW = 6, SKY_WEATHER_ROW = 7, SKY_TIME_ROW = 8,
-                CITY_ROW = 9, QUOTES_ROW = 10, TEXT_ROW = 11, NAME_ROW = 12, CAMERA_ROW = 13, CAMERA_URL_ROW = 14, GLASS_ROW = 15, COIN_ROWS = 16;
+                CITY_ROW = 9, QUOTES_ROW = 10, TEXT_ROW = 11, NAME_ROW = 12, CAMERA_ROW = 13, CAMERA_URL_ROW = 14, GLASS_ROW = 15,
+                TMDB_ROW = 16, RATES_ROW = 17, PRAYER_ROW = 18, COIN_ROWS = 19;
 
-        /** Rows whose value is typed (OK opens the keyboard): the city, the name, the camera's address. */
+        /** Rows whose value is typed (OK opens the keyboard): the city, the name, the camera's address, the TMDB key, the rates. */
         private static boolean isTyped(int row) {
-            return row == CITY_ROW || row == NAME_ROW || row == CAMERA_URL_ROW;
+            return row == CITY_ROW || row == NAME_ROW || row == CAMERA_URL_ROW || row == TMDB_ROW || row == RATES_ROW;
         }
         private static final String[] TEXT_SIZES = {"small", "medium", "large"}, GLASSES = {"frosted", "clear"};
 
@@ -1273,6 +1292,9 @@ public class SettingsActivity extends Activity {
             l.add(Ui.tr("Câmera de segurança", "CCTV camera"));
             l.add(Ui.tr("Endereço da câmera", "Camera address"));
             l.add(Ui.tr("Vidro", "Glass"));
+            l.add(Ui.tr("Chave do TMDB", "TMDB key"));
+            l.add(Ui.tr("Moedas", "Currencies"));
+            l.add(Ui.tr("Horários de oração", "Prayer times"));
             if (HomeData.RATES) {
                 for (int i = 0; i < HomeData.RATE_CODES.length; i++) l.add(HomeData.coinName(i));
             } else {
@@ -1314,6 +1336,11 @@ public class SettingsActivity extends Activity {
             v[NAME_ROW] = Prefs.greetingName().isEmpty() ? Ui.tr("Nenhum", "None") : Prefs.greetingName();
             v[CAMERA_ROW] = onOff(Prefs.camera());
             v[CAMERA_URL_ROW] = cameraHost(Prefs.cameraUrl());
+            String key = Prefs.tmdbKey();
+            // Only its last characters, never the whole key
+            v[TMDB_ROW] = key.isEmpty() ? Ui.tr("Configurar", "Set up") : "•••• " + key.substring(Math.max(0, key.length() - 4));
+            v[RATES_ROW] = HomeData.RATES ? String.join(", ", HomeData.RATE_CODES) : Ui.tr("Nenhuma: cripto", "None: crypto");
+            v[PRAYER_ROW] = onOff(Prefs.prayerTimes());
             // No quotes widget, nowhere to show prices: the coins read as off (and stay locked) until it is back on.
             for (int i = COIN_ROWS; i < v.length; i++) v[i] = onOff(Prefs.quotes() && Prefs.coin(i - COIN_ROWS));
             return v;
@@ -1410,7 +1437,8 @@ public class SettingsActivity extends Activity {
                     Prefs.setSkyTime(Prefs.SKY_TIMES[(Math.max(0, at) + dir + n) % n]);
                     break;
                 }
-                case CITY_ROW: case NAME_ROW: case CAMERA_URL_ROW: return;
+                case CITY_ROW: case NAME_ROW: case CAMERA_URL_ROW: case TMDB_ROW: case RATES_ROW: return;
+                case PRAYER_ROW: Prefs.setPrayerTimes(!Prefs.prayerTimes()); break;
                 case CAMERA_ROW:
                     if (Prefs.cameraUrl().isEmpty()) askCameraUrl();   // nothing to show yet: ask for the address first
                     else Prefs.setCamera(!Prefs.camera());
@@ -1483,6 +1511,28 @@ public class SettingsActivity extends Activity {
                         if (!url.isEmpty() && !url.contains("://")) url = "rtsp://" + url;
                         Prefs.setCameraUrl(url);
                         Prefs.setCamera(!url.isEmpty());
+                        invalidate();
+                    });
+        }
+
+        /** Shown blank, never the saved key; Save with nothing typed keeps it (only a cleared key turns the picks off). */
+        private void askTmdbKey() {
+            askText(Ui.tr("Chave do TMDB", "TMDB key"), Ui.tr("Grátis em themoviedb.org/settings/api", "Free at themoviedb.org/settings/api"), "",
+                    android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+                            | android.text.InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD, key -> {
+                        if (key.trim().isEmpty()) return;
+                        Prefs.setTmdbKey(key);
+                        invalidate();
+                    });
+        }
+
+        /** Up to four three-letter codes, priced in the app's currency; empty brings the crypto prices back. */
+        private void askRates() {
+            askText(Ui.tr("Moedas", "Currencies"), "USD, AUD, SGD, JPY", String.join(", ", HomeData.RATE_CODES),
+                    android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+                            | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS, codes -> {
+                        Prefs.setRates(codes.replace(' ', ','));
+                        HomeData.get(getContext()).settingsChanged();
                         invalidate();
                     });
         }
@@ -1758,6 +1808,8 @@ public class SettingsActivity extends Activity {
                 if (row == CITY_ROW) askCity();
                 else if (row == NAME_ROW) askName();
                 else if (row == CAMERA_URL_ROW) askCameraUrl();
+                else if (row == TMDB_ROW) askTmdbKey();
+                else if (row == RATES_ROW) askRates();
                 else adjust(1);
                 invalidate();
                 return;

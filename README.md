@@ -161,7 +161,7 @@ The first values come from `config.properties`, created by the first build (Goog
 
 | Key | What it does | Default |
 |---|---|---|
-| `tmdb_key` | Your free TMDB key, for the Movie theme's films and the screensaver's photos | empty |
+| `tmdb_key` | Your free TMDB key, for the Movie theme's films and the screensaver's photos. Also *Theme → TMDB key* on the TV | empty |
 | `tmdb_region` | Your country (two letters): which titles are on which app | `ID` |
 | `watchmode_key` | Optional, free [Watchmode](https://api.watchmode.com/) key: a pick opens the title's page in its app | empty |
 | `latitude`, `longitude` | Your city, for the weather and the sunset. Also *Widgets → City* on the TV | Jakarta |
@@ -172,8 +172,8 @@ The first values come from `config.properties`, created by the first build (Goog
 | `currency` | Your currency: the rates (or crypto prices) are in it. `IDR`, `USD`, `EUR`… | `IDR` |
 | `temperature` | `C`, `F` or `auto` | `C` |
 | `disable_assistant` | Also turn off Google Assistant | `false` |
-| `rates` | Exchange rates on the home screen: up to four currencies priced in yours, e.g. `USD,AUD,JPY,EUR` | `USD,AUD,JPY,EUR` |
-| `prayer_times` | The next prayer on the home screen and in the drawer, from your coordinates | `true` |
+| `rates` | Exchange rates on the home screen: up to four currencies priced in yours, e.g. `USD,AUD,SGD,JPY`; empty for crypto. Also *Widgets → Currencies* on the TV | `USD,AUD,SGD,JPY` |
+| `prayer_times` | The next prayer on the home screen and in the drawer, from your coordinates. Also *Widgets → Prayer times* on the TV | `true` |
 | `weather_wallpaper` | The theme the TV starts with: `true` the live wallpaper (the ink mountains), `false` Movie; Lite is picked on the TV (*Settings → Theme*) | `true` |
 | `weather_motion` | The sky's clouds and rain move, and the film's artwork breathes. Also *Theme → Motion* | `true` |
 | `cctv_url` | A CCTV camera's RTSP address (`rtsp://user:password@ip:port/path`): a live tile at the end of the shelf. Also *Widgets → Camera address* on the TV | empty: no camera |
@@ -238,7 +238,7 @@ The address, password included, stays on the TV (and in your `config.properties`
 
 ### The TMDB key
 
-Free, and it takes two minutes: create an account at [themoviedb.org](https://www.themoviedb.org/signup), then open [Settings → API](https://www.themoviedb.org/settings/api) and request a developer key. Paste the *API Read Access Token* (or the *API Key*) after `tmdb_key=`. It's your key: `config.properties` stays out of git.
+Free, and it takes two minutes: create an account at [themoviedb.org](https://www.themoviedb.org/signup), then open [Settings → API](https://www.themoviedb.org/settings/api) and request a developer key. Paste the *API Read Access Token* (or the *API Key*) after `tmdb_key=`, or type it on the TV in *Settings → Theme → TMDB key* (the Google TV remote app on your phone can paste it). It's your key: `config.properties` stays out of git, and the TV shows only its last four characters.
 
 ### Opening a title, not just its app (optional)
 

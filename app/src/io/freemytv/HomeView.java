@@ -264,7 +264,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
     private Spring[] drawerFocus = new Spring[0];
     private RectF[] drawerRects = new RectF[0];
     private final RectF weatherCard = new RectF(), quotesCard = new RectF(), prayerCard = new RectF();
-    // Prayer times (Config.PRAYER_TIMES): today's five and the next one, worked out again each minute.
+    // Prayer times (Prefs.prayerTimes()): today's five and the next one, worked out again each minute.
     private long[] prayerToday;
     private long prayerNextAt, prayerMinute = -1;
     private int prayerNext = -1, prayerNextIndex;
@@ -1815,7 +1815,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         // A card that is off gives its room to the other one.
         weatherCard.set(left, cardsTop, qt ? split - 16 * k : right, cardsTop + CARDS_H * k);
         quotesCard.set(wx ? split + 16 * k : left, cardsTop, right, cardsTop + CARDS_H * k);
-        if (Config.PRAYER_TIMES) {
+        if (Prefs.prayerTimes()) {
             // Weather, prayer times and rates side by side, in proportion; a card that is off gives its room away.
             float cg = 32 * k, ww = wx ? 780 : 0, pw = 440, qw = qt ? 476 : 0;
             float scale = (right - left - cg * ((wx ? 1 : 0) + (qt ? 1 : 0))) / (ww + pw + qw);
@@ -1923,7 +1923,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         if (top >= 0) drawDrawerTile(c, top);
         if (Prefs.weather()) drawWeatherCard(c, weatherCard);
         if (Prefs.quotes() && HomeData.active().length > 0) drawQuotesCard(c, quotesCard);
-        if (Config.PRAYER_TIMES) drawPrayerCard(c, prayerCard);
+        if (Prefs.prayerTimes()) drawPrayerCard(c, prayerCard);
     }
 
     /** Prayer Times: today's five times, the next one highlighted, and how long until it. */
@@ -3286,7 +3286,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         long now = System.currentTimeMillis();
         HomeData.Weather wx = data.weather;
         boolean weather = Prefs.weather() && !Double.isNaN(wx.temp);
-        boolean prayers = Config.PRAYER_TIMES && refreshPrayers();
+        boolean prayers = Prefs.prayerTimes() && refreshPrayers();
         long prayerAt = prayers ? prayerMinute : -1;
         if (cK == k && cPrefs == Prefs.version && cLang == Ui.language && cClock == clockText && cGreet == greetText
                 && cWeatherAt == data.weatherAt && cPrayerMinute == prayerAt) return;
@@ -3656,9 +3656,9 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
         drawPrayerLine(c, x, sw);
     }
 
-    /** "Maghrib 17:45 · in 2 h 5 min" under the weather (Config.PRAYER_TIMES). */
+    /** "Maghrib 17:45 · in 2 h 5 min" under the weather (Prefs.prayerTimes()). */
     private void drawPrayerLine(Canvas c, float x, float symbolWidth) {
-        if (!Config.PRAYER_TIMES || !refreshPrayers()) return;
+        if (!Prefs.prayerTimes() || !refreshPrayers()) return;
         float size = 34 * k, base = (L_QUOTES_BASE - 2) * k;
         float sw = Symbols.width(getContext(), "bedtime", size);
         Symbols.draw(getContext(), c, "bedtime", x + symbolWidth / 2, base - Ui.halfCap(lWeather), size, lWeather.getColor());
@@ -4197,7 +4197,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             WeatherIcons.pin(getContext(), c, lx + 11 * k, y - Ui.halfCap(ltLine), 22 * k, ltLine.getColor());
             c.drawText(city, lx + 30 * k, y, ltLine);
         }
-        if (Config.PRAYER_TIMES && refreshPrayers()) {
+        if (Prefs.prayerTimes() && refreshPrayers()) {
             y += 42 * k;
             Symbols.draw(getContext(), c, "bedtime", x + 11 * k, y - Ui.halfCap(ltLine), 22 * k, ltLine.getColor());
             c.drawText(prayerLine, x + 30 * k, y, ltLine);
@@ -4276,7 +4276,7 @@ final class HomeView extends ViewGroup implements Choreographer.FrameCallback, H
             c.drawText(capCity, x, cy + Ui.halfCap(fyCapsule), fyCapsule);
         }
         // The next prayer, right-aligned under the buttons: "☾ Dhuhr 11:36  in 1 h 31 min"
-        if (!Config.PRAYER_TIMES || !refreshPrayers()) return;
+        if (!Prefs.prayerTimes() || !refreshPrayers()) return;
         // A focused button writes its name here: the prayer steps aside meanwhile
         float shown = 1;
         for (int i = CATS; i < CATS + lightButtons.size(); i++) shown = Math.min(shown, 1 - Ui.clamp(topFocus[i].value));

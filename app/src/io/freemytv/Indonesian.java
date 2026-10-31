@@ -96,7 +96,7 @@ final class Indonesian {
             case "ABOUT": return "TENTANG";
             case "About": return "Tentang";
             case "Accept “Allow USB debugging?” on the TV (tick “Always allow”).": return "Terima “Izinkan USB debugging?” di TV (centang “Selalu izinkan”).";
-            case "Add tmdb_key to config.properties and build again (see the README).": return "Tambahkan tmdb_key di config.properties lalu build ulang (lihat README).";
+            case "Type a free key from themoviedb.org in Theme > TMDB key.": return "Ketik kunci gratis dari themoviedb.org di Tema > Kunci TMDB.";
             case "Afternoon": return "Sore";
             case "All Apps": return "Semua Aplikasi";
             case "Android didn't accept the new home screen": return "Android tidak menerima layar utama yang baru";
@@ -277,6 +277,11 @@ final class Indonesian {
             case "Set": return "Sudah diatur";
             case "Save": return "Simpan";
             case "Empty: just the greeting": return "Kosong: hanya salam";
+            case "TMDB key": return "Kunci TMDB";
+            case "Free at themoviedb.org/settings/api": return "Gratis di themoviedb.org/settings/api";
+            case "Currencies": return "Mata uang";
+            case "None: crypto": return "Tidak ada: kripto";
+            case "Prayer times": return "Jadwal salat";
             default: return pattern(english);
         }
     }
